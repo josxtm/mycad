@@ -22,7 +22,20 @@ jobs:
         with:
           gradle-version: '8.9'
       - run: gradle :app:assembleDebug :app:lintDebug --no-daemon
+      - name: Detectar versión y comprobar APK
+        id: apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name 'myCad*.apk' -print -quit)
+          test -n "$APK"
+          VERSION=$(sed -nE "s/.*versionName[[:space:]]+['\"]([^'\"]+)['\"].*/\1/p" app/build.gradle | head -n 1)
+          test -n "$VERSION"
+          test "$(basename "$APK")" = "myCad${VERSION}.apk"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: myCad0.5
-          path: app/build/outputs/apk/debug/myCad0.5.apk
+          name: myCad${{ steps.apk.outputs.version }}
+          path: ${{ steps.apk.outputs.apk }}
+          if-no-files-found: error
