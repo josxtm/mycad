@@ -28,3 +28,11 @@ Cada compilación que represente una versión funcional debe documentar versión
 **Código incorporado para probar:** selección y puntos de control de bocetos; arrastre de puntos; doble toque para mover, triple toque para editar coordenadas; tres dedos para restablecer cámara; ajustes de tema y sensibilidad; modo película con pieza o conjunto, velocidad, repetición y pausa.
 **Compilación y prueba Android:** pendientes de verificación final. **No declarar completado ni validado** hasta comprobar Actions y las pruebas en Nothing Phone.
 **Limitaciones conocidas para revisar:** detección de gestos múltiples, sensibilidad real, coherencia del tema en todas las barras, controladores de sólidos 3D, guardado/abrir de bocetos y funcionamiento del modo película.
+
+## v0.4.2 — segunda revisión de errores (2026-10-24)
+Commit: `3a2e9e9`. GitHub Actions: https://github.com/josxtm/mycad/actions/runs/40128738815
+- Decodificación de archivos sin mutar el diseño activo antes de confirmar; recuperación de bocetos en abrir, carga y deshacer/rehacer.
+- Selección de pieza en el menú de película y separación de modos pieza/conjunto.
+- Ajustes de apariencia extendidos a barra superior y herramientas; arrastre de controladores con sensibilidad.
+- Controladores visuales en las piezas 3D y revisión de la secuencia de toques.
+- Estado de compilación y validación móvil: pendiente de verificar. Los controladores 3D aún requieren comprobar su edición interactiva real.
