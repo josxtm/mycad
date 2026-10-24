@@ -16,6 +16,38 @@
 | Guardar/reabrir features y cotas | 0.5.0 | Pendiente de implementar |
 | Migrar JSON v1 | 0.5.0 | Pendiente de implementar |
 
+## Prueba real del usuario — MyCAD 0.5.0 (Nothing Phone 2a)
+
+**Origen:** informe directo del usuario, 2026-10-25. **Resultado:** 6 correctas, 0 fallidas, 2 sin probar.
+
+| Nº | Prueba | Resultado |
+|---|---|---|
+| 1 | Inicio de APK | FUNCIONA |
+| 2 | Selector de planos | FUNCIONA |
+| 3 | Dibujar boceto | FUNCIONA |
+| 4 | Acotar | FUNCIONA |
+| 5 | Extruir | SIN PROBAR |
+| 6 | Navegar | FUNCIONA |
+| 7 | Guardar y abrir | FUNCIONA |
+| 8 | Otros planos XZ/YZ | SIN PROBAR |
+
+**Alcance de las confirmaciones:** el usuario no indicó que la prueba de guardado incluyera extrusiones, por lo que no se certifica persistencia de features. El selector de planos funciona, pero no se ha confirmado dibujar/seleccionar en XZ/YZ.
+
+### Revisión preventiva posterior
+
+- Hallazgo en código: `hitSketch` y `drawHandles` empleaban proyección fija XY aunque el boceto pudiera estar en XZ/YZ. Esto podía impedir seleccionar o editar entidades en esos planos.
+- Corrección: proyección mediante `sketchPoint` en selección y controladores, commit `f5e061f`.
+- Ajuste de texto: menú de bocetos identifica el plano seleccionado en lugar de mostrar siempre XY.
+- **Estado:** corrección implementada, pendiente de resultado de CI y validación real en móvil. No procede afirmar que el usuario haya encontrado este fallo.
+
+### Pruebas siguientes prioritarias
+
+1. En XY, rectángulo 60 × 30 mm → Extruir seleccionado → 20 mm; verificar sólido y dimensiones.
+2. Guardar, cerrar y reabrir ese diseño extruido; verificar que sigue presente.
+3. En XZ y YZ, dibujar, salir de herramienta, seleccionar y acotar un rectángulo; después intentar extruir.
+4. Cancelar diálogo de extrusión; verificar que no crea ningún cuerpo.
+5. Si falla, aportar captura, paso y resultado esperado/real.
+
 ## Escenario de prueba 0.5.0
 
 1. Instalar APK en Nothing Phone 2a.
