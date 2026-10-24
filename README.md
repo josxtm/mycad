@@ -1,8 +1,27 @@
 # MyCAD — CAD 2D/3D para Android
 
+## Descargar MyCAD 0.5.0 (APK de desarrollo)
+
+**Estado:** GitHub Actions compiló correctamente MyCAD 0.5.0. La APK todavía necesita pruebas funcionales en un teléfono Android.
+
+**[⬇ Descargar el artefacto myCad0.5.0 — compilación correcta](https://github.com/josxtm/mycad/actions/runs/40140494636)**
+
+### Instalación en Android
+
+1. Entra en el enlace de la compilación e inicia sesión en GitHub si te lo solicita.
+2. Desplázate hasta **Artifacts**, al final de la página.
+3. Pulsa **myCad0.5.0** para descargar el archivo ZIP.
+4. Abre el ZIP desde **Archivos** en Android y extrae la APK que contiene.
+5. Abre la APK extraída y confirma la instalación. Si Android lo solicita, autoriza temporalmente la instalación desde la aplicación con la que has abierto el archivo.
+
+> **Importante:** no pulses **Source code (zip)** en la página del repositorio: contiene el código fuente, no la APK. Los artefactos de Actions pueden caducar; si el enlace deja de funcionar, ejecuta de nuevo el workflow desde la pestaña **Actions**.
+
+**[Ver todas las compilaciones](https://github.com/josxtm/mycad/actions)** · **[Documentación de desarrollo 0.5.0](docs/README.md)**
+
+
 Aplicación experimental de diseño asistido por ordenador para Android, inspirada en el flujo de trabajo táctil de programas como Shapr3D. Desarrollada en Java y compilada en la nube con **GitHub Actions**. No requiere un ordenador local para descargar e instalar el APK.
 
-**Versión actual del código: 0.4.8** · **Compilación 0.4.8: correcta (GitHub Actions)** · **Pruebas táctiles de los aros XYZ: confirmadas por el usuario**.
+**Versión actual del código: 0.5.0 (desarrollo)** · **Compilación 0.5.0: correcta (GitHub Actions)** · **Pruebas en móvil de 0.5.0: pendientes**. La última versión validada en móvil es 0.4.8.
 
 > **Importante:** compilar correctamente no equivale a comprobar todas las funciones en un teléfono. El usuario confirmó la creación y movimiento XYZ del prisma en 0.4.6 y la rotación Z en 0.4.7. El usuario confirmó el funcionamiento de los aros táctiles XYZ y la rotación numérica en 0.4.8.
 
