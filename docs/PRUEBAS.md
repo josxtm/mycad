@@ -64,3 +64,10 @@
 ## Registro de incidencias
 
 Cada incidencia deberá contener: versión, dispositivo, pasos, resultado esperado, resultado real, captura/log y commit de corrección.
+
+## Confirmación posterior del usuario — 2026-10-25
+
+- GitHub Actions: compilaciones `40141543593` y `40141553559` completadas con **success**.
+- Artefacto publicado: `myCad0.5.0` en ejecución `40141553559`.
+- El usuario confirma expresamente: **«funciona»** en respuesta a la nueva compilación.
+- Alcance: validación general en dispositivo. No se ha especificado de manera individual si se probaron las operaciones de extrusión y los planos XZ/YZ; conservar esas pruebas detalladas como **pendientes de confirmación específica** hasta contar con sus resultados.
