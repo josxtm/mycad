@@ -2,9 +2,13 @@
 
 Aplicación experimental de diseño asistido por ordenador para Android, inspirada en el flujo de trabajo táctil de programas como Shapr3D. Desarrollada en Java y compilada en la nube con **GitHub Actions**. No requiere un ordenador local para descargar e instalar el APK.
 
-**Versión actual del código: 0.4.8** · **Compilación 0.4.8: correcta (GitHub Actions)** · **Pruebas táctiles de los aros XYZ: pendientes de confirmar**.
+**Versión actual del código: 0.4.8** · **Compilación 0.4.8: correcta (GitHub Actions)** · **Pruebas táctiles de los aros XYZ: confirmadas por el usuario**.
 
-> **Importante:** compilar correctamente no equivale a comprobar todas las funciones en un teléfono. El usuario confirmó la creación y movimiento XYZ del prisma en 0.4.6 y la rotación Z en 0.4.7. Los aros táctiles de 0.4.8 aún requieren validación en dispositivo.
+> **Importante:** compilar correctamente no equivale a comprobar todas las funciones en un teléfono. El usuario confirmó la creación y movimiento XYZ del prisma en 0.4.6 y la rotación Z en 0.4.7. El usuario confirmó el funcionamiento de los aros táctiles XYZ y la rotación numérica en 0.4.8.
+
+## Documentación y siguiente etapa
+
+La planificación de **MyCAD 0.5.0** y todas las fases posteriores se documentan en [docs/README.md](docs/README.md). Incluye diseño funcional, roadmap, referencias de vídeo, arquitectura, pruebas y registro de decisiones. El código 0.5.0 todavía no está implementado.
 
 ## Versión 0.4.8 — rotación XYZ táctil
 
@@ -12,7 +16,7 @@ Aplicación experimental de diseño asistido por ordenador para Android, inspira
 - Manipulador de rotación con tres aros: rojo X, verde Y y azul Z, arrastrables con el dedo.
 - Representación 3D del prisma con rotación XYZ y almacenamiento de los ángulos en JSON.
 - Corrección de compilación: variable `rotationMode` compartida correctamente con `MainActivity`.
-- **Compilación Android confirmada**. La precisión y comportamiento de los gestos requieren pruebas en el móvil.
+- **Compilación Android confirmada**. El usuario confirmó el funcionamiento de los gestos en el móvil.
 - Limitaciones: el visor GPU, las operaciones con mallas importadas y las transformaciones avanzadas aún no ofrecen paridad con Shapr3D.
 
 ## Versión 0.4.7 — primera rotación Z
