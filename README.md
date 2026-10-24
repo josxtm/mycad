@@ -1,7 +1,9 @@
-# MyCAD 0.1
+# MyCAD Android · v0.2
 
-Prototipo Android nativo sin conexión: rectángulos y círculos con cotas en mm, espesor, vista 2D/3D, selección, edición, eliminación y un diseño guardado localmente. Control táctil de giro y zoom.
+Prototipo nativo Android de figuras con medidas, espesor y vista 3D. Guardar y Abrir utilizan archivos .mycad.json mediante el selector de Android. Incluye borrador automático, guía y plan dentro de la app.
 
-Limitaciones: no incluye operaciones booleanas, planos acotados, exportación CAD, gestos de dibujo libre ni múltiples proyectos. No sustituye Shapr3D. Renderizado de polígonos con ordenación por profundidad; piezas que se intersectan pueden mostrar artefactos.
+Consulta [GUIA.md](GUIA.md) para instrucciones, pruebas y hoja de ruta.
 
-GitHub Actions genera un APK debug de pruebas dentro del artefacto MyCAD-v0.1-APK. La firma debug puede cambiar entre compilaciones; no está preparado aún para actualizaciones distribuidas estables.
+GitHub Actions compila el APK y ejecuta Android Lint. La validación en dispositivo se realiza por separado.
+
+v0.2 se instala como **MyCAD Pruebas**, junto a la v0.1 para conservar sus datos. Firma debug de pruebas; aún no hay firma estable para distribución.

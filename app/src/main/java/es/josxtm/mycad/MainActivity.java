@@ -6,24 +6,32 @@ import android.view.*;
 import android.widget.*;
 import org.json.*;
 import java.util.*;
+import android.content.Intent;
+import android.net.Uri;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
- ArrayList<Part> parts=new ArrayList<>(); Scene scene; int selected=-1; TextView info; boolean flat=false;
+ ArrayList<Part> parts=new ArrayList<>(); Scene scene; int selected=-1; TextView info; boolean flat=false; String pendingExport; boolean fileBusy=false; TextView nextStep;
+ static final int SAVE_FILE=101, OPEN_FILE=102;
  class Part { boolean circle; float w,d,h,x; Part(boolean c,float a,float b,float z,float p){circle=c;w=a;d=b;h=z;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);root.setBackgroundColor(Color.rgb(18,25,36));
- TextView title=new TextView(this);title.setText("MyCAD · 0.1");title.setTextSize(24);title.setTextColor(Color.WHITE);root.addView(title);
+ TextView title=new TextView(this);title.setText("MyCAD · 0.2");title.setTextSize(24);title.setTextColor(Color.WHITE);root.addView(title);
  info=new TextView(this);info.setTextColor(Color.LTGRAY);info.setText("Medidas en mm · Arrastra para girar · Pellizca para zoom");root.addView(info);
+ nextStep=new TextView(this);nextStep.setTextColor(Color.rgb(112,220,229));root.addView(nextStep);
  scene=new Scene();root.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
  LinearLayout row=new LinearLayout(this);root.addView(row);button(row,"Rectángulo",()->edit(false,false));button(row,"Círculo",()->edit(true,false));button(row,"2D / 3D",()->{flat=!flat;scene.invalidate();});
  LinearLayout row2=new LinearLayout(this);root.addView(row2);button(row2,"Piezas",()->choose());button(row2,"Editar",()->{if(selected>=0)edit(parts.get(selected).circle,true);else toast("Selecciona una pieza");});button(row2,"Eliminar",()->{if(selected>=0){parts.remove(selected);selected=-1;save();scene.invalidate();}});
- LinearLayout row3=new LinearLayout(this);root.addView(row3);button(row3,"Guardar",()->{save();toast("Diseño guardado en este móvil");});button(row3,"Abrir",()->load());button(row3,"Centrar",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});
- root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(16+insets.getSystemWindowInsetLeft(),16+insets.getSystemWindowInsetTop(),16+insets.getSystemWindowInsetRight(),16+insets.getSystemWindowInsetBottom());return insets;});setContentView(root);root.requestApplyInsets();load();
+ LinearLayout row3=new LinearLayout(this);root.addView(row3);button(row3,"Guardar",()->exportFile());button(row3,"Abrir",()->confirmOpen());button(row3,"Centrar",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});
+ LinearLayout row4=new LinearLayout(this);root.addView(row4);button(row4,"Nuevo",()->newDesign());button(row4,"Guía",()->guide());button(row4,"Próximos pasos",()->roadmap());
+ root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(16+insets.getSystemWindowInsetLeft(),16+insets.getSystemWindowInsetTop(),16+insets.getSystemWindowInsetRight(),16+insets.getSystemWindowInsetBottom());return insets;});setContentView(root);root.requestApplyInsets();load();if(b!=null)pendingExport=b.getString("pendingExport");updateStep();
  }
- void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->r.run());}
+ void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}
  void choose(){if(parts.isEmpty()){toast("Añade una figura");return;}String[] a=new String[parts.size()];for(int i=0;i<a.length;i++){Part p=parts.get(i);a[i]=(i+1)+". "+(p.circle?"Círculo":"Rectángulo")+" "+p.w+" × "+p.d+" × "+p.h+" mm";}new AlertDialog.Builder(this).setTitle("Seleccionar pieza").setItems(a,(d,n)->{selected=n;scene.invalidate();}).show();}
  void edit(boolean circle,boolean existing){
+ if(fileBusy)return;if(!existing&&parts.size()>=500){toast("Máximo 500 piezas");return;}
  Part p=existing?parts.get(selected):new Part(circle,40,30,10,parts.size()*50);
  LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(32,12,32,12);
  String[] labels={circle?"Diámetro (mm)":"Ancho (mm)","Fondo (mm)","Espesor (mm)","Posición X (mm)"};
@@ -32,8 +40,71 @@ public class MainActivity extends Activity {
  AlertDialog dlg=new AlertDialog.Builder(this).setTitle(existing?"Editar pieza":"Figura y extrusión").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",null).create();
  dlg.setOnShowListener(v->dlg.getButton(-1).setOnClickListener(w->{try{float a=Float.parseFloat(fields[0].getText().toString().replace(',','.'));float d=circle?a:Float.parseFloat(fields[1].getText().toString().replace(',','.'));float h=Float.parseFloat(fields[2].getText().toString().replace(',','.'));float x=Float.parseFloat(fields[3].getText().toString().replace(',','.'));if(!Float.isFinite(a+d+h+x)||a<=0||d<=0||h<=0||a>10000||d>10000||h>10000||Math.abs(x)>10000)throw new Exception();Part q=new Part(circle,a,d,h,x);if(existing)parts.set(selected,q);else{parts.add(q);selected=parts.size()-1;}save();scene.invalidate();dlg.dismiss();}catch(Exception e){toast("Introduce medidas positivas hasta 10000 mm y posición válida");}}));dlg.show();
  }
- void save(){try{JSONArray a=new JSONArray();for(Part p:parts)a.put(new JSONObject().put("c",p.circle).put("w",p.w).put("d",p.d).put("h",p.h).put("x",p.x));getPreferences(0).edit().putString("design",a.toString()).apply();}catch(Exception e){toast("No se pudo guardar");}}
- void load(){try{JSONArray a=new JSONArray(getPreferences(0).getString("design","[]"));ArrayList<Part> list=new ArrayList<>();for(int i=0;i<a.length();i++){JSONObject p=a.getJSONObject(i);list.add(new Part(p.getBoolean("c"),(float)p.getDouble("w"),(float)p.getDouble("d"),(float)p.getDouble("h"),(float)p.getDouble("x")));}parts=list;selected=parts.isEmpty()?-1:0;scene.invalidate();}catch(Exception e){toast("No se pudo abrir el diseño");}}
+
+ void updateStep(){if(nextStep!=null)nextStep.setText(parts.isEmpty()?"1 · Crea una figura con medidas":"2 · Edita / revisa en 3D   →   3 · Guarda un archivo");}
+ String encode() throws Exception {
+ JSONArray a=new JSONArray();for(Part p:parts)a.put(new JSONObject().put("c",p.circle).put("w",p.w).put("d",p.d).put("h",p.h).put("x",p.x));
+ return new JSONObject().put("format","mycad").put("version",1).put("units","mm").put("parts",a).toString(2);
+ }
+ ArrayList<Part> decode(String data) throws Exception {
+ Object raw=new JSONTokener(data).nextValue();JSONArray a;
+ if(raw instanceof JSONArray)a=(JSONArray)raw;
+ else if(raw instanceof JSONObject){JSONObject o=(JSONObject)raw;if(!"mycad".equals(o.getString("format"))||o.getInt("version")!=1||!"mm".equals(o.getString("units")))throw new IOException("Formato o versión no compatible");a=o.getJSONArray("parts");}
+ else throw new IOException("Archivo no válido");
+ if(a.length()>500)throw new IOException("Máximo 500 piezas");
+ ArrayList<Part> list=new ArrayList<>();
+ for(int i=0;i<a.length();i++){JSONObject p=a.getJSONObject(i);float w=(float)p.getDouble("w"),d=(float)p.getDouble("d"),h=(float)p.getDouble("h"),x=(float)p.getDouble("x");
+ if(!Float.isFinite(w+d+h+x)||w<=0||d<=0||h<=0||w>10000||d>10000||h>10000||Math.abs(x)>10000)throw new IOException("Medidas no válidas");
+ boolean circle=p.getBoolean("c");if(circle&&w!=d)throw new IOException("Diámetro inconsistente");
+ list.add(new Part(circle,w,d,h,x));}return list;
+ }
+ void save(){try{getPreferences(MODE_PRIVATE).edit().putString("design",encode()).apply();updateStep();}catch(Exception e){toast("No se pudo guardar el borrador interno");}}
+ void load(){try{parts=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));selected=parts.isEmpty()?-1:0;scene.invalidate();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
+ protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putString("pendingExport",pendingExport);}
+ void exportFile(){
+ if(fileBusy)return;
+ try{pendingExport=encode();Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);intent.addCategory(Intent.CATEGORY_OPENABLE);intent.setType("application/json");intent.putExtra(Intent.EXTRA_TITLE,"Mi_diseno.mycad.json");startActivityForResult(intent,SAVE_FILE);}
+ catch(Exception e){pendingExport=null;toast("No se pudo abrir el selector para guardar");}
+ }
+ void confirmOpen(){
+ if(fileBusy)return;
+ new AlertDialog.Builder(this).setTitle("Abrir archivo MyCAD").setMessage("El archivo sustituirá el diseño actual. Guarda antes un archivo si quieres conservarlo. El borrador interno no es una copia independiente.").setNegativeButton("Cancelar",null).setPositiveButton("Elegir archivo",(d,w)->{
+ try{Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);intent.addCategory(Intent.CATEGORY_OPENABLE);intent.setType("*/*");startActivityForResult(intent,OPEN_FILE);}catch(Exception e){toast("No se pudo abrir el selector de archivos");}
+ }).show();
+ }
+ protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);
+ if(request!=SAVE_FILE&&request!=OPEN_FILE)return;
+ if(result!=RESULT_OK||data==null||data.getData()==null){if(request==SAVE_FILE)pendingExport=null;toast("Operación cancelada");return;}
+ Uri uri=data.getData();String snapshot=pendingExport;pendingExport=null;fileBusy=true;info.setText(request==SAVE_FILE?"Guardando archivo…":"Abriendo archivo…");
+ new Thread(()->{try{
+ if(request==SAVE_FILE){if(snapshot==null)throw new IOException("Vuelve a pulsar Guardar");
+ try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){if(out==null)throw new IOException("No se pudo escribir");out.write(snapshot.getBytes(StandardCharsets.UTF_8));out.flush();}
+ runOnUiThread(()->{fileBusy=false;info.setText("Archivo guardado · Copia externa creada");toast("Archivo guardado en la ubicación elegida");});
+ }else{String text;try(InputStream in=getContentResolver().openInputStream(uri);ByteArrayOutputStream out=new ByteArrayOutputStream()){
+ if(in==null)throw new IOException("No se pudo leer");byte[] buf=new byte[8192];int n,total=0;while((n=in.read(buf))!=-1){total+=n;if(total>2*1024*1024)throw new IOException("Archivo demasiado grande");out.write(buf,0,n);}text=new String(out.toByteArray(),StandardCharsets.UTF_8);}
+ ArrayList<Part> loaded=decode(text);
+ runOnUiThread(()->{fileBusy=false;parts=loaded;selected=parts.isEmpty()?-1:0;save();scene.invalidate();info.setText("Archivo abierto · "+parts.size()+" piezas");toast("Diseño abierto correctamente");});
+ }
+ }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AlertDialog.Builder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
+ }
+ void newDesign(){if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{parts.clear();selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
+ void guide(){new AlertDialog.Builder(this).setTitle("Guía · De la idea al archivo").setMessage(
+ "1. NUEVO: empieza con el lienzo vacío.\n\n"+
+ "2. RECTÁNGULO o CÍRCULO: introduce medidas en mm y el espesor. APLICAR crea la pieza. Por ahora se introducen medidas; no se dibuja a mano.\n\n"+
+ "3. PIEZAS: selecciona una. La seleccionada se muestra turquesa. EDITAR modifica sus medidas y su posición X (izquierda/derecha).\n\n"+
+ "4. 2D / 3D: revisa la planta o el volumen. Arrastra en 3D para girar; pellizca para acercar. CENTRAR restablece la vista.\n\n"+
+ "5. GUARDAR: elige nombre y carpeta en el selector de Android y confirma GUARDAR allí. Se crea un archivo .mycad.json.\n\n"+
+ "6. ABRIR: confirma y selecciona un archivo .mycad.json. Cancela sin perder el diseño.\n\n"+
+ "El borrador interno se recupera al iniciar, pero NO sustituye a guardar archivos. Los cambios posteriores requieren volver a GUARDAR. No se guardan todavía la cámara ni la selección en el archivo."
+ ).setPositiveButton("Entendido",null).show();}
+ void roadmap(){new AlertDialog.Builder(this).setTitle("Plan de desarrollo").setMessage(
+ "AHORA · v0.2\nArchivos, guía y validación del ciclo guardar/abrir en el móvil.\n\n"+
+ "SIGUIENTE · v0.3 (propuesta)\nDeshacer/rehacer, selección tocando, mover en X/Y/Z y ajustar la vista al conjunto.\n\n"+
+ "DESPUÉS · v0.4 (propuesta)\nBocetos táctiles: líneas, rectángulos, círculos y cotas.\n\n"+
+ "FASE 3D AVANZADA\nExtruir perfiles y evaluar un motor geométrico para unir, cortar y taladrar.\n\n"+
+ "SALIDA A FABRICACIÓN\nExportación STL y planos PDF acotados; STEP requiere un motor CAD adecuado.\n\n"+
+ "Las funciones futuras no están implementadas. Primero estabilizaremos cada fase con tus pruebas."
+ ).setPositiveButton("Cerrar",null).show();}
  class Face {float[][] vertices;float depth;int color;Face(float[][] v,int c){vertices=v;color=c;for(float[] p:v)depth+=p[2]/v.length;}}
  class Scene extends View{
  Paint paint=new Paint(3);float yaw=.65f,pitch=.6f,zoom=3,lastX,lastY;ScaleGestureDetector scale;
