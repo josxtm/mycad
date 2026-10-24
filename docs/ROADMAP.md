@@ -35,3 +35,21 @@ Si el motor actual no admite una operación fiable, registrar la limitación y d
 - Commit `d76d6bde`: orientación inicial de extrusiones en planos XZ/YZ; requiere validación geométrica y táctil.
 - Commit `4433723f`: corrección de captura de variables en diálogo de extrusión tras error de compilación Java.
 - No se considera liberada la versión hasta que el último workflow sea satisfactorio y se complete el plan de pruebas.
+
+## Inicio de MyCAD 0.6.0 — 2026-10-25
+
+**Objetivo:** mejorar la edición táctil de bocetos antes de ampliar el motor CAD. Versión en desarrollo, no liberada ni validada en teléfono.
+
+### Primer incremento implementado
+- Acotación de **longitud de líneas**: introduce milímetros; se conserva el punto inicial y la dirección de la línea. Valores admitidos: longitud positiva hasta 10 000 mm.
+- Conserva historial de deshacer mediante `checkpoint()`, guardado y redibujado.
+- Identificación de aplicación y APK actualizada a **0.6.0** (versionCode 60).
+
+### Pendientes prioritarios
+1. Comprobar compilación GitHub Actions de los nuevos commits.
+2. Validar longitud de línea en móvil: línea diagonal → acotar 50 mm → comprobar orientación y persistencia tras reabrir.
+3. Mejorar vista perpendicular y mapeo de gestos al dibujar en XZ/YZ.
+4. Extrusión táctil con previsualización y controles de confirmación/cancelación.
+5. Pruebas de regresión de 0.5.0 y documentación del resultado.
+
+**Límite conocido:** aún no existe un kernel B-Rep paramétrico equivalente a Shapr3D; la versión 0.6.0 no debe presentarse como completada.
