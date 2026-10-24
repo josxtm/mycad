@@ -44,3 +44,10 @@ El gesto de tres dedos no crea bocetos, no modifica piezas y no cancela el proye
 
 ## Proceso de cambios
 Antes de modificar código o lanzar una nueva versión: recopilar incidencias, presentar la lista, preguntar «¿Hay algo más que depurar?» y esperar autorización explícita. Actualizar esta directriz y el historial cuando cambien gestos. No afirmar que algo funciona en móvil sin prueba del usuario.
+
+## Ajustes de interfaz y modo película (aprobado 2026-10-24)
+- Menú Ajustes: tema oscuro/claro, sensibilidad de giro, zoom y arrastre; conservar preferencias.
+- Modo película: selector **Pieza seleccionada** o **Conjunto completo**; reproducción/pausa, velocidad, repetición 360°, restablecimiento de vista.
+- El giro automático afecta solo a la cámara, nunca a las coordenadas geométricas.
+- La cámara debe orbitar alrededor del centro de la pieza elegida o del conjunto completo, encuadrándolo.
+- Todos los gestos se prueban en Android; una compilación exitosa no equivale a una validación de uso.
