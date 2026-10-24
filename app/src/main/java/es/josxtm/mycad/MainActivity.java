@@ -17,18 +17,24 @@ public class MainActivity extends Activity {
  class Part { boolean circle; float w,d,h,x,y,z; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);root.setBackgroundColor(Color.rgb(18,25,36));
- TextView title=new TextView(this);title.setText("MyCAD · 0.3");title.setTextSize(24);title.setTextColor(Color.WHITE);root.addView(title);
- info=new TextView(this);info.setTextColor(Color.LTGRAY);info.setText("Medidas en mm · Arrastra para girar · Pellizca para zoom");root.addView(info);
- nextStep=new TextView(this);nextStep.setTextColor(Color.rgb(112,220,229));root.addView(nextStep);
- scene=new Scene();root.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
- LinearLayout row=new LinearLayout(this);root.addView(row);button(row,"Rectángulo",()->edit(false,false));button(row,"Círculo",()->edit(true,false));button(row,"2D / 3D",()->{flat=!flat;scene.invalidate();});
- LinearLayout row2=new LinearLayout(this);root.addView(row2);button(row2,"Piezas",()->choose());button(row2,"Editar",()->{if(selected>=0)edit(parts.get(selected).circle,true);else toast("Selecciona una pieza");});button(row2,"Eliminar",()->{if(selected>=0){checkpoint();parts.remove(selected);selected=-1;save();scene.invalidate();}});
- LinearLayout row3=new LinearLayout(this);root.addView(row3);button(row3,"Guardar",()->exportFile());button(row3,"Abrir",()->confirmOpen());button(row3,"Centrar",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});
- LinearLayout row4=new LinearLayout(this);root.addView(row4);button(row4,"Nuevo",()->newDesign());button(row4,"Guía",()->guide());button(row4,"Próximos pasos",()->roadmap());
- LinearLayout row5=new LinearLayout(this);root.addView(row5);button(row5,"Deshacer",()->history(true));button(row5,"Rehacer",()->history(false));button(row5,"XYZ",()->positionSelected());
+ TextView title=new TextView(this);title.setText("MyCAD · 0.4.1");title.setTextSize(17);title.setTextColor(Color.WHITE);
+ LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);root.addView(top);
+ top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
+ icon(top,"↶","Deshacer",()->history(true));icon(top,"↷","Rehacer",()->history(false));icon(top,"▣","Guardar archivo",()->exportFile());icon(top,"⋮","Menú de proyecto",()->projectMenu());
+ info=new TextView(this);info.setTextColor(Color.LTGRAY);info.setTextSize(11);info.setText("Toca para seleccionar · Mantén pulsado para mover · Pellizca para zoom");root.addView(info);
+ LinearLayout workspace=new LinearLayout(this);root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1));
+ LinearLayout left=new LinearLayout(this);left.setOrientation(LinearLayout.VERTICAL);workspace.addView(left);
+ icon(left,"□","Crear rectángulo",()->edit(false,false));icon(left,"◯","Crear círculo",()->edit(true,false));icon(left,"✎","Editar pieza",()->{if(selected>=0)edit(parts.get(selected).circle,true);else toast("Selecciona una pieza");});icon(left,"✥","Mover XYZ",()->positionSelected());icon(left,"⌫","Eliminar pieza",()->{if(selected>=0){checkpoint();parts.remove(selected);selected=-1;save();scene.invalidate();}else toast("Selecciona una pieza");});
+ scene=new Scene();workspace.addView(scene,new LinearLayout.LayoutParams(0,-1,1));
+ LinearLayout right=new LinearLayout(this);right.setOrientation(LinearLayout.VERTICAL);workspace.addView(right);
+ icon(right,"☷","Lista de piezas",()->choose());icon(right,"◇","Alternar vista 2D / 3D",()->{flat=!flat;scene.invalidate();});icon(right,"⊡","Centrar vista",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});icon(right,"?","Guía",()->guide());
+ nextStep=new TextView(this);nextStep.setTextColor(Color.rgb(112,220,229));nextStep.setTextSize(11);root.addView(nextStep);
  root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(16+insets.getSystemWindowInsetLeft(),16+insets.getSystemWindowInsetTop(),16+insets.getSystemWindowInsetRight(),16+insets.getSystemWindowInsetBottom());return insets;});setContentView(root);root.requestApplyInsets();load();if(b!=null)pendingExport=b.getString("pendingExport");updateStep();
  }
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
+ void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
+ int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Guía de uso","Plan de versiones"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:guide();break;case 4:roadmap();break;}}).show();}
  void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}
  void choose(){if(parts.isEmpty()){toast("Añade una figura");return;}String[] a=new String[parts.size()];for(int i=0;i<a.length;i++){Part p=parts.get(i);a[i]=(i+1)+". "+(p.circle?"Círculo":"Rectángulo")+" "+p.w+" × "+p.d+" × "+p.h+" mm";}new AlertDialog.Builder(this).setTitle("Seleccionar pieza").setItems(a,(d,n)->{selected=n;scene.invalidate();}).show();}
  void edit(boolean circle,boolean existing){
@@ -102,8 +108,8 @@ public class MainActivity extends Activity {
  "El borrador interno se recupera al iniciar, pero NO sustituye a guardar archivos. Los cambios posteriores requieren volver a GUARDAR. No se guardan todavía la cámara ni la selección en el archivo."
  ).setPositiveButton("Entendido",null).show();}
  void roadmap(){new AlertDialog.Builder(this).setTitle("Plan de desarrollo").setMessage(
- "AHORA · v0.2\nArchivos, guía y validación del ciclo guardar/abrir en el móvil.\n\n"+
- "SIGUIENTE · v0.3 (propuesta)\nDeshacer/rehacer, selección tocando, mover en X/Y/Z y ajustar la vista al conjunto.\n\n"+
+ "AHORA · v0.4.1\nArchivos, guía y validación del ciclo guardar/abrir en el móvil.\n\n"+
+ "SIGUIENTE · v0.4.2 (propuesta)\nDeshacer/rehacer, selección tocando, mover en X/Y/Z y ajustar la vista al conjunto.\n\n"+
  "DESPUÉS · v0.4 (propuesta)\nBocetos táctiles: líneas, rectángulos, círculos y cotas.\n\n"+
  "FASE 3D AVANZADA\nExtruir perfiles y evaluar un motor geométrico para unir, cortar y taladrar.\n\n"+
  "SALIDA A FABRICACIÓN\nExportación STL y planos PDF acotados; STEP requiere un motor CAD adecuado.\n\n"+
