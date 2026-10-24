@@ -1,9 +1,90 @@
-# MyCAD Android · v0.2
+# MyCAD — CAD 2D/3D para Android
 
-Prototipo nativo Android de figuras con medidas, espesor y vista 3D. Guardar y Abrir utilizan archivos .mycad.json mediante el selector de Android. Incluye borrador automático, guía y plan dentro de la app.
+Aplicación experimental de diseño asistido por ordenador para Android, inspirada en el flujo de trabajo táctil de programas como Shapr3D. Desarrollada en Java y compilada en la nube con **GitHub Actions**. No requiere un ordenador local para descargar e instalar el APK.
 
-Consulta [GUIA.md](GUIA.md) para instrucciones, pruebas y hoja de ruta.
+**Versión actual del código: 0.4.5** · **Última compilación comprobada: correcta** · **Pruebas de gestos 0.4.5 en móvil: pendientes**.
 
-GitHub Actions compila el APK y ejecuta Android Lint. La validación en dispositivo se realiza por separado.
+> **Importante:** compilar correctamente no equivale a comprobar todas las funciones en un teléfono. La versión **0.4.3** fue confirmada como funcional por el usuario; 0.4.4 y 0.4.5 cuentan con APK generado, pero sus nuevas funciones requieren pruebas en dispositivo.
 
-v0.2 se instala como **MyCAD Pruebas**, junto a la v0.1 para conservar sus datos. Firma debug de pruebas; aún no hay firma estable para distribución.
+## Instalación y compilación
+
+1. Entra en [GitHub Actions — APK Android](https://github.com/josxtm/mycad/actions).
+2. Abre una ejecución con resultado **Success** y desplázate hasta **Artifacts**.
+3. Descarga el artefacto `myCad<VERSIÓN>` (por ejemplo, `myCad0.4.5`).
+4. Descomprime el ZIP e instala `myCad<VERSIÓN>.apk` en Android, autorizando la instalación de APK si es necesario.
+
+El proyecto usa **Android SDK 35**, **minSdk 26**, **Java 17** y **Gradle 8.9** en el flujo CI. La tarea ejecuta `gradle :app:assembleDebug :app:lintDebug --no-daemon`. La salida es una **APK debug**, no una publicación firmada para tienda. El nombre del APK y del artefacto se calcula a partir de `versionName` en `app/build.gradle`.
+
+**Última ejecución v0.4.5 verificada:** [GitHub Actions #40132020733](https://github.com/josxtm/mycad/actions/runs/40132020733) — compilación, Lint y subida de artefacto correctos.
+
+## Funcionalidades
+
+- Crear y editar piezas rectangulares y cilíndricas con medidas en milímetros.
+- Bocetos 2D táctiles de líneas, rectángulos y círculos.
+- Selección de piezas, controles geométricos, desplazamiento y restricciones de movimiento.
+- Vistas 2D y 3D, cuadrícula configurable, ejes y ajuste a cuadrícula.
+- Deshacer/rehacer, tema claro/oscuro, ajustes de sensibilidad y modo película de cámara.
+- Guardar y abrir diseños `.mycad.json` con el selector de documentos de Android; borrador interno automático.
+- **Desde v0.4.4:** módulo `MeshEngine.java` de visualización de mallas con OpenGL ES 3.0; importación STL binario/ASCII y OBJ; exportación STL binario y OBJ; triangulación de piezas básicas para exportación. El visor GPU se abre desde la interfaz como visor adicional: **no sustituye aún toda la escena CAD anterior**.
+- **Desde v0.4.5:** selector de modos **Navegar / Mover / Editar** para separar el giro de cámara, el movimiento de piezas y el arrastre de controladores.
+
+## Historial de versiones
+
+Todas las versiones descritas corresponden a las iteraciones de este repositorio. Se distinguen los cambios de código de su verificación real en Android.
+
+| Versión | Cambios realizados | Estado conocido |
+| --- | --- | --- |
+| **0.1** | Primera prueba de concepto de MyCAD para Android, anterior a las mejoras de archivos y herramientas. | Prototipo histórico; alcance detallado no documentado. |
+| **0.2** | Piezas básicas con dimensiones y espesor; vista 3D; guardar y abrir `.mycad.json` mediante Android; borrador, guía y plan de desarrollo. | Documentada en el README original; pruebas históricas no verificadas aquí. |
+| **0.3** | Creación, selección y movimiento básico de piezas; coordenadas XYZ; deshacer/rehacer; archivos JSON. | Compilada y confirmada funcional por el usuario, según historial del proyecto. |
+| **0.4.1** | Barras laterales compactas, menú de proyecto e iconos provisionales. | Compilada y confirmada funcional por el usuario, según historial. |
+| **0.4.2** | Bocetos táctiles de línea, rectángulo y círculo; selección y controladores; edición por arrastre; ajustes de tema y sensibilidad; modo película 3D; revisión de guardado/recuperación de bocetos, historial y cámara. | Compilaciones correctas; se detectaron limitaciones de selección y gestos que motivaron versiones posteriores. |
+| **0.4.3** | Controladores de dimensiones de piezas 3D (W/D/H/R); bloqueo de cámara durante edición; movimientos libre, ortogonal, por ejes, radial y exacto; cuadrícula con planos XY/XZ/YZ, pasos y Snap; persistencia de ajustes; corrección de Lint y nombre automático del APK. | **Compilación correcta y funciones confirmadas por el usuario en móvil**. |
+| **0.4.4** | Nuevo motor gráfico GPU basado en OpenGL ES 3.0; visor de mallas triangulares; lectores STL/OBJ; exportadores STL/OBJ; triangulación de prismas y cilindros; menú de importación/exportación. | **APK compilado**; no consta validación completa de importación/exportación ni rendimiento en móvil. |
+| **0.4.5** | Separación de interacción en modos **Navegar, Mover y Editar**; giro con un dedo sobre la escena aunque haya selección; gesto de dos dedos para desplazamiento de vista; zoom con pellizco; eliminación de la dependencia del doble/triple toque para mover/editar; desplazamiento aplicado a la proyección 2D/3D. | **APK compilado y artefacto publicado**; ergonomía y gestos pendientes de confirmación en móvil. |
+
+### Compilaciones de referencia
+
+| Versión | Ejecución GitHub Actions | Resultado |
+| --- | --- | --- |
+| 0.4.2 (revisión) | [40128738815](https://github.com/josxtm/mycad/actions/runs/40128738815) | Success |
+| 0.4.3 | [40130175267](https://github.com/josxtm/mycad/actions/runs/40130175267) | Success |
+| 0.4.4 | [40131327164](https://github.com/josxtm/mycad/actions/runs/40131327164) | Success |
+| 0.4.5 | [40132020733](https://github.com/josxtm/mycad/actions/runs/40132020733) | Success |
+
+## Formatos de archivo
+
+| Formato | Abrir/importar | Guardar/exportar | Observaciones |
+| --- | --- | --- | --- |
+| `.mycad.json` | Sí | Sí | Proyecto nativo; no equivale a un sólido CAD industrial. |
+| `.stl` | Sí, binario/ASCII | Sí, binario | Malla triangular; se asumen milímetros. |
+| `.obj` | Sí, geometría de caras | Sí | Malla triangular; el lector triangula polígonos. No hay soporte completo de materiales/texturas MTL. |
+| `.dxf` | Pendiente | Pendiente | Importación CAD 2D/3D aún no implementada. |
+| `.step` / `.stp` | Pendiente | Pendiente | Requiere un núcleo geométrico CAD adicional. |
+| `.iges` / `.igs` | Pendiente | Pendiente | No implementado. |
+| `.dwg`, `.3mf`, `.cad` | Pendiente | Pendiente | No implementado; `.cad` no es un formato universal. |
+
+**Limitaciones actuales:** STL/OBJ importados son mallas y no conservan operaciones paramétricas originales. El visor GPU es un componente adicional, no el motor de edición de toda la interfaz; no hay todavía operaciones booleanas, sólidos B-Rep, extrusión paramétrica de perfiles ni exportación STEP. El rendimiento con modelos complejos depende del dispositivo y del tamaño de la malla; no existe un límite de triángulos validado en pruebas.
+
+## Organización del proyecto
+
+- `app/src/main/java/es/josxtm/mycad/MainActivity.java`: interfaz, herramientas, escena CAD clásica y flujo de documentos.
+- `app/src/main/java/es/josxtm/mycad/MeshEngine.java`: visor de mallas acelerado por OpenGL ES 3.0.
+- `app/src/main/java/es/josxtm/mycad/MeshIO.java`: lectura y escritura de STL/OBJ.
+- `app/build.gradle`: configuración Android, número de versión y nombre del APK.
+- `.github/workflows/android.yml`: compilación y publicación del artefacto APK.
+- `HISTORIAL_CAMBIOS.md`: registro técnico histórico.
+- `DIRECTRIZ_GESTOS.md`: especificación original de interacción; **las reglas de doble/triple toque de ese documento fueron sustituidas en la v0.4.5 por modos explícitos**.
+- `GUIA.md`: documentación de uso y pruebas, que puede contener referencias a versiones anteriores.
+
+## Próximos pasos
+
+1. Validar en el teléfono los modos Navegar/Mover/Editar de v0.4.5 y el comportamiento de selección.
+2. Comprobar importación y exportación STL/OBJ con modelos reales, orientación, dimensiones y archivos grandes.
+3. Integrar el visor GPU en la experiencia CAD principal y mejorar iluminación, rendimiento, selección y manipulación de mallas.
+4. Añadir compatibilidad DXF y estudiar motores CAD para STEP/IGES y operaciones de sólidos.
+5. Actualizar guías y documentación de gestos tras la validación en móvil.
+
+---
+
+**Fecha de actualización:** 24 de octubre de 2026. Este README documenta los cambios comprobados en el código, las compilaciones conocidas y las validaciones comunicadas; no presenta como probadas funciones que aún requieren ensayos en Android.
