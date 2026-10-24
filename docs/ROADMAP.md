@@ -30,3 +30,8 @@ Si el motor actual no admite una operación fiable, registrar la limitación y d
 - Commit `4f52861f`: código marcado como versión de desarrollo 0.5.0.
 - **No considerar 0.5.0 terminada**: faltan planos XZ/YZ, selección contextual completa, extrusión táctil con previsualización, pruebas de migración y validación en móvil.
 - Los cuerpos creados a partir de bocetos aún no conservan una relación paramétrica editable con el perfil de origen. El motor sigue siendo experimental.
+
+- Commit `67c291d3`: selector de plano y persistencia de metadatos XY/XZ/YZ; la vista perpendicular y la selección completa siguen pendientes.
+- Commit `d76d6bde`: orientación inicial de extrusiones en planos XZ/YZ; requiere validación geométrica y táctil.
+- Commit `4433723f`: corrección de captura de variables en diálogo de extrusión tras error de compilación Java.
+- No se considera liberada la versión hasta que el último workflow sea satisfactorio y se complete el plan de pruebas.
