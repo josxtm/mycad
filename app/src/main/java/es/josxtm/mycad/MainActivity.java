@@ -18,7 +18,7 @@ public class MainActivity extends Activity {
  class Part { boolean circle; float w,d,h,x,y,z; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);rootLayout=root;root.setBackgroundColor(Color.rgb(18,25,36));
- TextView title=new TextView(this);title.setText("MyCAD · 0.5");titleView=title;title.setTextSize(17);title.setTextColor(Color.WHITE);
+ TextView title=new TextView(this);title.setText("MyCAD · 0.4.3");titleView=title;title.setTextSize(17);title.setTextColor(Color.WHITE);
  LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);root.addView(top);topBar=top;
  top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
  icon(top,"↶","Deshacer",()->history(true));icon(top,"↷","Rehacer",()->history(false));icon(top,"▣","Guardar archivo",()->exportFile());icon(top,"⚙","Ajustes",()->settings());icon(top,"▶","Modo película",()->movieMenu());icon(top,"⋮","Menú de proyecto",()->projectMenu());
