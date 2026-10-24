@@ -11,21 +11,21 @@ public class MainActivity extends Activity {
  ArrayList<Part> parts=new ArrayList<>(); Scene scene; int selected=-1; TextView info; boolean flat=false;
  class Part { boolean circle; float w,d,h,x; Part(boolean c,float a,float b,float z,float p){circle=c;w=a;d=b;h=z;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
- LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(10,28,10,10);root.setBackgroundColor(Color.rgb(18,25,36));
+ LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);root.setBackgroundColor(Color.rgb(18,25,36));
  TextView title=new TextView(this);title.setText("MyCAD · 0.1");title.setTextSize(24);title.setTextColor(Color.WHITE);root.addView(title);
  info=new TextView(this);info.setTextColor(Color.LTGRAY);info.setText("Medidas en mm · Arrastra para girar · Pellizca para zoom");root.addView(info);
  scene=new Scene();root.addView(scene,new LinearLayout.LayoutParams(-1,0,1));
  LinearLayout row=new LinearLayout(this);root.addView(row);button(row,"Rectángulo",()->edit(false,false));button(row,"Círculo",()->edit(true,false));button(row,"2D / 3D",()->{flat=!flat;scene.invalidate();});
  LinearLayout row2=new LinearLayout(this);root.addView(row2);button(row2,"Piezas",()->choose());button(row2,"Editar",()->{if(selected>=0)edit(parts.get(selected).circle,true);else toast("Selecciona una pieza");});button(row2,"Eliminar",()->{if(selected>=0){parts.remove(selected);selected=-1;save();scene.invalidate();}});
  LinearLayout row3=new LinearLayout(this);root.addView(row3);button(row3,"Guardar",()->{save();toast("Diseño guardado en este móvil");});button(row3,"Abrir",()->load());button(row3,"Centrar",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});
- setContentView(root);load();
+ root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(16+insets.getSystemWindowInsetLeft(),16+insets.getSystemWindowInsetTop(),16+insets.getSystemWindowInsetRight(),16+insets.getSystemWindowInsetBottom());return insets;});setContentView(root);root.requestApplyInsets();load();
  }
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->r.run());}
  void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}
  void choose(){if(parts.isEmpty()){toast("Añade una figura");return;}String[] a=new String[parts.size()];for(int i=0;i<a.length;i++){Part p=parts.get(i);a[i]=(i+1)+". "+(p.circle?"Círculo":"Rectángulo")+" "+p.w+" × "+p.d+" × "+p.h+" mm";}new AlertDialog.Builder(this).setTitle("Seleccionar pieza").setItems(a,(d,n)->{selected=n;scene.invalidate();}).show();}
  void edit(boolean circle,boolean existing){
  Part p=existing?parts.get(selected):new Part(circle,40,30,10,parts.size()*50);
- LinearLayout box=new LinearLayout(this);box.setOrientation(1);box.setPadding(32,12,32,12);
+ LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(32,12,32,12);
  String[] labels={circle?"Diámetro (mm)":"Ancho (mm)","Fondo (mm)","Espesor (mm)","Posición X (mm)"};
  float[] vals={p.w,p.d,p.h,p.x};EditText[] fields=new EditText[4];
  for(int i=0;i<4;i++){TextView t=new TextView(this);t.setText(labels[i]);box.addView(t);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);if(circle&&i==1){t.setVisibility(View.GONE);fields[i].setVisibility(View.GONE);}}
@@ -44,6 +44,7 @@ public class MainActivity extends Activity {
  for(int j=0;j<parts.size();j++){Part p=parts.get(j);int n=p.circle?64:4;float[][] low=new float[n][],high=new float[n][];
  for(int i=0;i<n;i++){float x,y;if(p.circle){x=(float)Math.cos(i*2*Math.PI/n)*p.w/2;y=(float)Math.sin(i*2*Math.PI/n)*p.d/2;}else{x=(i==0||i==3)?-p.w/2:p.w/2;y=i<2?-p.d/2:p.d/2;}low[i]=project(x+p.x,y,0);high[i]=project(x+p.x,y,p.h);}
  int col=j==selected?Color.rgb(69,186,207):Color.rgb(105,135,165);
+ if(!flat)faces.add(new Face(low,col));
  if(!flat)for(int i=0;i<n;i++){int k=(i+1)%n;faces.add(new Face(new float[][]{low[i],low[k],high[k],high[i]},col));}
  faces.add(new Face(high,j==selected?Color.rgb(112,220,229):Color.rgb(154,180,204)));
  }
