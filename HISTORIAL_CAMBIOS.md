@@ -21,3 +21,10 @@ Registro iniciado: 2026-10-24. Separar **código subido**, **compilación exitos
 
 ## Norma de publicación
 Cada compilación que represente una versión funcional debe documentar versión, fecha, cambios, correcciones, pendientes, commit, URL de ejecución Actions, resultado y estado de pruebas en el móvil. Si la ejecución aún no ha terminado, indicarlo como pendiente; actualizar tras comprobar. No iniciar cambios de código sin autorización tras recopilar fallos.
+
+## v0.4.2 — revisión ampliada de gestos y visualización (2026-10-24)
+**Aprobación:** usuario autorizó integrar todos los requisitos recogidos.
+**Commits:** `d636942` (controles y ajustes), `b3812c7` (versionName 0.4.2), `1dabba4` (órbita centrada y restauración de cámara).
+**Código incorporado para probar:** selección y puntos de control de bocetos; arrastre de puntos; doble toque para mover, triple toque para editar coordenadas; tres dedos para restablecer cámara; ajustes de tema y sensibilidad; modo película con pieza o conjunto, velocidad, repetición y pausa.
+**Compilación y prueba Android:** pendientes de verificación final. **No declarar completado ni validado** hasta comprobar Actions y las pruebas en Nothing Phone.
+**Limitaciones conocidas para revisar:** detección de gestos múltiples, sensibilidad real, coherencia del tema en todas las barras, controladores de sólidos 3D, guardado/abrir de bocetos y funcionamiento del modo película.
