@@ -1,6 +1,6 @@
 plugins { id 'com.android.application' }
 android { namespace 'es.josxtm.mycad'; compileSdk 35
- defaultConfig { applicationId 'es.josxtm.mycad.preview'; minSdk 26; targetSdk 35; versionCode 50; versionName '0.5.0' }
+ defaultConfig { applicationId 'es.josxtm.mycad.preview'; minSdk 26; targetSdk 35; versionCode 60; versionName '0.6.0' }
 }
 
 android.applicationVariants.all { variant ->
