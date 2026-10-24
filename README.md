@@ -2,9 +2,24 @@
 
 Aplicación experimental de diseño asistido por ordenador para Android, inspirada en el flujo de trabajo táctil de programas como Shapr3D. Desarrollada en Java y compilada en la nube con **GitHub Actions**. No requiere un ordenador local para descargar e instalar el APK.
 
-**Versión actual del código: 0.4.6** · **Compilación 0.4.6: pendiente de verificación** · **Pruebas en móvil: pendientes**.
+**Versión actual del código: 0.4.8** · **Compilación 0.4.8: correcta (GitHub Actions)** · **Pruebas táctiles de los aros XYZ: pendientes de confirmar**.
 
-> **Importante:** compilar correctamente no equivale a comprobar todas las funciones en un teléfono. La versión **0.4.3** fue confirmada como funcional por el usuario; 0.4.4 y 0.4.5 cuentan con APK generado, pero sus nuevas funciones requieren pruebas en dispositivo.
+> **Importante:** compilar correctamente no equivale a comprobar todas las funciones en un teléfono. El usuario confirmó la creación y movimiento XYZ del prisma en 0.4.6 y la rotación Z en 0.4.7. Los aros táctiles de 0.4.8 aún requieren validación en dispositivo.
+
+## Versión 0.4.8 — rotación XYZ táctil
+
+- Herramienta **GIRAR 3D**: ángulos numéricos independientes X, Y y Z en grados.
+- Manipulador de rotación con tres aros: rojo X, verde Y y azul Z, arrastrables con el dedo.
+- Representación 3D del prisma con rotación XYZ y almacenamiento de los ángulos en JSON.
+- Corrección de compilación: variable `rotationMode` compartida correctamente con `MainActivity`.
+- **Compilación Android confirmada**. La precisión y comportamiento de los gestos requieren pruebas en el móvil.
+- Limitaciones: el visor GPU, las operaciones con mallas importadas y las transformaciones avanzadas aún no ofrecen paridad con Shapr3D.
+
+## Versión 0.4.7 — primera rotación Z
+
+- Botón **GIRAR Z** para introducir ángulo en grados.
+- Rotación Z visible y persistida en el archivo de proyecto.
+- Rotación Z confirmada funcional en el móvil.
 
 ## Versión 0.4.6 — interfaz móvil y manipulador XYZ
 
