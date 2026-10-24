@@ -1,4 +1,8 @@
 plugins { id 'com.android.application' }
 android { namespace 'es.josxtm.mycad'; compileSdk 35
- defaultConfig { applicationId 'es.josxtm.mycad.preview'; minSdk 26; targetSdk 35; versionCode 42; versionName '0.4.2' }
+ defaultConfig { applicationId 'es.josxtm.mycad.preview'; minSdk 26; targetSdk 35; versionCode 50; versionName '0.5' }
+}
+
+android.applicationVariants.all { variant ->
+ variant.outputs.all { output -> outputFileName = "myCad${variant.versionName}.apk" }
 }
