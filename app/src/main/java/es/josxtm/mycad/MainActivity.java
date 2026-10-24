@@ -85,13 +85,25 @@ public class MainActivity extends Activity {
  void load(){try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
  protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putString("pendingExport",pendingExport);}
 
+ void addTri(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r){for(float v:p)a.add(v);for(float v:q)a.add(v);for(float v:r)a.add(v);}
+ void quad(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r,float[] t){addTri(a,p,q,r);addTri(a,p,r,t);}
+ MeshEngine.Mesh currentMesh(){
+  java.util.ArrayList<Float> a=new java.util.ArrayList<>();
+  if(importedMesh!=null)for(float v:importedMesh.vertices)a.add(v);
+  for(Part p:parts){
+   float z=p.z,top=z+p.h;
+   if(p.circle){int n=48;float radius=p.w/2;for(int i=0;i<n;i++){double t=i*2*Math.PI/n,u=(i+1)*2*Math.PI/n;float[] b={p.x+(float)Math.cos(t)*radius,p.y+(float)Math.sin(t)*radius,z},c={p.x+(float)Math.cos(u)*radius,p.y+(float)Math.sin(u)*radius,z},d={b[0],b[1],top},e={c[0],c[1],top};quad(a,b,c,e,d);addTri(a,new float[]{p.x,p.y,z},c,b);addTri(a,new float[]{p.x,p.y,top},d,e);}}
+   else{float x=p.x,y=p.y,w=p.w/2,h=p.d/2;float[][] v={{x-w,y-h,z},{x+w,y-h,z},{x+w,y+h,z},{x-w,y+h,z},{x-w,y-h,top},{x+w,y-h,top},{x+w,y+h,top},{x-w,y+h,top}};quad(a,v[3],v[2],v[1],v[0]);quad(a,v[4],v[5],v[6],v[7]);quad(a,v[0],v[1],v[5],v[4]);quad(a,v[1],v[2],v[6],v[5]);quad(a,v[2],v[3],v[7],v[6]);quad(a,v[3],v[0],v[4],v[7]);}
+  }
+  float[] vertices=new float[a.size()];for(int i=0;i<vertices.length;i++)vertices[i]=a.get(i);return new MeshEngine.Mesh(vertices);
+ }
  void toggleMeshView(){
   if(meshView==null){meshView=new MeshEngine(this);rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=!meshMode;meshView.setVisibility(meshMode?View.VISIBLE:View.GONE);
-  if(meshMode){meshView.setMeshes(importedMesh==null?java.util.Collections.emptyList():java.util.Collections.singletonList(importedMesh));toast("Visor GPU: arrastra para girar");}
+  if(meshMode){meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));toast("Visor GPU: arrastra para girar");}
  }
  void importMesh(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");try{startActivityForResult(i,IMPORT_MESH);}catch(Exception e){toast("No se pudo abrir el selector");}}
- void exportMeshMenu(){if(importedMesh==null){toast("Primero importa un STL u OBJ");return;}new AlertDialog.Builder(this).setTitle("Exportar malla importada").setItems(new String[]{"STL binario","OBJ"},(d,n)->{meshExportFormat=n==0?"stl":"obj";Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(n==0?"model/stl":"text/plain");i.putExtra(Intent.EXTRA_TITLE,"MyCAD_export."+meshExportFormat);try{startActivityForResult(i,EXPORT_MESH);}catch(Exception e){toast("No se pudo abrir el selector");}}).show();}
+ void exportMeshMenu(){if(importedMesh==null&&parts.isEmpty()){toast("Primero crea una pieza o importa una malla");return;}new AlertDialog.Builder(this).setTitle("Exportar malla importada").setItems(new String[]{"STL binario","OBJ"},(d,n)->{meshExportFormat=n==0?"stl":"obj";Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(n==0?"model/stl":"text/plain");i.putExtra(Intent.EXTRA_TITLE,"MyCAD_export."+meshExportFormat);try{startActivityForResult(i,EXPORT_MESH);}catch(Exception e){toast("No se pudo abrir el selector");}}).show();}
  void handleMeshResult(int request,int result,Intent data){
   if(result!=RESULT_OK||data==null||data.getData()==null)return;
   Uri uri=data.getData();if(fileBusy)return;fileBusy=true;
@@ -99,9 +111,9 @@ public class MainActivity extends Activity {
    String filename="modelo.stl";android.database.Cursor c=getContentResolver().query(uri,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null);
    if(c!=null){try{if(c.moveToFirst())filename=c.getString(0);}finally{c.close();}}
    MeshEngine.Mesh m;try(InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new IOException("Archivo inaccesible");m=MeshIO.read(filename,in);}
-   runOnUiThread(()->{importedMesh=m;fileBusy=false;if(!meshMode)toggleMeshView();else meshView.setMeshes(java.util.Collections.singletonList(m));toast("Malla importada: "+m.triangles()+" triángulos");});
+   runOnUiThread(()->{importedMesh=m;fileBusy=false;if(!meshMode)toggleMeshView();else meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));toast("Malla importada: "+m.triangles()+" triángulos");});
   }catch(Exception e){runOnUiThread(()->{fileBusy=false;new AlertDialog.Builder(this).setTitle("Error al importar").setMessage(e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();}
-  else{MeshEngine.Mesh m=importedMesh;String format=meshExportFormat;new Thread(()->{try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){
+  else{MeshEngine.Mesh m=currentMesh();String format=meshExportFormat;new Thread(()->{try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){
    if(out==null)throw new IOException("Archivo inaccesible");if(format.equals("stl"))MeshIO.writeStl(m,out);else MeshIO.writeObj(m,out);
    runOnUiThread(()->{fileBusy=false;toast("Malla exportada correctamente");});
   }catch(Exception e){runOnUiThread(()->{fileBusy=false;toast("Error al exportar: "+e.getMessage());});}}).start();}
