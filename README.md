@@ -1,5 +1,7 @@
-# MyCAD Android
+# MyCAD 0.1
 
-Prototipo Android de modelado sencillo: figuras con medidas en mm, extrusión, vista 3D y guardado local. No es un sustituto completo de Shapr3D.
+Prototipo Android nativo sin conexión: rectángulos y círculos con cotas en mm, espesor, vista 2D/3D, selección, edición, eliminación y un diseño guardado localmente. Control táctil de giro y zoom.
 
-En desarrollo. APK de pruebas mediante GitHub Actions.
+Limitaciones: no incluye operaciones booleanas, planos acotados, exportación CAD, gestos de dibujo libre ni múltiples proyectos. No sustituye Shapr3D. Renderizado de polígonos con ordenación por profundidad; piezas que se intersectan pueden mostrar artefactos.
+
+GitHub Actions genera un APK debug de pruebas dentro del artefacto MyCAD-v0.1-APK. La firma debug puede cambiar entre compilaciones; no está preparado aún para actualizaciones distribuidas estables.
