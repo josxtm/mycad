@@ -24,5 +24,5 @@ jobs:
       - run: gradle :app:assembleDebug :app:lintDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: MyCAD-v0.4.2-APK
-          path: app/build/outputs/apk/debug/*.apk
+          name: myCad0.5
+          path: app/build/outputs/apk/debug/myCad0.5.apk
