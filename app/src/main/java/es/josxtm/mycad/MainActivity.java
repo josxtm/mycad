@@ -12,19 +12,20 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
- ArrayList<Part> parts=new ArrayList<>(); Scene scene; int selected=-1; TextView info; boolean flat=false; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport; boolean fileBusy=false; TextView nextStep;
+ ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0; Scene scene; int selected=-1; TextView info; boolean flat=false; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport; boolean fileBusy=false; TextView nextStep;
  static final int SAVE_FILE=101, OPEN_FILE=102;
+ class Sketch {int type;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
  class Part { boolean circle; float w,d,h,x,y,z; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);root.setBackgroundColor(Color.rgb(18,25,36));
- TextView title=new TextView(this);title.setText("MyCAD · 0.4.1");title.setTextSize(17);title.setTextColor(Color.WHITE);
+ TextView title=new TextView(this);title.setText("MyCAD · 0.4.2");title.setTextSize(17);title.setTextColor(Color.WHITE);
  LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);root.addView(top);
  top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
  icon(top,"↶","Deshacer",()->history(true));icon(top,"↷","Rehacer",()->history(false));icon(top,"▣","Guardar archivo",()->exportFile());icon(top,"⋮","Menú de proyecto",()->projectMenu());
  info=new TextView(this);info.setTextColor(Color.LTGRAY);info.setTextSize(11);info.setText("Toca para seleccionar · Mantén pulsado para mover · Pellizca para zoom");root.addView(info);
  LinearLayout workspace=new LinearLayout(this);root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1));
  LinearLayout left=new LinearLayout(this);left.setOrientation(LinearLayout.VERTICAL);workspace.addView(left);
- icon(left,"□","Crear rectángulo",()->edit(false,false));icon(left,"◯","Crear círculo",()->edit(true,false));icon(left,"✎","Editar pieza",()->{if(selected>=0)edit(parts.get(selected).circle,true);else toast("Selecciona una pieza");});icon(left,"✥","Mover XYZ",()->positionSelected());icon(left,"⌫","Eliminar pieza",()->{if(selected>=0){checkpoint();parts.remove(selected);selected=-1;save();scene.invalidate();}else toast("Selecciona una pieza");});
+ icon(left,"✎","Boceto 2D",()->sketchMenu());icon(left,"□","Crear rectángulo",()->edit(false,false));icon(left,"◯","Crear círculo",()->edit(true,false));icon(left,"✎","Editar pieza",()->{if(selected>=0)edit(parts.get(selected).circle,true);else toast("Selecciona una pieza");});icon(left,"✥","Mover XYZ",()->positionSelected());icon(left,"⌫","Eliminar pieza",()->{if(selected>=0){checkpoint();parts.remove(selected);selected=-1;save();scene.invalidate();}else toast("Selecciona una pieza");});
  scene=new Scene();workspace.addView(scene,new LinearLayout.LayoutParams(0,-1,1));
  LinearLayout right=new LinearLayout(this);right.setOrientation(LinearLayout.VERTICAL);workspace.addView(right);
  icon(right,"☷","Lista de piezas",()->choose());icon(right,"◇","Alternar vista 2D / 3D",()->{flat=!flat;scene.invalidate();});icon(right,"⊡","Centrar vista",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});icon(right,"?","Guía",()->guide());
@@ -35,6 +36,7 @@ public class MainActivity extends Activity {
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
  void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Guía de uso","Plan de versiones"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:guide();break;case 4:roadmap();break;}}).show();}
+ void sketchMenu(){String[] items={"Salir de boceto","Línea","Rectángulo","Círculo","Eliminar último boceto"};new AlertDialog.Builder(this).setTitle("Boceto táctil · plano XY").setItems(items,(d,n)->{if(n==4){if(!sketches.isEmpty()){checkpoint();sketches.remove(sketches.size()-1);save();scene.invalidate();}return;}sketchTool=n;if(n>0){flat=true;info.setText("BOCETO · Arrastra con el dedo · Pellizca para zoom");}else info.setText("Toca para seleccionar · Mantén pulsado para mover");scene.invalidate();}).show();}
  void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}
  void choose(){if(parts.isEmpty()){toast("Añade una figura");return;}String[] a=new String[parts.size()];for(int i=0;i<a.length;i++){Part p=parts.get(i);a[i]=(i+1)+". "+(p.circle?"Círculo":"Rectángulo")+" "+p.w+" × "+p.d+" × "+p.h+" mm";}new AlertDialog.Builder(this).setTitle("Seleccionar pieza").setItems(a,(d,n)->{selected=n;scene.invalidate();}).show();}
  void edit(boolean circle,boolean existing){
@@ -51,19 +53,19 @@ public class MainActivity extends Activity {
  void updateStep(){if(nextStep!=null)nextStep.setText(parts.isEmpty()?"1 · Crea una figura con medidas":"2 · Edita / revisa en 3D   →   3 · Guarda un archivo");}
  String encode() throws Exception {
  JSONArray a=new JSONArray();for(Part p:parts)a.put(new JSONObject().put("c",p.circle).put("w",p.w).put("d",p.d).put("h",p.h).put("x",p.x).put("y",p.y).put("z",p.z));
- return new JSONObject().put("format","mycad").put("version",1).put("units","mm").put("parts",a).toString(2);
+ JSONArray sk=new JSONArray();for(Sketch q:sketches)sk.put(new JSONObject().put("t",q.type).put("x1",q.x1).put("y1",q.y1).put("x2",q.x2).put("y2",q.y2));return new JSONObject().put("format","mycad").put("version",1).put("units","mm").put("parts",a).put("sketches",sk).toString(2);
  }
  ArrayList<Part> decode(String data) throws Exception {
- Object raw=new JSONTokener(data).nextValue();JSONArray a;
+ Object raw=new JSONTokener(data).nextValue();JSONArray a;ArrayList<Sketch> parsedSketches=new ArrayList<>();
  if(raw instanceof JSONArray)a=(JSONArray)raw;
- else if(raw instanceof JSONObject){JSONObject o=(JSONObject)raw;if(!"mycad".equals(o.getString("format"))||o.getInt("version")!=1||!"mm".equals(o.getString("units")))throw new IOException("Formato o versión no compatible");a=o.getJSONArray("parts");}
+ else if(raw instanceof JSONObject){JSONObject o=(JSONObject)raw;if(!"mycad".equals(o.getString("format"))||o.getInt("version")!=1||!"mm".equals(o.getString("units")))throw new IOException("Formato o versión no compatible");a=o.getJSONArray("parts");JSONArray sk=o.optJSONArray("sketches");if(sk!=null){if(sk.length()>2000)throw new IOException("Demasiados bocetos");for(int i=0;i<sk.length();i++){JSONObject q=sk.getJSONObject(i);int t=q.getInt("t");float x1=(float)q.getDouble("x1"),y1=(float)q.getDouble("y1"),x2=(float)q.getDouble("x2"),y2=(float)q.getDouble("y2");if(t<1||t>3||!Float.isFinite(x1+y1+x2+y2)||Math.max(Math.max(Math.abs(x1),Math.abs(y1)),Math.max(Math.abs(x2),Math.abs(y2)))>10000)throw new IOException("Boceto inválido");parsedSketches.add(new Sketch(t,x1,y1,x2,y2));}}}
  else throw new IOException("Archivo no válido");
  if(a.length()>500)throw new IOException("Máximo 500 piezas");
  ArrayList<Part> list=new ArrayList<>();
  for(int i=0;i<a.length();i++){JSONObject p=a.getJSONObject(i);float w=(float)p.getDouble("w"),d=(float)p.getDouble("d"),h=(float)p.getDouble("h"),x=(float)p.getDouble("x");
  if(!Float.isFinite(w+d+h+x)||w<=0||d<=0||h<=0||w>10000||d>10000||h>10000||Math.abs(x)>10000)throw new IOException("Medidas no válidas");
  boolean circle=p.getBoolean("c");if(circle&&w!=d)throw new IOException("Diámetro inconsistente");
- Part item=new Part(circle,w,d,h,x);item.y=(float)p.optDouble("y",0);item.z=(float)p.optDouble("z",0);list.add(item);}return list;
+ Part item=new Part(circle,w,d,h,x);item.y=(float)p.optDouble("y",0);item.z=(float)p.optDouble("z",0);list.add(item);}sketches=parsedSketches;return list;
  }
  void checkpoint(){try{undo.push(encode());if(undo.size()>50)undo.removeLast();redo.clear();}catch(Exception e){}}
  void history(boolean back){ArrayDeque<String> src=back?undo:redo,dst=back?redo:undo;if(src.isEmpty()){toast("Sin cambios");return;}try{dst.push(encode());parts=decode(src.pop());selected=parts.isEmpty()?-1:0;save();scene.invalidate();}catch(Exception e){toast("Error al recuperar cambio");}}
@@ -97,7 +99,7 @@ public class MainActivity extends Activity {
  }
  }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AlertDialog.Builder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
  }
- void newDesign(){if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
+ void newDesign(){if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();sketchTool=0;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
  void guide(){new AlertDialog.Builder(this).setTitle("Guía · De la idea al archivo").setMessage(
  "1. NUEVO: empieza con el lienzo vacío.\n\n"+
  "2. RECTÁNGULO o CÍRCULO: introduce medidas en mm y el espesor. APLICAR crea la pieza. Por ahora se introducen medidas; no se dibuja a mano.\n\n"+
@@ -108,8 +110,8 @@ public class MainActivity extends Activity {
  "El borrador interno se recupera al iniciar, pero NO sustituye a guardar archivos. Los cambios posteriores requieren volver a GUARDAR. No se guardan todavía la cámara ni la selección en el archivo."
  ).setPositiveButton("Entendido",null).show();}
  void roadmap(){new AlertDialog.Builder(this).setTitle("Plan de desarrollo").setMessage(
- "AHORA · v0.4.1\nArchivos, guía y validación del ciclo guardar/abrir en el móvil.\n\n"+
- "SIGUIENTE · v0.4.2 (propuesta)\nDeshacer/rehacer, selección tocando, mover en X/Y/Z y ajustar la vista al conjunto.\n\n"+
+ "AHORA · v0.4.2\nArchivos, guía y validación del ciclo guardar/abrir en el móvil.\n\n"+
+ "SIGUIENTE · v0.4.3 (propuesta)\nDeshacer/rehacer, selección tocando, mover en X/Y/Z y ajustar la vista al conjunto.\n\n"+
  "DESPUÉS · v0.4 (propuesta)\nBocetos táctiles: líneas, rectángulos, círculos y cotas.\n\n"+
  "FASE 3D AVANZADA\nExtruir perfiles y evaluar un motor geométrico para unir, cortar y taladrar.\n\n"+
  "SALIDA A FABRICACIÓN\nExportación STL y planos PDF acotados; STEP requiere un motor CAD adecuado.\n\n"+
@@ -131,10 +133,12 @@ public class MainActivity extends Activity {
  }
  Collections.sort(faces,(a,b)->Float.compare(a.depth,b.depth));
  for(Face f:faces){Path path=new Path();path.moveTo(f.vertices[0][0],f.vertices[0][1]);for(int i=1;i<f.vertices.length;i++)path.lineTo(f.vertices[i][0],f.vertices[i][1]);path.close();paint.setStyle(Paint.Style.FILL);paint.setColor(f.color);c.drawPath(path,paint);paint.setStyle(Paint.Style.STROKE);paint.setColor(Color.rgb(23,65,85));c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}
- paint.setColor(Color.WHITE);paint.setTextSize(30);c.drawText(flat?"PLANTA · 2D":"VISTA · 3D",20,40,paint);if(parts.isEmpty())c.drawText("Añade una figura para empezar",20,getHeight()/2f,paint);
+ paint.setColor(Color.WHITE);paint.setTextSize(30);c.drawText(flat?"PLANTA · 2D":"VISTA · 3D",20,40,paint);paint.setColor(Color.rgb(112,220,229));paint.setStrokeWidth(3);paint.setStyle(Paint.Style.STROKE);for(Sketch q:sketches)drawSketch(c,q);if(preview!=null)drawSketch(c,preview);paint.setStyle(Paint.Style.FILL);if(sketchTool>0){paint.setColor(Color.WHITE);c.drawText("BOCETO "+new String[]{"","LÍNEA","RECTÁNGULO","CÍRCULO"}[sketchTool],20,40,paint);}else if(parts.isEmpty()&&sketches.isEmpty())c.drawText("Añade una figura para empezar",20,getHeight()/2f,paint);
  }
+ Sketch preview;float mmX(float px){return (px-getWidth()/2f)/zoom;}float mmY(float py){return (getHeight()/2f-py)/zoom;}
+ void drawSketch(Canvas c,Sketch q){float[] a=project(q.x1,q.y1,0),b=project(q.x2,q.y2,0);if(q.type==1)c.drawLine(a[0],a[1],b[0],b[1],paint);else if(q.type==2)c.drawRect(Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1]),paint);else c.drawCircle(a[0],a[1],(float)Math.hypot(b[0]-a[0],b[1]-a[1]),paint);}
  long downAt;float downX,downY;boolean moved,drag;
  int hit(float sx,float sy){for(int j=parts.size()-1;j>=0;j--){Part p=parts.get(j);float[] q=project(p.x,p.y,p.z+p.h/2);if(Math.hypot(q[0]-sx,q[1]-sy)<Math.max(30,Math.max(p.w,p.d)*zoom*.6f))return j;}return -1;}
- public boolean onTouchEvent(android.view.MotionEvent e){scale.onTouchEvent(e);int a=e.getActionMasked();if(a==0){lastX=downX=e.getX();lastY=downY=e.getY();downAt=System.currentTimeMillis();moved=false;drag=false;}else if(a==2&&e.getPointerCount()==1&&!scale.isInProgress()){float dx=e.getX()-lastX,dy=e.getY()-lastY;if(Math.hypot(e.getX()-downX,e.getY()-downY)>10)moved=true;if(!drag&&System.currentTimeMillis()-downAt>400&&selected>=0&&hit(downX,downY)==selected){checkpoint();drag=true;}if(drag){Part p=parts.get(selected);float u=dx/zoom,v=dy/zoom;if(flat){p.x+=u;p.y-=v;}else{p.x+=(float)(u*Math.cos(yaw)+v*Math.sin(yaw));p.y+=(float)(-u*Math.sin(yaw)+v*Math.cos(yaw));}invalidate();}else if(!flat){yaw+=dx*.01f;pitch=Math.max(-1.5f,Math.min(1.5f,pitch+dy*.01f));invalidate();}lastX=e.getX();lastY=e.getY();}else if(a==1){if(drag)save();else if(!moved){int n=hit(e.getX(),e.getY());if(n>=0){selected=n;invalidate();}}}return true;}
+ public boolean onTouchEvent(android.view.MotionEvent e){scale.onTouchEvent(e);int a=e.getActionMasked();if(sketchTool>0){if(e.getPointerCount()>1){preview=null;invalidate();return true;}if(a==0){preview=new Sketch(sketchTool,mmX(e.getX()),mmY(e.getY()),mmX(e.getX()),mmY(e.getY()));invalidate();}else if(a==2&&preview!=null){preview.x2=mmX(e.getX());preview.y2=mmY(e.getY());invalidate();}else if(a==1&&preview!=null){preview.x2=mmX(e.getX());preview.y2=mmY(e.getY());if(Math.hypot(preview.x2-preview.x1,preview.y2-preview.y1)>1&&sketches.size()<2000){checkpoint();sketches.add(preview);save();}preview=null;invalidate();}else if(a==3){preview=null;invalidate();}return true;}if(a==0){lastX=downX=e.getX();lastY=downY=e.getY();downAt=System.currentTimeMillis();moved=false;drag=false;}else if(a==2&&e.getPointerCount()==1&&!scale.isInProgress()){float dx=e.getX()-lastX,dy=e.getY()-lastY;if(Math.hypot(e.getX()-downX,e.getY()-downY)>10)moved=true;if(!drag&&System.currentTimeMillis()-downAt>400&&selected>=0&&hit(downX,downY)==selected){checkpoint();drag=true;}if(drag){Part p=parts.get(selected);float u=dx/zoom,v=dy/zoom;if(flat){p.x+=u;p.y-=v;}else{p.x+=(float)(u*Math.cos(yaw)+v*Math.sin(yaw));p.y+=(float)(-u*Math.sin(yaw)+v*Math.cos(yaw));}invalidate();}else if(!flat){yaw+=dx*.01f;pitch=Math.max(-1.5f,Math.min(1.5f,pitch+dy*.01f));invalidate();}lastX=e.getX();lastY=e.getY();}else if(a==1){if(drag)save();else if(!moved){int n=hit(e.getX(),e.getY());if(n>=0){selected=n;invalidate();}}}return true;}
  }
 }
