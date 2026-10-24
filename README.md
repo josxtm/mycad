@@ -2,9 +2,18 @@
 
 Aplicación experimental de diseño asistido por ordenador para Android, inspirada en el flujo de trabajo táctil de programas como Shapr3D. Desarrollada en Java y compilada en la nube con **GitHub Actions**. No requiere un ordenador local para descargar e instalar el APK.
 
-**Versión actual del código: 0.4.5** · **Última compilación comprobada: correcta** · **Pruebas de gestos 0.4.5 en móvil: pendientes**.
+**Versión actual del código: 0.4.6** · **Compilación 0.4.6: pendiente de verificación** · **Pruebas en móvil: pendientes**.
 
 > **Importante:** compilar correctamente no equivale a comprobar todas las funciones en un teléfono. La versión **0.4.3** fue confirmada como funcional por el usuario; 0.4.4 y 0.4.5 cuentan con APK generado, pero sus nuevas funciones requieren pruebas en dispositivo.
+
+## Versión 0.4.6 — interfaz móvil y manipulador XYZ
+
+- Barra inferior permanente para NAVEGAR, MOVER, EDITAR y posición XYZ numérica.
+- Manipulador táctil de tres ejes sobre la pieza seleccionada (X rojo, Y verde, Z azul); arrastre restringido al eje elegido.
+- Árbol de cuerpos accesible desde el lateral derecho, con selección directa y dimensiones.
+- Lectura de coordenadas XYZ en milímetros durante el movimiento.
+- Esta versión implementa una primera aproximación de interfaz inspirada en CAD táctil; **no** incluye aún operaciones avanzadas de Shapr3D como booleanas, extrusión de perfiles, edición por caras o historial paramétrico.
+- Pendiente: comprobar compilación GitHub Actions y probar gestos en Android real.
 
 ## Instalación y compilación
 
