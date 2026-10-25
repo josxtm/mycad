@@ -16,4 +16,22 @@ if grep -R -F -l '\\n int ' app/src/main/java --include='*.java'; then
   echo "ERROR: secuencia literal de nueva linea entre declaraciones Java" >&2
   exit 1
 fi
+
+# Regresión de integración: un borrador recuperado debe restaurar también el historial
+# paramétrico y la selección de una vista previa no puede editar el modelo.
+python3 - <<'PY'
+from pathlib import Path
+source=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+begin=source.index("void load(){")
+end=source.index("protected void onSaveInstanceState",begin)
+loader=source[begin:end]
+for marker in ("extrusionChains=restored.chains","chainFeatures=restored.features"):
+    if marker not in loader:
+        raise SystemExit("ERROR: el borrador no restaura "+marker)
+for marker in ("void renderCurrentCadMesh()","isolatedMeshPreview=true","if(isolatedMeshPreview)"):
+    if marker not in source:
+        raise SystemExit("ERROR: falta protección de visor "+marker)
+print("Borrador y protección de vista previa: OK")
+PY
+
 echo "Comprobaciones básicas del proyecto: OK"
