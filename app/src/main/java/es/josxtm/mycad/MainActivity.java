@@ -262,12 +262,12 @@ public class MainActivity extends Activity {
   for(int n=0;n<meshArrays.length();n++){
    JSONArray vertices=meshArrays.getJSONArray(n);
    if(vertices.length()%9!=0||vertices.length()>18000)throw new IOException("Malla inválida");
-   float[] data=new float[vertices.length()];
-   for(int k=0;k<data.length;k++){
-    data[k]=(float)vertices.getDouble(k);
-    if(!Float.isFinite(data[k])||Math.abs(data[k])>100000)throw new IOException("Vértice inválido");
+   float[] meshCoordinates=new float[vertices.length()];
+   for(int k=0;k<meshCoordinates.length;k++){
+    meshCoordinates[k]=(float)vertices.getDouble(k);
+    if(!Float.isFinite(meshCoordinates[k])||Math.abs(meshCoordinates[k])>100000)throw new IOException("Vértice inválido");
    }
-   parsedMeshes.add(new MeshEngine.Mesh(data));
+   parsedMeshes.add(new MeshEngine.Mesh(meshCoordinates));
   }
  }
  JSONArray sk=o.optJSONArray("sketches");if(sk!=null){if(sk.length()>2000)throw new IOException("Demasiados bocetos");for(int i=0;i<sk.length();i++){JSONObject q=sk.getJSONObject(i);int t=q.getInt("t");float x1=(float)q.getDouble("x1"),y1=(float)q.getDouble("y1"),x2=(float)q.getDouble("x2"),y2=(float)q.getDouble("y2");if(t<1||t>3||!Float.isFinite(x1+y1+x2+y2)||Math.max(Math.max(Math.abs(x1),Math.abs(y1)),Math.max(Math.abs(x2),Math.abs(y2)))>10000)throw new IOException("Boceto inválido");Sketch loaded=new Sketch(t,x1,y1,x2,y2);loaded.id=q.optString("id",loaded.id);loaded.plane=q.optInt("plane",0);if(loaded.plane<0||loaded.plane>2)throw new IOException("Plano inválido");parsedSketches.add(loaded);}}}
