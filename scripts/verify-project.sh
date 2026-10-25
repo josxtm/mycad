@@ -108,6 +108,15 @@ for marker in ("requestSketchDeletion(false)", "requestSketchDeletion(true)",
                "src.pop();dst.push(prior);"):
     if marker not in source:
         raise SystemExit("ERROR: borrado seguro o historial no integrado: "+marker)
+for marker in ('storedFeatures.put(new JSONObject().put("id",f.id)',
+               'f.optString("id",java.util.UUID.randomUUID().toString())',
+               'ParametricFeatureGraph buildParametricFeatureGraph()',
+               'void showParametricFeatureTree()',
+               'builder.dependsOn(p.id,p.sourceSketchId)',
+               'builder.dependsOn(f.id,extrusionChains.get(f.resolvedChainIndex(extrusionChains)).id)',
+               "graph.affectedBy(node.id)"):
+    if marker not in source:
+        raise SystemExit("ERROR: grafo de dependencias sin integrar: "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
