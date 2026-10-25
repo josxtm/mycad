@@ -75,7 +75,7 @@ public final class ParametricSketchDocumentTest {
   check(legacy.sketches().get(base).plane==PlaneExtrusion.Plane.XY,"Legacy plane defaults XY");
   check(legacy.bodies().size()==2,"Legacy bodies loaded");
   boolean brokenRef=false;
-  try{ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),encodedGraph.replace("|"+base+"|", "|00000000-0000-0000-0000-000000000001|"));}catch(IllegalArgumentException expected){brokenRef=true;}
+  try{ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),encodedGraph.replace("|"+base+"|"+a.value.id+"|", "|00000000-0000-0000-0000-000000000001|"+a.value.id+"|"));}catch(IllegalArgumentException expected){brokenRef=true;}
   check(brokenRef,"Dangling feature reference rejected");
   boolean duplicateRejected=false;
   try{ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),encodedGraph+encodedGraph.split("\n")[1]+"\n");}catch(IllegalArgumentException expected){duplicateRejected=true;}
