@@ -144,4 +144,23 @@ javac -d build/box-brep-tests \
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 
+# Regresión de integración del editor de caras cilíndricas.
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+for token in (
+ "void editSelectedCylinderFace()",
+ "activeCylinderFaceId=hit.faceId",
+ "CylinderBRep.from(part.id,part.w,part.h,pose)",
+ "part.w=diameter;part.d=diameter;part.h=height;",
+ "partIndex>=parts.size()||parts.get(partIndex)!=part",
+ "!part.sourceSketchId.isEmpty()",
+ "case 20:editSelectedCylinderFace();break;",
+ "activeCylinderFaceId=null;activeCadFace=null;",
+):
+    if token not in src:
+        raise SystemExit("ERROR: falta integración B-Rep de cilindro: "+token)
+print("Integración de selección y edición de cilindros: OK")
+PY
+
 echo "Comprobaciones básicas del proyecto: OK"
