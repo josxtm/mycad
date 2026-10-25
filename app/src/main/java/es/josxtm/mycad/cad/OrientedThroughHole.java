@@ -33,10 +33,10 @@ public final class OrientedThroughHole {
    double x=axis==Axis.Z?u:axis==Axis.X?longitudinal:v;
    double y=axis==Axis.Z?v:axis==Axis.X?u:longitudinal;
    double z=axis==Axis.Z?longitudinal:axis==Axis.X?v:u;
-   // X and Y were synthesized with a local box starting at longitudinal=0,
-   // and must be centered around the physical X/Y axis of the host prism.
-   if(axis==Axis.X)x-=width/2;
-   if(axis==Axis.Y)y-=depth/2;
+   // Local box uses x/y centred but z based at zero. Map face-centred
+   // X/Y bores into the actual local z range [0,height].
+   if(axis==Axis.X){x-=width/2;z+=height/2;}
+   if(axis==Axis.Y){y-=depth/2;z+=height/2;}
    double[] transformed=pose.point(x,y,z);
    for(int j=0;j<3;j++){
     if(!Double.isFinite(transformed[j])||Math.abs(transformed[j])>Float.MAX_VALUE)
