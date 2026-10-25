@@ -20,6 +20,7 @@ public final class ChainBooleanRebuildCacheTest {
   ChainBooleanRebuildCache.Result first=ChainBooleanRebuildCache.rebuild(chains,features,null);
   yes(first.state.count()==3&&first.rebuiltFeatureIds.size()==3&&first.reused==0,"Initial rebuild");
   yes(first.state.totalTriangles()>0,"Empty combined features");
+  yes(first.state.matches(chains,features),"Newly generated snapshot should match inputs");
   yes(first.state.combinedPreview().length==first.state.totalTriangles()*9,"Preview triangles");
   float[] original=first.state.mesh(cutA.id);
   original[0]=Float.NaN;
@@ -28,6 +29,7 @@ public final class ChainBooleanRebuildCacheTest {
   yes(same.rebuiltFeatureIds.isEmpty()&&same.reused==3,"Identical run should reuse all");
   a.update(0,20);
   ChainBooleanRebuildCache.Result changed=ChainBooleanRebuildCache.rebuild(chains,features,same.state);
+  yes(!same.state.matches(chains,features),"Prior snapshot should be stale after editing chain");
   yes(changed.rebuiltFeatureIds.size()==2&&changed.reused==1,"Only source A dependents rebuild");
   yes(changed.rebuiltFeatureIds.contains(cutA.id)&&changed.rebuiltFeatureIds.contains(intersectA.id),
     "Wrong dependency invalidated");
@@ -35,6 +37,7 @@ public final class ChainBooleanRebuildCacheTest {
   ChainBooleanRebuildCache.Result reordered=ChainBooleanRebuildCache.rebuild(
     Arrays.asList(b,a),Arrays.asList(cutB,cutA,intersectA),changed.state);
   yes(reordered.rebuiltFeatureIds.isEmpty()&&reordered.reused==3,"Reorder must not invalidate UUID bound source");
+  yes(reordered.state.matches(Arrays.asList(b,a),Arrays.asList(cutB,cutA,intersectA)),"Reordered snapshot valid");
   ChainBooleanFeature adjusted=intersectA.withCutter(5,0,0,7,5,10);
   ChainBooleanRebuildCache.Result edited=ChainBooleanRebuildCache.rebuild(
     Arrays.asList(b,a),Arrays.asList(cutB,cutA,adjusted),reordered.state);
