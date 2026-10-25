@@ -193,3 +193,7 @@ El menú de proyecto ofrece `Alternar visor CAD experimental`, desactivado inici
 ## Selección GPU multicuerpo (2026-10-25)
 
 `CadSceneFaceMap` convierte el índice global de triángulo en índice de pieza y cara lógica del prisma. La pantalla experimental calcula el desplazamiento de triángulos de las mallas importadas/booleanas y agrupa 12 triángulos por prisma válido. Al tocar una cara muestra cuerpo, cara y coordenadas y selecciona la pieza correspondiente en el editor. Si hay cilindros se conserva el modo clásico y la identificación básica de triángulos. La malla GPU aún no resalta gráficamente la cara ni permite extruir desde ella. Las pruebas Java verifican escenas con varias piezas y desplazamiento inicial.
+
+## Resaltado visual de caras GPU (2026-10-25)
+
+`MeshEngine.highlightFace(firstTriangle)` dibuja en ámbar los dos triángulos contiguos de la cara seleccionada en el visor GPU. `MainActivity` convierte la selección multicuerpo en el primer triángulo de la cara y limpia el resaltado cuando no corresponde a un prisma; `setMeshes` reinicia la selección para evitar índices obsoletos. El modo clásico permanece disponible. La edición directa de caras y las pruebas visuales reales en Android siguen pendientes.
