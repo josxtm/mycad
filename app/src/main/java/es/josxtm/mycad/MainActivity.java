@@ -438,10 +438,24 @@ public class MainActivity extends Activity {
  void quad(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r,float[] t){addTri(a,p,q,r);addTri(a,p,r,t);}
  void showGpuSurfaceSelection(int triangle,double x,double y,double z){
   String label="Triángulo "+(triangle+1);
-  if(cadGpuMesh&&importedMesh==null&&booleanMeshes.isEmpty()&&parts.size()==1&&!parts.get(0).circle
-    &&triangle>=0&&triangle<12){
-   es.josxtm.mycad.cad.BoxFaceSelection.Face face=es.josxtm.mycad.cad.BoxFaceSelection.faceForTriangle(triangle);
-   label="Cara "+face.name().replace('_',' ');
+  if(cadGpuMesh){
+   boolean circles=false;for(Part p:parts)if(p.circle){circles=true;break;}
+   if(!circles){
+    es.josxtm.mycad.cad.CadSceneFaceMap map=new es.josxtm.mycad.cad.CadSceneFaceMap();
+    int first=importedMesh==null?0:importedMesh.triangles();
+    for(MeshEngine.Mesh m:booleanMeshes)first+=m.triangles();
+    for(int i=0;i<parts.size();i++){
+     Part part=parts.get(i);
+     if(part.w>0&&part.d>0&&part.h>0){
+      map.addBox(i,first);first+=12;
+     }
+    }
+    es.josxtm.mycad.cad.CadSceneFaceMap.Selection found=map.resolve(triangle);
+    if(found!=null){
+     selected=found.partIndex;selectedSketch=-1;scene.invalidate();
+     label="Cuerpo "+(found.partIndex+1)+" · cara "+found.face.name().replace('_',' ');
+    }
+   }
   }
   info.setText(String.format(java.util.Locale.US,"%s · X %.1f · Y %.1f · Z %.1f mm",label,x,y,z));
  }
