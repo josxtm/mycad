@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
  icon(left,"✎","Boceto 2D",()->chooseSketchPlane());icon(left,"↥","Extruir boceto",()->extrudeSketch());icon(left,"□","Crear rectángulo",()->edit(false,false));icon(left,"◯","Crear círculo",()->edit(true,false));icon(left,"✎","Editar pieza",()->{if(selected>=0)editLinkedOrPart();else toast("Selecciona una pieza");});icon(left,"☞","Modo navegar / mover / editar",()->chooseInteractionMode());icon(left,"✥","Mover / restricciones",()->moveOptions());icon(left,"⌫","Eliminar pieza",()->{if(selected>=0){checkpoint();parts.remove(selected);selected=-1;save();scene.invalidate();}else toast("Selecciona una pieza");});
  scene=new Scene();workspace.addView(scene,new LinearLayout.LayoutParams(0,-1,1));
  LinearLayout right=new LinearLayout(this);right.setOrientation(LinearLayout.VERTICAL);workspace.addView(right);rightBar=right;
- icon(right,"☷","Árbol de cuerpos",()->bodyTree());icon(right,"∩","Analizar booleanas",()->booleanAnalysis());icon(right,"▤","Resultados booleanos",()->booleanMeshManager());icon(right,"▦","Inspeccionar caras",()->inspectSelectedFaces());icon(right,"◇","Alternar vista 2D / 3D",()->{flat=!flat;scene.invalidate();});icon(right,"⊡","Centrar vista",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});icon(right,"▱","Visor 3D GPU",()->toggleMeshView());icon(right,"?","Guía",()->guide());
+ icon(right,"☷","Árbol de cuerpos",()->bodyTree());icon(right,"∩","Analizar booleanas",()->booleanAnalysis());icon(right,"▤","Resultados booleanos",()->booleanMeshManager());icon(right,"▦","Inspeccionar caras",()->inspectSelectedFaces());icon(right,"⌑","Inspeccionar aristas",()->inspectSelectedEdges());icon(right,"◇","Alternar vista 2D / 3D",()->{flat=!flat;scene.invalidate();});icon(right,"⊡","Centrar vista",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});icon(right,"▱","Visor 3D GPU",()->toggleMeshView());icon(right,"?","Guía",()->guide());
  LinearLayout modes=new LinearLayout(this);modes.setGravity(Gravity.CENTER);root.addView(modes);button(modes,"NAVEGAR",()->setInteractionMode(0));button(modes,"MOVER",()->setInteractionMode(1));button(modes,"EDITAR",()->setInteractionMode(2));button(modes,"GIRAR 3D",()->{rotationMode=true;setInteractionMode(0);scene.invalidate();rotateSelected3D();});button(modes,"XYZ mm",()->positionSelected());
  nextStep=new TextView(this);nextStep.setTextColor(Color.rgb(112,220,229));nextStep.setTextSize(11);root.addView(nextStep);
  root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(16+insets.getSystemWindowInsetLeft(),16+insets.getSystemWindowInsetTop(),16+insets.getSystemWindowInsetRight(),16+insets.getSystemWindowInsetBottom());return insets;});setContentView(root);root.requestApplyInsets();loadSettings();applyTheme();load();if(b!=null)pendingExport=b.getString("pendingExport");updateStep();
@@ -227,6 +227,25 @@ public class MainActivity extends Activity {
     try{startActivityForResult(i,EXPORT_MESH);}
     catch(Exception e){pendingMeshExport=null;toast("No se pudo abrir el selector");}
    }).show();
+ }
+ void inspectSelectedEdges(){
+  if(selected<0||selected>=parts.size()){toast("Selecciona primero un prisma");return;}
+  final int bodyIndex=selected;
+  final Part p=parts.get(bodyIndex);
+  if(p.circle){toast("Las aristas curvas del cilindro se implementarán más adelante");return;}
+  final String[] names={
+   "X · inferior frontal","X · inferior posterior","X · superior frontal","X · superior posterior",
+   "Y · inferior izquierda","Y · inferior derecha","Y · superior izquierda","Y · superior derecha",
+   "Z · frontal izquierda","Z · frontal derecha","Z · posterior izquierda","Z · posterior derecha"
+  };
+  new AlertDialog.Builder(this).setTitle("Aristas del cuerpo "+(bodyIndex+1))
+   .setItems(names,(dialog,index)->{
+    float length=index<4?p.w:index<8?p.d:p.h;
+    info.setText(String.format(java.util.Locale.US,"Arista %d · longitud %.2f mm",index+1,length));
+    new AlertDialog.Builder(this).setTitle(names[index])
+     .setMessage(String.format(java.util.Locale.US,"Longitud: %.2f mm.\nIdentificación local, sin modificar el cuerpo.",length))
+     .setPositiveButton("Cerrar",null).show();
+   }).setNegativeButton("Cancelar",null).show();
  }
  void inspectSelectedFaces(){
   if(selected<0||selected>=parts.size()){toast("Selecciona primero un cuerpo");return;}
