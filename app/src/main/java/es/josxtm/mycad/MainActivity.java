@@ -174,6 +174,36 @@ public class MainActivity extends Activity {
  class Face {float[][] vertices;float depth;int color;Face(float[][] v,int c){vertices=v;color=c;for(float[] p:v)depth+=p[2]/v.length;}}
  class Scene extends View{
  Paint paint=new Paint(3);int partHandle=-1;float originalW,originalD,originalH,originalX,originalY,originalZ;boolean geometryChanged=false,entityDrag=false;int activeMoveAxis=-1,activeRotateAxis=-1;float rotationStart,rotationOriginal;float yaw=.65f,pitch=.6f,zoom=3,lastX,lastY,multiMidX,multiMidY,panX,panY;boolean movingEntity=false,editingHandle=false,gestureMulti=false;int handleIndex=-1,tapCount=0,lastTapEntity=-999;long lastTapTime=0;float movieYaw,movieOldYaw,movieOldPitch,movieOldZoom,moviePivotX,moviePivotY,moviePivotZ;boolean movieOldFlat,movieCameraSaved=false;long movieLast;android.os.Handler movieHandler=new android.os.Handler(android.os.Looper.getMainLooper());Runnable movieFrame;ScaleGestureDetector scale;
+ boolean cubeDragging=false; float cubeDownX,cubeDownY;
+ float cubeSize(){return dp(96);}
+ float cubeLeft(){return getWidth()-cubeSize()-dp(12);}
+ float cubeTop(){return dp(12);}
+ boolean inCube(float x,float y){return !flat&&x>=cubeLeft()&&x<=cubeLeft()+cubeSize()&&y>=cubeTop()&&y<=cubeTop()+cubeSize();}
+ void cubeView(int row,int col){
+  flat=false;
+  if(row==0&&col==1){yaw=0;pitch=1.5f;}
+  else if(row==2&&col==1){yaw=0;pitch=-1.5f;}
+  else if(row==1&&col==0){yaw=1.5707963f;pitch=0;}
+  else if(row==1&&col==2){yaw=-1.5707963f;pitch=0;}
+  else if(row==1&&col==1){yaw=0;pitch=0;}
+  else {yaw=col==0?.75f:col==2?-.75f:0;pitch=row==0?.65f:-.65f;}
+  invalidate();
+ }
+ void drawOrientationCube(Canvas c){
+  if(flat)return;
+  float size=cubeSize(),left=cubeLeft(),top=cubeTop(),cell=size/3f;
+  paint.setStyle(Paint.Style.FILL);
+  paint.setColor(darkMode?Color.rgb(47,64,83):Color.rgb(207,220,234));
+  c.drawRoundRect(left,top,left+size,top+size,dp(8),dp(8),paint);
+  paint.setColor(darkMode?Color.rgb(96,120,146):Color.rgb(132,153,174));
+  paint.setStrokeWidth(dp(1));
+  for(int k=1;k<3;k++){c.drawLine(left+k*cell,top,left+k*cell,top+size,paint);c.drawLine(left,top+k*cell,left+size,top+k*cell,paint);}
+  String[][] labels={{"ISO","SUP","ISO"},{"IZQ","FREN","DER"},{"ISO","INF","ISO"}};
+  paint.setTextAlign(Paint.Align.CENTER);paint.setTextSize(dp(9));
+  paint.setColor(darkMode?Color.WHITE:Color.rgb(20,36,50));
+  for(int row=0;row<3;row++)for(int col=0;col<3;col++)c.drawText(labels[row][col],left+(col+.5f)*cell,top+(row+.57f)*cell,paint);
+  paint.setTextAlign(Paint.Align.LEFT);
+ }
  Scene(){super(MainActivity.this);scale=new ScaleGestureDetector(MainActivity.this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){public boolean onScale(ScaleGestureDetector d){zoom=Math.max(.02f,Math.min(40,zoom*(float)Math.pow(d.getScaleFactor(),zoomSensitivity)));invalidate();return true;}});}
  void movieCenter(){if(!movieAll&&selected>=0&&selected<parts.size()){Part p=parts.get(selected);moviePivotX=p.x;moviePivotY=p.y;moviePivotZ=p.z+p.h/2;zoom=Math.min(zoom,Math.max(.1f,Math.min(getWidth(),getHeight())/(Math.max(p.w,Math.max(p.d,p.h))*2.5f)));return;}if(parts.isEmpty()){moviePivotX=moviePivotY=moviePivotZ=0;return;}float minX=Float.MAX_VALUE,maxX=-Float.MAX_VALUE,minY=Float.MAX_VALUE,maxY=-Float.MAX_VALUE,minZ=Float.MAX_VALUE,maxZ=-Float.MAX_VALUE;for(Part p:parts){minX=Math.min(minX,p.x-p.w/2);maxX=Math.max(maxX,p.x+p.w/2);minY=Math.min(minY,p.y-p.d/2);maxY=Math.max(maxY,p.y+p.d/2);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z+p.h);}moviePivotX=(minX+maxX)/2;moviePivotY=(minY+maxY)/2;moviePivotZ=(minZ+maxZ)/2;float span=Math.max(maxX-minX,Math.max(maxY-minY,maxZ-minZ));zoom=Math.min(zoom,Math.max(.1f,Math.min(getWidth(),getHeight())/(Math.max(1,span)*2.5f)));}
  void startMovie(){if(!movieCameraSaved){movieOldYaw=yaw;movieOldPitch=pitch;movieOldZoom=zoom;movieOldFlat=flat;movieCameraSaved=true;}flat=false;movieCenter();movieYaw=yaw;movieLast=System.currentTimeMillis();if(movieFrame==null)movieFrame=new Runnable(){public void run(){if(!movie)return;long now=System.currentTimeMillis();yaw+=(now-movieLast)*.0005f*movieSpeed;movieLast=now;invalidate();if(!movieLoop&&yaw-movieYaw>=2*Math.PI){movie=false;stopMovie();return;}movieHandler.postDelayed(this,16);}};movieHandler.removeCallbacks(movieFrame);movieHandler.post(movieFrame);}
@@ -192,6 +222,7 @@ public class MainActivity extends Activity {
  Collections.sort(faces,(a,b)->Float.compare(a.depth,b.depth));
  for(Face f:faces){Path path=new Path();path.moveTo(f.vertices[0][0],f.vertices[0][1]);for(int i=1;i<f.vertices.length;i++)path.lineTo(f.vertices[i][0],f.vertices[i][1]);path.close();paint.setStyle(Paint.Style.FILL);paint.setColor(f.color);c.drawPath(path,paint);paint.setStyle(Paint.Style.STROKE);paint.setColor(Color.rgb(23,65,85));c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}if(selected>=0&&selected<parts.size()){if(rotationMode)drawRotationRings(c,parts.get(selected));else if(interactionMode==1)drawMoveGizmo(c,parts.get(selected));else if(interactionMode==2)drawPartHandles(c,parts.get(selected));}
  paint.setColor(darkMode?Color.WHITE:Color.rgb(25,38,55));paint.setTextSize(30);c.drawText(flat?"PLANTA · 2D":"VISTA · 3D",20,40,paint);paint.setStrokeWidth(3);paint.setStyle(Paint.Style.STROKE);for(int i=0;i<sketches.size();i++){paint.setColor(i==selectedSketch?Color.rgb(255,193,91):Color.rgb(112,220,229));paint.setStrokeWidth(i==selectedSketch?6:3);drawSketch(c,sketches.get(i));if(i==selectedSketch)drawHandles(c,sketches.get(i));}if(preview!=null)drawSketch(c,preview);paint.setStyle(Paint.Style.FILL);if(sketchTool>0){paint.setColor(Color.WHITE);c.drawText("BOCETO "+new String[]{"","LÍNEA","RECTÁNGULO","CÍRCULO"}[sketchTool],20,40,paint);}else if(parts.isEmpty()&&sketches.isEmpty())c.drawText("Añade una figura para empezar",20,getHeight()/2f,paint);
+ drawOrientationCube(c);
  }
  Sketch preview;float mmX(float px){return (px-getWidth()/2f)/zoom;}float mmY(float py){return (getHeight()/2f-py)/zoom;}
  void handle(Canvas c,float x,float y){paint.setStyle(Paint.Style.FILL);paint.setColor(Color.rgb(255,185,65));c.drawCircle(x,y,dp(6),paint);paint.setColor(Color.WHITE);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);c.drawCircle(x,y,dp(6),paint);}
@@ -215,7 +246,27 @@ public class MainActivity extends Activity {
  int hit(float sx,float sy){for(int j=parts.size()-1;j>=0;j--){Part p=parts.get(j);float[] q=project(p.x,p.y,p.z+p.h/2);if(Math.hypot(q[0]-sx,q[1]-sy)<Math.max(30,Math.max(p.w,p.d)*zoom*.6f))return j;}return -1;}
 
  public boolean onTouchEvent(android.view.MotionEvent e){
-  int action=e.getActionMasked();scale.onTouchEvent(e);
+  int action=e.getActionMasked();
+  if(action==android.view.MotionEvent.ACTION_DOWN&&inCube(e.getX(),e.getY())){
+   cubeDragging=true;cubeDownX=downX=e.getX();cubeDownY=downY=e.getY();return true;
+  }
+  if(cubeDragging){
+   if(action==android.view.MotionEvent.ACTION_MOVE){
+    float dx=e.getX()-cubeDownX,dy=e.getY()-cubeDownY;
+    if(Math.hypot(dx,dy)>dp(2)){yaw+=dx*.014f;pitch=Math.max(-1.5f,Math.min(1.5f,pitch+dy*.014f));invalidate();}
+    cubeDownX=e.getX();cubeDownY=e.getY();return true;
+   }
+   if(action==android.view.MotionEvent.ACTION_UP){
+    if(inCube(e.getX(),e.getY())&&Math.hypot(e.getX()-downX,e.getY()-downY)<dp(6)){
+     int col=Math.max(0,Math.min(2,(int)((e.getX()-cubeLeft())/(cubeSize()/3f))));
+     int row=Math.max(0,Math.min(2,(int)((e.getY()-cubeTop())/(cubeSize()/3f))));
+     cubeView(row,col);
+    }
+    cubeDragging=false;return true;
+   }
+   if(action==android.view.MotionEvent.ACTION_CANCEL){cubeDragging=false;return true;}
+  }
+  scale.onTouchEvent(e);
   if(action==android.view.MotionEvent.ACTION_POINTER_DOWN){gestureMulti=true;partHandle=-1;editingHandle=false;entityDrag=false;lastX=e.getX(0);lastY=e.getY(0);multiMidX=(e.getX(0)+e.getX(1))/2;multiMidY=(e.getY(0)+e.getY(1))/2;return true;}
   if(action==android.view.MotionEvent.ACTION_POINTER_UP){gestureMulti=true;return true;}
   if(action==android.view.MotionEvent.ACTION_CANCEL){gestureMulti=false;partHandle=-1;editingHandle=false;entityDrag=false;activeRotateAxis=-1;preview=null;return true;}
