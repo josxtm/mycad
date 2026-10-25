@@ -337,6 +337,8 @@ public class MainActivity extends Activity {
      else p.h=height;
     }else p.h=height;
     save();scene.invalidate();
+    activeCadFace=null;
+    if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
    }catch(Exception e){toast("Altura inválida");}}).show();
  }
  boolean validateLinkedSketchEdit(Sketch source,float x1,float y1,float x2,float y2){
