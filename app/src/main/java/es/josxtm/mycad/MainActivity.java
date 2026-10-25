@@ -289,7 +289,9 @@ public class MainActivity extends Activity {
      es.josxtm.mycad.cad.DrilledBoxRecipe drill=new es.josxtm.mycad.cad.DrilledBoxRecipe(
       parent.x,parent.y,parent.z,parent.w,parent.d,parent.h,vals[0],vals[1],vals[2],
       axis,parent.rotationX,parent.rotationY,parent.rotationZ);
-     showMeshOnly(new MeshEngine.Mesh(drill.regenerate()));
+     float[] preview=drill.regenerate();
+     if(!es.josxtm.mycad.cad.TriangleMeshHealth.inspect(preview).isWatertight())throw new IllegalArgumentException("Open mesh");
+     showMeshOnly(new MeshEngine.Mesh(preview));
     }catch(Exception e){toast("Perforación inválida: el agujero debe caber en la sección");}
    })
    .setPositiveButton("Guardar perforación",(dialog,which)->{
@@ -301,7 +303,8 @@ public class MainActivity extends Activity {
       parent.x,parent.y,parent.z,parent.w,parent.d,parent.h,vals[0],vals[1],vals[2],
       axis,parent.rotationX,parent.rotationY,parent.rotationZ);
      float[] geometry=recipe.regenerate();
-     if(geometry.length==0||geometry.length>18000)throw new IllegalArgumentException();
+     if(geometry.length==0||geometry.length>18000||
+      !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(geometry).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
      checkpoint();parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(geometry));
      unionRecipes.add(null);holeRecipes.add(recipe);
      selected=-1;selectedSketch=-1;activeCadFace=null;save();scene.invalidate();
@@ -347,7 +350,8 @@ public class MainActivity extends Activity {
       vals[0],vals[1],vals[2],drillAxisChoice(axisChoice.getSelectedItemPosition()),
       previous.rotationX,previous.rotationY,previous.rotationZ);
      float[] mesh=next.regenerate();
-     if(mesh.length==0||mesh.length>18000)throw new IllegalArgumentException();
+     if(mesh.length==0||mesh.length>18000||
+      !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(mesh).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
      checkpoint();holeRecipes.set(index,next);booleanMeshes.set(index,new MeshEngine.Mesh(mesh));
      save();scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast("Perforación regenerada en el nuevo eje");
