@@ -371,7 +371,7 @@ public class MainActivity extends Activity {
   java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.SketchData> profiles=new java.util.ArrayList<>();
   java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.PartData> solids=new java.util.ArrayList<>();
   for(Sketch q:sketches)profiles.add(new es.josxtm.mycad.cad.CadIntegrationProbe.SketchData(q.id,q.type,q.plane,q.x1,q.y1,q.x2,q.y2));
-  for(Part p:parts)solids.add(new es.josxtm.mycad.cad.CadIntegrationProbe.PartData(p.sourceSketchId,p.h));
+  for(Part p:parts)solids.add(new es.josxtm.mycad.cad.CadIntegrationProbe.PartData(p.sourceSketchId,p.h,p.x,p.y,p.z,p.rotationX,p.rotationY,p.rotationZ));
   es.josxtm.mycad.cad.CadIntegrationProbe.Report report=es.josxtm.mycad.cad.CadIntegrationProbe.inspect(profiles,solids);
   JSONArray bindings=new JSONArray();
   for(int i=0;i<report.compatiblePartIndices.size();i++){
@@ -381,7 +381,8 @@ public class MainActivity extends Activity {
     .put("bodyId",report.generatedBodyIds.get(i))
     .put("sourceSketchId",part.sourceSketchId)
     .put("x",part.x).put("y",part.y).put("z",part.z)
-    .put("rotationX",part.rotationX).put("rotationY",part.rotationY).put("rotationZ",part.rotationZ));
+    .put("rotationX",part.rotationX).put("rotationY",part.rotationY).put("rotationZ",part.rotationZ)
+    .put("worldBounds",new JSONArray(report.worldBounds.get(i))));
   }
   file.put("parametricBodyBindings",bindings);
   file.put("parametricPreview",report.parametricSnapshot);
