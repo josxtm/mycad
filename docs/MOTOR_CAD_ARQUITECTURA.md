@@ -181,3 +181,7 @@ El menú de proyecto ofrece `Alternar visor CAD experimental`, desactivado inici
 ## Selección geométrica inicial (ray picking)
 
 `CadRayPicker` realiza intersección rayo-triángulo sobre una superficie triangulada ya transformada, devuelve el triángulo más cercano y coordenadas de impacto, o null cuando no hay contacto. Incluye controles de entradas inválidas y pruebas sobre prisma rotado, selección de cara superior y rayos que no alcanzan la pieza. No está conectado aún a gestos Android, ni da una entidad de cara B-Rep persistente.
+
+## Interacción táctil con el visor GPU — 2026-10-25
+
+`MeshEngine` distingue una pulsación corta de los gestos de arrastre/órbita; proyecta un rayo desde la pantalla deshaciendo la matriz proyección×vista de la cámara y emplea `CadRayPicker` para localizar la intersección positiva más cercana. Entrega el índice global de triángulo y coordenadas XYZ mediante `SurfaceTapListener`, y `MainActivity` muestra el resultado en el rótulo de información. En esta fase identifica triángulos, no caras paramétricas persistentes, y aún no permite editar directamente la superficie seleccionada. Se conserva la navegación habitual del visor GPU.
