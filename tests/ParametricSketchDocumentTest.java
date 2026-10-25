@@ -31,6 +31,17 @@ public final class ParametricSketchDocumentTest {
   rejected=false;
   try{ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot.replace("|30.0|10.0","|-30.0|10.0"));}catch(IllegalArgumentException expected){rejected=true;}
   check(rejected,"Invalid dimensions accepted");
+  String featureId=loaded.extrusions().values().iterator().next().id;
+  check(loaded.setExtrusionHeight(featureId,8),"Edit extrusion height");
+  check(loaded.bodies().get(bodyId).volume()==2400,"Height recalculates volume");
+  check(loaded.extrusions().get(featureId).bodyId.equals(bodyId),"Stable body after edit");
+  check(!loaded.setExtrusionHeight(featureId,-3),"Reject negative height edit");
+  check(loaded.bodies().get(bodyId).volume()==2400,"Rejected edit must be atomic");
+  check(loaded.undo()&&loaded.bodies().get(bodyId).volume()==1500,"Undo extrusion height");
+  check(loaded.redo()&&loaded.bodies().get(bodyId).volume()==2400,"Redo extrusion height");
+  check(loaded.removeExtrusion(featureId),"Remove feature");
+  check(loaded.bodies().isEmpty()&&loaded.sketches().containsKey(sketch),"Preserve source sketch");
+  check(loaded.undo()&&loaded.bodies().containsKey(bodyId),"Restore removed extrusion");
   System.out.println("ParametricSketchDocumentTest: OK");
  }
 }
