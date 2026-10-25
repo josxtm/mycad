@@ -80,3 +80,17 @@ Se incorpora `CadDocument.java` como módulo Java puro independiente de Android.
 Se añade `tests/CadDocumentTest.java` al flujo CI para comprobar volumen 1000→1600 mm³, conservación de ID, rechazo de altura inválida sin cambio de revisión, deshacer/rehacer, múltiples cuerpos y eliminación.
 
 **Limitación:** reconstrucción limitada a primitivas de caja. Las features todavía no incluyen dependencias entre cuerpos, sketch solver, booleanas B-Rep, serialización propia ni integración en la Activity. Es una base paralela, no sustituye el motor actualmente usado por la app.
+
+## Seguimiento de hitos objetivos — 2026-10-25
+
+**Avance global estimado del nuevo motor: ~15 %.** Estimación manual basada en funcionalidades disponibles; no equivale a progreso de GitHub Actions.
+
+| Hito acumulado | Criterio de aceptación | Estado a fecha de revisión |
+|---|---|---|
+| 30 % | Documento paramétrico y grafo de dependencias entre bocetos y operaciones | En desarrollo: CadDocument soporta cajas, revisiones y deshacer; faltan dependencias reales |
+| 50 % | Extrusiones y booleanas usando el nuevo kernel independiente | Pendiente: solo existen implementaciones anteriores fuera del núcleo nuevo |
+| 75 % | Nuevo motor conectado a Android y selección topológica fiable | Pendiente: MainActivity continúa usando el motor antiguo |
+| 90 % | Persistencia versionada del nuevo motor, historial completo y herramientas avanzadas | Pendiente |
+| 100 % | Tests geométricos integrales, verificación CI y validación funcional en Nothing Phone 2a | Pendiente |
+
+**Último CI confirmado antes de esta actualización:** ejecución #127, commit `0797a788`, `success`; la compilación automática no constituye validación funcional en dispositivo.
