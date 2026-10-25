@@ -26,6 +26,20 @@ public final class ChainBooleanRebuildCache {
     copy.put(entry.getKey(),entry.getValue().clone());
    this.meshes=Collections.unmodifiableMap(copy);
   }
+  /** Test that the model still matches this completed background calculation. */
+  public boolean matches(List<FaceExtrusionChain> chains,List<ChainBooleanFeature> features){
+   try{
+    ChainDependencyReport.requireValid(chains,features);
+    if(!this.chains.equals(chainSignatures(chains))||features.size()!=this.features.size())
+     return false;
+    LinkedHashMap<String,String> signatures=new LinkedHashMap<>();
+    for(ChainBooleanFeature feature:features){
+     int source=feature.resolvedChainIndex(chains);
+     signatures.put(feature.id,featureSignature(feature,chains.get(source).id));
+    }
+    return signatures.equals(this.features);
+   }catch(RuntimeException error){return false;}
+  }
   public int count(){return meshes.size();}
   public boolean contains(String id){return meshes.containsKey(id);}
   public float[] mesh(String id){
