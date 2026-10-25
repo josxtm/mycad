@@ -70,3 +70,13 @@ Revisión: 2026-10-25. **Progreso global estimado: 42 % antes de este lote**. Es
 - **Regresiones CI:** `LinkedSketchSolidPlanTest` y `LinkedSketchAuditTest`: validación de rectángulo/círculo en 3 planos, múltiples dependientes, rechazados atómicos, volumen, IDs duplicados, referencias huérfanas y divergencia geométrica. Ejecutadas antes de Gradle.
 
 **Limitaciones:** el puente solamente maneja perfiles circulares y rectangulares básicos. No implementa solver de restricciones, splines, esquinas redondeadas, extrusión de perfiles arbitrarios ni un kernel B-Rep general. La validación automática de compilación no sustituye la comprobación de gestos y diálogos en un teléfono real. Avance global de motor CAD avanzado: estimación **~42 %** hasta lograr un hito funcional más amplio.
+
+## Lote de control de dependencias: borrado seguro de bocetos y recuperación robusta
+
+- **Planificador puro `SketchDeletionPlan`**: inspecciona los cuerpos vinculados al UUID del boceto objetivo sin mutar datos y produce dos alternativas inmutables: conservar los cuerpos desvinculados (`KEEP_SOLIDS`) o eliminar los cuerpos dependientes (`CASCADE_DELETE`). Rechaza IDs de cuerpo duplicados, referencias malformadas y planes que han quedado desactualizados.
+- **Interfaz Android**: en el menú **Boceto táctil** aparecen «Eliminar último boceto» y «Eliminar boceto seleccionado». Antes de actuar se muestra la cantidad exacta de extrusiones vinculadas y se elige «Conservar cuerpos», «Eliminar también cuerpos» o «Cancelar». Ambos modos hacen un único snapshot deshacible antes de modificar el proyecto.
+- **Selección y escena**: tras eliminar, se mantiene la selección de un cuerpo superviviente por UUID; se corrigen índices de bocetos, se limpia la cara activa y se refresca el visor 3D. Un cuerpo conservado mantiene forma, orientación, dimensiones e identidad, pero pierde su vínculo con el boceto eliminado.
+- **Deshacer/rehacer robustos**: la revisión guardada se deserializa y valida antes de hacer `pop()` de la pila de historial. Si el archivo de revisión está corrupto no se destruye la posibilidad de recuperación de otras revisiones.
+- **Pruebas**: `SketchDeletionPlanTest` verifica varias extrusiones dependientes, cuerpos ajenos, preservación de UUIDs, eliminación cascada, inmutabilidad y rechazo de planes obsoletos. `verify-project.sh` comprueba que Android utilice el plan, tome snapshot y aplique la operación confirmada.
+
+**Límite:** gestión de dependencias de bocetos y cuerpos primitivos; no elimina ni migra rasgos B-Rep generales, intersecciones arbitrarias o restricciones CAD avanzadas. El progreso estimado de motor CAD sigue en ~42 % mientras no se validen los siguientes hitos en el teléfono.
