@@ -493,8 +493,8 @@ public class MainActivity extends Activity {
     es.josxtm.mycad.cad.FacePrismExtrusion.create(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,
      parent.rotationX,parent.rotationY,parent.rotationZ,face,amount);
    if(fuse){
-    BoxBoolean.Box a=new BoxBoolean.Box(parent.x-parent.w/2,parent.y-parent.d/2,parent.z,parent.w,parent.d,parent.h);
-    BoxBoolean.Box b=new BoxBoolean.Box(result.x-result.w/2,result.y-result.d/2,result.z,result.w,result.d,result.h);
+    BoxBoolean.Box a=new BoxBoolean.Box(parent.x,parent.y,parent.z,parent.w,parent.d,parent.h);
+    BoxBoolean.Box b=new BoxBoolean.Box(result.x,result.y,result.z,result.w,result.d,result.h);
     float[] united=BoxBooleanMesh.build(a,b,BoxBooleanMesh.Operation.UNION);
     if(united.length==0)throw new IllegalArgumentException("Empty union");
     checkpoint();
