@@ -121,3 +121,7 @@ El prototipo `ParametricSketchDocument` incorpora `exportSnapshot()` e `importSn
 - Admite extrusión con altura firmada: el sentido negativo desplaza el origen al otro lado del plano manteniendo dimensiones positivas.
 - Pruebas independientes de Android verifican volumen, dirección y dimensiones en los tres planos, así como rechazo de entradas inválidas.
 - **Todavía no está conectado al grafo `ParametricSketchDocument` ni a la interfaz Android.** Es una capa geométrica separada; no supone selección avanzada ni B-Rep.
+
+## Integración paramétrica de los planos — 2026-10-25
+
+`ParametricSketchDocument` conserva ahora el plano de cada boceto rectangular (`XY`, `XZ`, `YZ`). El método `addRectangleOnPlane()` y las extrusiones de altura firmada utilizan `PlaneExtrusion` durante la reconstrucción, manteniendo el identificador del cuerpo. `exportSnapshot` guarda el plano por perfil y `importSnapshot` acepta tanto registros nuevos de 7 campos como los antiguos de 6 campos (asumiendo XY). Se han añadido regresiones de volumen, edición y recuperación para los tres planos; pruebas Java puras, todavía no integradas en la UI ni equivalentes a B-Rep.
