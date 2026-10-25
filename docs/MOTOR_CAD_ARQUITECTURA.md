@@ -205,3 +205,7 @@ El menú de proyecto ofrece `Alternar visor CAD experimental`, desactivado inici
 ## Primera edición desde cara seleccionada (2026-10-25)
 
 Menú `Proyecto MyCAD` → `Editar cara seleccionada`: con un prisma seleccionado desde el visor GPU experimental, la cara lógica `Z_MAX` abre el editor de altura de extrusión existente. Reutiliza validación de extrusiones, `checkpoint` (deshacer), guardado y actualización de la malla GPU. La edición es una operación **sobre la altura del prisma**, no un offset topológico de caras; las demás caras todavía muestran una restricción explícita. Al deshacer, crear o cargar un proyecto, o alternar el visor, se limpia la referencia temporal de cara para evitar selecciones obsoletas.
+
+## Edición de caras de prismas — 2026-10-25
+
+La nueva clase `FaceResize` calcula desplazamientos de las seis caras de un prisma sin rotación, preservando la cara opuesta al mover una cara lateral y validando límites de tamaño. El menú `Editar cara seleccionada` permite desplazar en milímetros X_MIN, X_MAX, Y_MIN, Y_MAX y Z_MIN para piezas independientes sin rotación ni boceto vinculado, mediante `checkpoint`, guardado y regeneración de la malla GPU. Z_MAX sigue usando el editor validado de altura existente. Los prismas rotados y vinculados a bocetos se rechazan explícitamente para evitar incoherencias entre historial paramétrico y geometría Android.
