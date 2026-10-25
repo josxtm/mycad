@@ -80,6 +80,8 @@ jobs:
           java -cp build/geometry-tests FaceUnionRecipeTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/FaceExtrusionChain.java tests/FaceExtrusionChainTest.java
           java -cp build/geometry-tests FaceExtrusionChainTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ChainTriangleMap.java tests/ChainTriangleMapTest.java
+          java -cp build/geometry-tests ChainTriangleMapTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadIntegrationProbe.java tests/CadIntegrationProbeTest.java
           java -cp build/geometry-tests CadIntegrationProbeTest
           } 2>&1 | tee reports/geometria.log
