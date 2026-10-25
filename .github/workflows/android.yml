@@ -28,9 +28,10 @@ jobs:
       - name: Probar geometría sin Android
         run: |
           mkdir -p build/geometry-tests
-          javac -d build/geometry-tests app/src/main/java/es/josxtm/mycad/GeometryMath.java app/src/main/java/es/josxtm/mycad/BoxBoolean.java tests/GeometryMathTest.java tests/BoxBooleanTest.java
+          javac -d build/geometry-tests app/src/main/java/es/josxtm/mycad/GeometryMath.java app/src/main/java/es/josxtm/mycad/BoxBoolean.java app/src/main/java/es/josxtm/mycad/BoxBooleanMesh.java tests/GeometryMathTest.java tests/BoxBooleanTest.java tests/BoxBooleanMeshTest.java
           java -cp build/geometry-tests GeometryMathTest
           java -cp build/geometry-tests BoxBooleanTest
+          java -cp build/geometry-tests BoxBooleanMeshTest
       - name: Compilar, ejecutar pruebas y comprobar Lint
         run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
       - name: Verificar APK y nombre de versión
