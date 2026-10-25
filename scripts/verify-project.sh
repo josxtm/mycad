@@ -117,6 +117,14 @@ for marker in ('storedFeatures.put(new JSONObject().put("id",f.id)',
                "graph.affectedBy(node.id)"):
     if marker not in source:
         raise SystemExit("ERROR: grafo de dependencias sin integrar: "+marker)
+for marker in ("void rebuildSavedChainBooleans()", "ChainBooleanRebuildCache.rebuild(sources,features,previous)",
+               "result.state.matches(extrusionChains,chainFeatures)",
+               "booleanRebuildSnapshot=result.state",
+               "runOnUiThread(", "copyExtrusionChain(chain)",
+               "showMeshOnly(new MeshEngine.Mesh(preview))",
+               'case 19:rebuildSavedChainBooleans();break;'):
+    if marker not in source:
+        raise SystemExit("ERROR: reconstrucción incremental de booleanas no conectada: "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
