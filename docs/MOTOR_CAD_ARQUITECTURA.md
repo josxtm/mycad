@@ -245,3 +245,7 @@ Menú `Proyecto → Historial de extrusiones`: permite crear una cadena desde un
 ## Malla unificada para cadenas (2026-10-25)
 
 `MultiBoxUnion` calcula la superficie exterior de la unión de hasta 52 cajas alineadas a ejes, suprimiendo las caras interiores; las pruebas comprueban tres cajas contiguas y una caja aislada. En `Historial paramétrico → Cadena → Ver unión de toda la cadena` se muestra exclusivamente esa malla en el visor GPU, incluyendo raíz y extrusiones, sin convertir ni alterar la cadena editable ni sustituir los cuerpos originales. Modificar un paso y volver a abrir esta vista regenera la unión con las nuevas medidas. Es un método de partición espacial de prismas, no B-Rep general ni compatible todavía con cajas rotadas o cilindros. Las escenas grandes requieren optimización adicional.
+
+## Selección táctil de pasos de una cadena (2026-10-25)
+
+En el visor CAD experimental, los triángulos añadidos al final de la malla por las cadenas se relacionan con su índice de cadena y operación (12 triángulos por extrusión rectangular). Al tocar un paso se presenta un diálogo para editar su distancia o abrir el historial; la edición utiliza la regeneración existente. Esta asociación depende del orden de los triángulos, por lo que no debe considerarse identificación topológica persistente y no se aplica a vistas de mallas aisladas.
