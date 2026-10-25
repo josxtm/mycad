@@ -371,7 +371,7 @@ public class MainActivity extends Activity {
  }).show();
  }
  protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);
- if(request==IMPORT_MESH||request==EXPORT_MESH){handleMeshResult(request,result,data);return;}if(request!=SAVE_FILE&&request!=OPEN_FILE)return;
+ if(request==IMPORT_MESH||request==EXPORT_MESH){if(request==EXPORT_MESH&&(result!=RESULT_OK||data==null||data.getData()==null))pendingMeshExport=null;handleMeshResult(request,result,data);return;}if(request!=SAVE_FILE&&request!=OPEN_FILE)return;
  if(result!=RESULT_OK||data==null||data.getData()==null){if(request==SAVE_FILE)pendingExport=null;toast("Operación cancelada");return;}
  Uri uri=data.getData();String snapshot=pendingExport;pendingExport=null;fileBusy=true;info.setText(request==SAVE_FILE?"Guardando archivo…":"Abriendo archivo…");
  new Thread(()->{try{
