@@ -58,6 +58,8 @@ jobs:
           java -cp build/geometry-tests SketchEditValidatorTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/RigidTransform.java tests/RigidTransformTest.java
           java -cp build/geometry-tests RigidTransformTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CylinderSurface.java app/src/main/java/es/josxtm/mycad/cad/CircularThroughHole.java app/src/main/java/es/josxtm/mycad/cad/DrilledBoxRecipe.java tests/CurvedGeometryTest.java
+          java -cp build/geometry-tests CurvedGeometryTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/TransformedBody.java tests/TransformedBodyTest.java
           java -cp build/geometry-tests TransformedBodyTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/BoxSurface.java tests/BoxSurfaceTest.java
