@@ -42,6 +42,21 @@ public final class ParametricSketchDocumentTest {
   check(loaded.removeExtrusion(featureId),"Remove feature");
   check(loaded.bodies().isEmpty()&&loaded.sketches().containsKey(sketch),"Preserve source sketch");
   check(loaded.undo()&&loaded.bodies().containsKey(bodyId),"Restore removed extrusion");
+  for(PlaneExtrusion.Plane plane:PlaneExtrusion.Plane.values()){
+   ParametricSketchDocument threeD=new ParametricSketchDocument(new PrimitiveKernel());
+   String profile=threeD.addRectangleOnPlane(plane,2,3,7,20);
+   check(profile!=null,"Plane sketch "+plane);
+   CadKernel.Result<CadKernel.Box> extruded=threeD.extrude(profile,5,-4);
+   check(extruded.isSuccess()&&extruded.value.volume()==560,"Signed extrusion "+plane);
+   String id3=extruded.value.id;
+   check(threeD.updateRectangle(profile,2,3,10,20),"Update plane sketch "+plane);
+   check(threeD.bodies().get(id3).volume()==800,"Rebuild "+plane);
+   String roundTrip=threeD.exportSnapshot();
+   ParametricSketchDocument reopened=ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),roundTrip);
+   check(reopened.sketches().get(profile).plane==plane,"Restore plane "+plane);
+   check(reopened.bodies().get(id3).volume()==800,"Restore volume "+plane);
+   check(reopened.undo()&&reopened.bodies().isEmpty(),"Undo after import returns empty initial state");
+  }
   System.out.println("ParametricSketchDocumentTest: OK");
  }
 }
