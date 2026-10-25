@@ -18,7 +18,7 @@ public final class ParametricSketchDocumentTest {
   check(doc.removeRectangle(sketch)&&doc.bodies().isEmpty(),"Remove sketch and dependent body");
   check(doc.undo()&&doc.bodies().containsKey(bodyId),"Undo dependency removal");
   check(doc.extrude("missing",0,1).code==CadKernel.Code.INVALID_GEOMETRY,"Reject absent sketch");
-  check(doc.extrude(sketch,0,-5).code==CadKernel.Code.INVALID_GEOMETRY,"Reject negative height for initial adapter");
+  check(doc.extrude(sketch,0,0).code==CadKernel.Code.INVALID_GEOMETRY,"Reject zero extrusion height");
   check(doc.bodies().size()==1,"Invalid extrusion atomic");
   String snapshot=doc.exportSnapshot();
   ParametricSketchDocument loaded=ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot);
@@ -35,7 +35,7 @@ public final class ParametricSketchDocumentTest {
   check(loaded.setExtrusionHeight(featureId,8),"Edit extrusion height");
   check(loaded.bodies().get(bodyId).volume()==2400,"Height recalculates volume");
   check(loaded.extrusions().get(featureId).bodyId.equals(bodyId),"Stable body after edit");
-  check(!loaded.setExtrusionHeight(featureId,-3),"Reject negative height edit");
+  check(!loaded.setExtrusionHeight(featureId,0),"Reject zero height edit");
   check(loaded.bodies().get(bodyId).volume()==2400,"Rejected edit must be atomic");
   check(loaded.undo()&&loaded.bodies().get(bodyId).volume()==1500,"Undo extrusion height");
   check(loaded.redo()&&loaded.bodies().get(bodyId).volume()==2400,"Redo extrusion height");
