@@ -157,3 +157,7 @@ La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneEx
 ## Archivo Android con vista previa paramétrica opcional (2026-10-25)
 
 `MainActivity.encode()` mantiene el contenedor JSON `format=mycad`, `version=1`, `units=mm` y los campos anteriores (`parts`, `sketches`, `booleanMeshes`). Añade `parametricPreview` con el snapshot generado y probado mediante `CadIntegrationProbe`, además del indicador `parametricPreviewCoverageComplete`. Los lectores existentes siguen pudiendo abrir la parte legacy. La vista previa es **no autoritativa** y puede ser parcial; la aplicación sigue reconstruyendo las piezas desde `parts`/`sketches` al cargar. Los errores de construcción de la vista previa no impiden guardar el modelo previo. Sigue pendiente la migración bidireccional, la asignación estable de ID entre modelos y un B-Rep general.
+
+## Vínculos entre cuerpos Android y vista previa (2026-10-25)
+
+`CadIntegrationProbe.Report` registra `compatiblePartIndices` y `generatedBodyIds` en el mismo orden, enlazando cada parte antigua con el cuerpo generado. `MainActivity.encode()` añade el campo opcional `parametricBodyBindings` con índice, ID, boceto origen, traslación XYZ y giros XYZ. Son metadatos complementarios; las posiciones y rotaciones todavía **no se aplican al sólido del núcleo**, de modo que no deben considerarse una migración geométrica completa. El JSON v1 sigue siendo la fuente autoritativa. Pruebas cubren orden y unicidad de los vínculos.
