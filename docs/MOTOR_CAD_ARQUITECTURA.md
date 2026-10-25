@@ -165,3 +165,7 @@ La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneEx
 ## Núcleo de transformaciones rígidas 3D
 
 `RigidTransform` implementa rotaciones en grados alrededor de X, después Y y después Z, seguidas de traslación XYZ. Transforma puntos y los ocho vértices de los prismas, y calcula una caja contenedora AABB de la geometría rotada. Valida entradas finitas; las pruebas cubren los tres ejes, traslaciones y límites. **No cambia todavía el renderizado Android ni dota al kernel de caras/aristas B-Rep; las cajas contenedoras no sustituyen sólidos rotados.**
+
+## Vista previa transformada de cuerpos — 2026-10-25
+
+`TransformedBody` combina `CadKernel.Box` con `RigidTransform`: proporciona ocho vértices en coordenadas globales, centro, AABB transformada y volumen conservado. `CadIntegrationProbe` recibe opcionalmente las transformaciones antiguas y genera cotas mundiales junto a `generatedBodyIds`; la exportación JSON mantiene dichos límites en `parametricBodyBindings[].worldBounds`. Incluye pruebas Java de rotación Z 90° y traslación. **Los límites AABB son metadatos de vista previa, no una representación topológica B-Rep, y el renderizador Android no se ha sustituido.**
