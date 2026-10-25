@@ -68,6 +68,18 @@ for marker in ("LinkedSketchSolidPlan.build(", "LinkedSketchSolidPlan.plan(",
                "java.util.ArrayList<Part> originals=new java.util.ArrayList<>(),staged=new java.util.ArrayList<>();"):
     if marker not in source:
         raise SystemExit("ERROR: no se conserva el puente paramétrico atómico: "+marker)
+for marker in ("requestSketchDeletion(false)", "requestSketchDeletion(true)",
+               "void requestSketchDeletion(boolean selectedOnly)",
+               "void applySketchDeletion(Sketch target",
+               "SketchDeletionPlan.inspect(target.id,sketchBodyLinks())",
+               "plan.stillMatches(sketchBodyLinks())",
+               "checkpoint();\n  sketches.remove(index);",
+               "Mode.CASCADE_DELETE",
+               'sourceSketchId=""',
+               "ParsedDesign restored=decode(src.peek());",
+               "src.pop();dst.push(prior);"):
+    if marker not in source:
+        raise SystemExit("ERROR: borrado seguro o historial no integrado: "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
