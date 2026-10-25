@@ -42,6 +42,8 @@ jobs:
           java -cp build/geometry-tests BoxBooleanMeshTest
           javac -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadKernel.java app/src/main/java/es/josxtm/mycad/cad/PrimitiveKernel.java tests/CadKernelTest.java
           java -cp build/geometry-tests CadKernelTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadDocument.java tests/CadDocumentTest.java
+          java -cp build/geometry-tests CadDocumentTest
           } 2>&1 | tee reports/geometria.log
       - name: Compilar, ejecutar pruebas y comprobar Lint
         id: build
