@@ -25,6 +25,11 @@ jobs:
           gradle-version: '8.9'
       - name: Comprobar integridad del proyecto
         run: bash scripts/verify-project.sh
+      - name: Probar geometría sin Android
+        run: |
+          mkdir -p build/geometry-tests
+          javac -d build/geometry-tests app/src/main/java/es/josxtm/mycad/GeometryMath.java tests/GeometryMathTest.java
+          java -cp build/geometry-tests GeometryMathTest
       - name: Compilar, ejecutar pruebas y comprobar Lint
         run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
       - name: Verificar APK y nombre de versión
