@@ -52,6 +52,8 @@ jobs:
           java -cp build/geometry-tests CadIntegrationProbeTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SketchEditValidator.java tests/SketchEditValidatorTest.java
           java -cp build/geometry-tests SketchEditValidatorTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/RigidTransform.java tests/RigidTransformTest.java
+          java -cp build/geometry-tests RigidTransformTest
           } 2>&1 | tee reports/geometria.log
       - name: Compilar, ejecutar pruebas y comprobar Lint
         id: build
