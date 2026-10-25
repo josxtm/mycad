@@ -17,7 +17,8 @@ public final class CadIntegrationProbe {
  }
  public static final class Report {
   public final int compatibleSketches,compatibleExtrusions,unsupportedSketches,unlinkedParts,invalidExtrusions;
-  Report(int s,int e,int u,int p,int i){compatibleSketches=s;compatibleExtrusions=e;unsupportedSketches=u;unlinkedParts=p;invalidExtrusions=i;}
+  public final String parametricSnapshot;
+  Report(int s,int e,int u,int p,int i,String snapshot){compatibleSketches=s;compatibleExtrusions=e;unsupportedSketches=u;unlinkedParts=p;invalidExtrusions=i;parametricSnapshot=snapshot;}
   public boolean readyForMigration(){return unsupportedSketches==0&&unlinkedParts==0&&invalidExtrusions==0;}
  }
  public static Report inspect(List<SketchData> sketches,List<PartData> parts){
@@ -40,6 +41,10 @@ public final class CadIntegrationProbe {
    else extrusions++;
   }
   if(!model.validateIntegrity().isEmpty())throw new IllegalStateException("Probe generated invalid geometry");
-  return new Report(linked.size(),extrusions,unsupported,unlinked,invalid);
+  String snapshot=model.exportSnapshot();
+  ParametricSketchDocument restored=ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot);
+  if(!restored.validateIntegrity().isEmpty()||restored.bodies().size()!=extrusions)
+   throw new IllegalStateException("Failed roundtrip of parametric preview");
+  return new Report(linked.size(),extrusions,unsupported,unlinked,invalid,snapshot);
  }
 }
