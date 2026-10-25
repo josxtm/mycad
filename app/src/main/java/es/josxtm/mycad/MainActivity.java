@@ -202,6 +202,7 @@ public class MainActivity extends Activity {
     if(triangles.length==0){toast("El resultado es vacío");return;}
     if(meshView==null){
      meshView=new MeshEngine(this);
+     meshView.setSurfaceTapListener((triangle,x,y,z)->info.setText(String.format(java.util.Locale.US,"Cara GPU · triángulo %d · X %.1f · Y %.1f · Z %.1f mm",triangle+1,x,y,z)));
      rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));
     }
     meshMode=true;meshView.setVisibility(View.VISIBLE);
@@ -217,7 +218,7 @@ public class MainActivity extends Activity {
    }).setNegativeButton("Cancelar",null).show();
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
-  if(meshView==null){meshView=new MeshEngine(this);rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
+  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->info.setText(String.format(java.util.Locale.US,"Cara GPU · triángulo %d · X %.1f · Y %.1f · Z %.1f mm",triangle+1,x,y,z)));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=true;meshView.setVisibility(View.VISIBLE);
   meshView.setMeshes(java.util.Collections.singletonList(mesh));
   info.setText("Resultado booleano · "+mesh.triangles()+" triángulos");
@@ -473,7 +474,7 @@ public class MainActivity extends Activity {
   float[] vertices=new float[a.size()];for(int i=0;i<vertices.length;i++)vertices[i]=a.get(i);return new MeshEngine.Mesh(vertices);
  }
  void toggleMeshView(){
-  if(meshView==null){meshView=new MeshEngine(this);rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
+  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->info.setText(String.format(java.util.Locale.US,"Cara GPU · triángulo %d · X %.1f · Y %.1f · Z %.1f mm",triangle+1,x,y,z)));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=!meshMode;meshView.setVisibility(meshMode?View.VISIBLE:View.GONE);
   if(meshMode){meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));toast("Visor GPU: arrastra para girar");}
  }
