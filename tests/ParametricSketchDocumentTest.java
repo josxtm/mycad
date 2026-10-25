@@ -20,6 +20,17 @@ public final class ParametricSketchDocumentTest {
   check(doc.extrude("missing",0,1).code==CadKernel.Code.INVALID_GEOMETRY,"Reject absent sketch");
   check(doc.extrude(sketch,0,-5).code==CadKernel.Code.INVALID_GEOMETRY,"Reject negative height for initial adapter");
   check(doc.bodies().size()==1,"Invalid extrusion atomic");
+  String snapshot=doc.exportSnapshot();
+  ParametricSketchDocument loaded=ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot);
+  check(loaded.bodies().size()==doc.bodies().size(),"Snapshot count");
+  check(loaded.bodies().get(bodyId).volume()==doc.bodies().get(bodyId).volume(),"Snapshot volume");
+  check(snapshot.equals(loaded.exportSnapshot()),"Stable round trip");
+  boolean rejected=false;
+  try{ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot.replace("MYCAD-PARAMETRIC|1","MYCAD-PARAMETRIC|2"));}catch(IllegalArgumentException expected){rejected=true;}
+  check(rejected,"Invalid version accepted");
+  rejected=false;
+  try{ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot.replace("|20.0|10.0","|-20.0|10.0"));}catch(IllegalArgumentException expected){rejected=true;}
+  check(rejected,"Invalid dimensions accepted");
   System.out.println("ParametricSketchDocumentTest: OK");
  }
 }
