@@ -202,7 +202,7 @@ public class MainActivity extends Activity {
     if(triangles.length==0){toast("El resultado es vacío");return;}
     if(meshView==null){
      meshView=new MeshEngine(this);
-     meshView.setSurfaceTapListener((triangle,x,y,z)->info.setText(String.format(java.util.Locale.US,"Cara GPU · triángulo %d · X %.1f · Y %.1f · Z %.1f mm",triangle+1,x,y,z)));
+     meshView.setSurfaceTapListener((triangle,x,y,z)->showGpuSurfaceSelection(triangle,x,y,z));
      rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));
     }
     meshMode=true;meshView.setVisibility(View.VISIBLE);
@@ -218,7 +218,7 @@ public class MainActivity extends Activity {
    }).setNegativeButton("Cancelar",null).show();
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
-  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->info.setText(String.format(java.util.Locale.US,"Cara GPU · triángulo %d · X %.1f · Y %.1f · Z %.1f mm",triangle+1,x,y,z)));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
+  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->showGpuSurfaceSelection(triangle,x,y,z));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=true;meshView.setVisibility(View.VISIBLE);
   meshView.setMeshes(java.util.Collections.singletonList(mesh));
   info.setText("Resultado booleano · "+mesh.triangles()+" triángulos");
@@ -436,6 +436,15 @@ public class MainActivity extends Activity {
 
  void addTri(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r){for(float v:p)a.add(v);for(float v:q)a.add(v);for(float v:r)a.add(v);}
  void quad(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r,float[] t){addTri(a,p,q,r);addTri(a,p,r,t);}
+ void showGpuSurfaceSelection(int triangle,double x,double y,double z){
+  String label="Triángulo "+(triangle+1);
+  if(cadGpuMesh&&importedMesh==null&&booleanMeshes.isEmpty()&&parts.size()==1&&!parts.get(0).circle
+    &&triangle>=0&&triangle<12){
+   es.josxtm.mycad.cad.BoxFaceSelection.Face face=es.josxtm.mycad.cad.BoxFaceSelection.faceForTriangle(triangle);
+   label="Cara "+face.name().replace('_',' ');
+  }
+  info.setText(String.format(java.util.Locale.US,"%s · X %.1f · Y %.1f · Z %.1f mm",label,x,y,z));
+ }
  void toggleCadGpuMesh(){
   cadGpuMesh=!cadGpuMesh;
   if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
@@ -474,7 +483,7 @@ public class MainActivity extends Activity {
   float[] vertices=new float[a.size()];for(int i=0;i<vertices.length;i++)vertices[i]=a.get(i);return new MeshEngine.Mesh(vertices);
  }
  void toggleMeshView(){
-  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->info.setText(String.format(java.util.Locale.US,"Cara GPU · triángulo %d · X %.1f · Y %.1f · Z %.1f mm",triangle+1,x,y,z)));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
+  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->showGpuSurfaceSelection(triangle,x,y,z));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=!meshMode;meshView.setVisibility(meshMode?View.VISIBLE:View.GONE);
   if(meshMode){meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));toast("Visor GPU: arrastra para girar");}
  }
