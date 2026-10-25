@@ -519,7 +519,9 @@ public class MainActivity extends Activity {
   if(drill==null){drills.put(JSONObject.NULL);continue;}
   drills.put(new JSONObject().put("x",drill.x).put("y",drill.y).put("z",drill.z)
    .put("w",drill.width).put("d",drill.depth).put("h",drill.height)
-   .put("offsetX",drill.holeX).put("offsetY",drill.holeY).put("diameter",drill.diameter));
+   .put("offsetX",drill.holeX).put("offsetY",drill.holeY).put("diameter",drill.diameter)
+   .put("axis",drill.axis.name()).put("rotationX",drill.rotationX)
+   .put("rotationY",drill.rotationY).put("rotationZ",drill.rotationZ));
  }
  file.put("throughHoleRecipes",drills);
 
@@ -625,7 +627,9 @@ public class MainActivity extends Activity {
     parsedDrills.add(new es.josxtm.mycad.cad.DrilledBoxRecipe(
      v.getDouble("x"),v.getDouble("y"),v.getDouble("z"),
      v.getDouble("w"),v.getDouble("d"),v.getDouble("h"),
-     v.getDouble("offsetX"),v.getDouble("offsetY"),v.getDouble("diameter")));
+     v.getDouble("offsetX"),v.getDouble("offsetY"),v.getDouble("diameter"),
+     es.josxtm.mycad.cad.OrientedThroughHole.Axis.valueOf(v.optString("axis","Z")),
+     v.optDouble("rotationX",0),v.optDouble("rotationY",0),v.optDouble("rotationZ",0)));
    }catch(IllegalArgumentException e){throw new IOException("Perforación inválida",e);}
   }
  }
