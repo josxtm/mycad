@@ -53,3 +53,12 @@ Si el motor actual no admite una operación fiable, registrar la limitación y d
 5. Pruebas de regresión de 0.5.0 y documentación del resultado.
 
 **Límite conocido:** aún no existe un kernel B-Rep paramétrico equivalente a Shapr3D; la versión 0.6.0 no debe presentarse como completada.
+
+## Continuación 0.6.0 — revisión de planos y CI
+
+- Se añade control de orientación táctil a Scene (vistas predefinidas, arrastre) en la rama main, pendiente de validación en dispositivo.
+- Se corrige visualización de entidades de boceto XY/XZ/YZ en vista plana y la colocación de extrusión XZ/YZ. La validación visual y de sólidos está pendiente.
+- Se añaden `GeometryMath.java` y `tests/GeometryMathTest.java` (volumen prismático/cilíndrico, mapeo de planos y validación de datos).
+- CI ejecuta primero prueba Java independiente, luego `testDebugUnitTest`, `lintDebug`, `assembleDebug` y verifica el nombre del APK antes de publicarlo.
+- **No hay verificación confirmada del último run** en esta revisión; no declarar APK compilado ni versión final.
+- Próximo bloque: probar resultado de Actions, resolver sus fallos si aparecen, implementar sólidos paramétricos y previsualización de extrusión; conservar el JSON actual.
