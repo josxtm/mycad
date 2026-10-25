@@ -197,3 +197,7 @@ El menú de proyecto ofrece `Alternar visor CAD experimental`, desactivado inici
 ## Resaltado visual de caras GPU (2026-10-25)
 
 `MeshEngine.highlightFace(firstTriangle)` dibuja en ámbar los dos triángulos contiguos de la cara seleccionada en el visor GPU. `MainActivity` convierte la selección multicuerpo en el primer triángulo de la cara y limpia el resaltado cuando no corresponde a un prisma; `setMeshes` reinicia la selección para evitar índices obsoletos. El modo clásico permanece disponible. La edición directa de caras y las pruebas visuales reales en Android siguen pendientes.
+
+## Referencia de cara seleccionada (2026-10-25)
+
+`CadFaceReference` captura el índice de pieza y la cara lógica (X/Y/Z mínima o máxima) dentro de la sesión; permite comprobar si el índice sigue dentro del rango y localizar sus dos triángulos. En el visor experimental `MainActivity.activeCadFace` recibe la referencia cuando se toca una cara y se limpia al salir del modo o tocar mallas no asociadas. La referencia **no es todavía un identificador persistente**: un cambio de orden, eliminación o carga del proyecto puede invalidarla. No se utiliza para modificar geometría en esta fase. Las pruebas Java cubren igualdad, límites y entrada inválida.
