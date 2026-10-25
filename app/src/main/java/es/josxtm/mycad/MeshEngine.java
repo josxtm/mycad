@@ -20,11 +20,14 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private final float[] projection=new float[16],view=new float[16],mvp=new float[16];
  private float yaw=35,pitch=25,distance=300,centerX,centerY,centerZ;
  private float lastX,lastY,downX,downY; private boolean dragging,moved;
+ private volatile int highlightedFirstTriangle=-1;
+ public void highlightFace(int firstTriangle){highlightedFirstTriangle=firstTriangle;requestRender();}
+
  public interface SurfaceTapListener {void onSurfaceTap(int triangle,double x,double y,double z);}
  private SurfaceTapListener surfaceTapListener;
  public void setSurfaceTapListener(SurfaceTapListener listener){surfaceTapListener=listener;}
  public MeshEngine(Context context){super(context);setEGLContextClientVersion(3);setRenderer(this);setRenderMode(RENDERMODE_WHEN_DIRTY);}
- public void setMeshes(List<Mesh> incoming){final ArrayList<Mesh> copy=new ArrayList<>(incoming);queueEvent(()->{meshes.clear();meshes.addAll(copy);fitCamera();requestRender();});}
+ public void setMeshes(List<Mesh> incoming){final ArrayList<Mesh> copy=new ArrayList<>(incoming);highlightedFirstTriangle=-1;queueEvent(()->{meshes.clear();meshes.addAll(copy);fitCamera();requestRender();});}
  public void orbit(float dx,float dy){yaw+=dx*.35f;pitch=Math.max(-89,Math.min(89,pitch+dy*.35f));requestRender();}
  public void zoom(float factor){distance=Math.max(.1f,Math.min(100000f,distance/factor));requestRender();}
  @Override public boolean onTouchEvent(android.view.MotionEvent e){
@@ -83,7 +86,23 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   Matrix.setLookAtM(view,0,centerX+(float)(distance*Math.cos(b)*Math.cos(a)),centerY+(float)(distance*Math.cos(b)*Math.sin(a)),centerZ+(float)(distance*Math.sin(b)),centerX,centerY,centerZ,0,0,1);
   Matrix.multiplyMM(mvp,0,projection,0,view,0);GLES30.glUseProgram(program);GLES30.glUniformMatrix4fv(modelViewProjection,1,false,mvp,0);GLES30.glUniform4f(colorUniform,.3f,.78f,.84f,1);
   GLES30.glEnableVertexAttribArray(0);
-  for(Mesh mesh:meshes){FloatBuffer buf=ByteBuffer.allocateDirect(mesh.vertices.length*4).order(ByteOrder.nativeOrder()).asFloatBuffer();buf.put(mesh.vertices).position(0);GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buf);GLES30.glDrawArrays(GLES30.GL_TRIANGLES,0,mesh.vertices.length/3);}
+  int triangleOffset=0;
+  for(Mesh mesh:meshes){
+   FloatBuffer buf=ByteBuffer.allocateDirect(mesh.vertices.length*4).order(ByteOrder.nativeOrder()).asFloatBuffer();
+   buf.put(mesh.vertices).position(0);
+   GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buf);
+   GLES30.glUniform4f(colorUniform,.3f,.78f,.84f,1);
+   GLES30.glDrawArrays(GLES30.GL_TRIANGLES,0,mesh.vertices.length/3);
+   int local=highlightedFirstTriangle-triangleOffset;
+   if(local>=0&&local+1<mesh.triangles()){
+    GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL);
+    GLES30.glPolygonOffset(-2f,-2f);
+    GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
+    GLES30.glDrawArrays(GLES30.GL_TRIANGLES,local*3,6);
+    GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL);
+   }
+   triangleOffset+=mesh.triangles();
+  }
   GLES30.glDisableVertexAttribArray(0);
  }
 }
