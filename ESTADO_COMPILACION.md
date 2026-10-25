@@ -1,15 +1,15 @@
 # Estado de compilación MyCAD
 
 - **Resultado:** success
-- **Número de ejecución:** 315
-- **Commit compilado:** 5577125a2b5a53d6e0a05cc7248aa8435fff4325
-- **Fecha UTC:** 2026-10-25 22:57:06 UTC
-- **Enlace:** https://github.com/josxtm/mycad/actions/runs/40242414039
+- **Número de ejecución:** 317
+- **Commit compilado:** f2bdee13165898580b7bc45cc3c8c4941acc8d4c
+- **Fecha UTC:** 2026-10-25 23:06:42 UTC
+- **Enlace:** https://github.com/josxtm/mycad/actions/runs/40243165634
 
 ## Comprobaciones
 - Integridad: success
 - Pruebas geométricas: success
 - Gradle / Lint / tests: success
-- Generación APK: success
-- Verificación APK: success
-- **Modo:** HITO · APK disponible en los artefactos
+- Generación APK: skipped
+- Verificación APK: skipped
+- **Modo:** CI diaria · NO se ha generado APK
