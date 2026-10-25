@@ -12,15 +12,19 @@ public final class CadIntegrationProbe {
   }
  }
  public static final class PartData {
-  public final String sourceSketchId;public final double height;
-  public PartData(String sourceSketchId,double height){this.sourceSketchId=sourceSketchId;this.height=height;}
+  public final String sourceSketchId;public final double height,tx,ty,tz,rx,ry,rz;
+  public PartData(String sourceSketchId,double height){this(sourceSketchId,height,0,0,0,0,0,0);}
+  public PartData(String sourceSketchId,double height,double tx,double ty,double tz,double rx,double ry,double rz){
+   this.sourceSketchId=sourceSketchId;this.height=height;this.tx=tx;this.ty=ty;this.tz=tz;this.rx=rx;this.ry=ry;this.rz=rz;
+  }
  }
  public static final class Report {
   public final int compatibleSketches,compatibleExtrusions,unsupportedSketches,unlinkedParts,invalidExtrusions;
   public final String parametricSnapshot;
   public final List<Integer> compatiblePartIndices;
   public final List<String> generatedBodyIds;
-  Report(int s,int e,int u,int p,int i,String snapshot,List<Integer> indices,List<String> bodyIds){compatibleSketches=s;compatibleExtrusions=e;unsupportedSketches=u;unlinkedParts=p;invalidExtrusions=i;parametricSnapshot=snapshot;compatiblePartIndices=Collections.unmodifiableList(new ArrayList<>(indices));generatedBodyIds=Collections.unmodifiableList(new ArrayList<>(bodyIds));}
+  public final List<double[]> worldBounds;
+  Report(int s,int e,int u,int p,int i,String snapshot,List<Integer> indices,List<String> bodyIds,List<double[]> bounds){compatibleSketches=s;compatibleExtrusions=e;unsupportedSketches=u;unlinkedParts=p;invalidExtrusions=i;parametricSnapshot=snapshot;compatiblePartIndices=Collections.unmodifiableList(new ArrayList<>(indices));generatedBodyIds=Collections.unmodifiableList(new ArrayList<>(bodyIds));worldBounds=Collections.unmodifiableList(new ArrayList<>(bounds));}
   public boolean readyForMigration(){return unsupportedSketches==0&&unlinkedParts==0&&invalidExtrusions==0;}
  }
  public static Report inspect(List<SketchData> sketches,List<PartData> parts){
@@ -28,7 +32,7 @@ public final class CadIntegrationProbe {
   ParametricSketchDocument model=new ParametricSketchDocument(new PrimitiveKernel());
   Map<String,String> linked=new HashMap<>();
   int unsupported=0,invalid=0,unlinked=0,extrusions=0;
-  List<Integer> partIndices=new ArrayList<>();List<String> bodyIds=new ArrayList<>();
+  List<Integer> partIndices=new ArrayList<>();List<String> bodyIds=new ArrayList<>();List<double[]> bounds=new ArrayList<>();
   for(SketchData sketch:sketches){
    if(sketch==null||sketch.id==null||sketch.type!=2||sketch.plane<0||sketch.plane>2){unsupported++;continue;}
    PlaneExtrusion.Plane plane=PlaneExtrusion.Plane.values()[sketch.plane];
@@ -43,13 +47,19 @@ public final class CadIntegrationProbe {
    if(source==null){invalid++;continue;}
    CadKernel.Result<CadKernel.Box> result=model.extrude(source,0,part.height);
    if(!result.isSuccess())invalid++;
-   else{extrusions++;partIndices.add(index);bodyIds.add(result.value.id);}
+   else{
+    try{
+     double[] world=new TransformedBody(result.value,new RigidTransform(part.tx,part.ty,part.tz,part.rx,part.ry,part.rz)).worldBounds();
+     for(double number:world)if(!Double.isFinite(number))throw new IllegalArgumentException("Invalid bound");
+     extrusions++;partIndices.add(index);bodyIds.add(result.value.id);bounds.add(world);
+    }catch(IllegalArgumentException error){invalid++;}
+   }
   }
   if(!model.validateIntegrity().isEmpty())throw new IllegalStateException("Probe generated invalid geometry");
   String snapshot=model.exportSnapshot();
   ParametricSketchDocument restored=ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot);
   if(!restored.validateIntegrity().isEmpty()||restored.bodies().size()!=extrusions)
    throw new IllegalStateException("Failed roundtrip of parametric preview");
-  return new Report(linked.size(),extrusions,unsupported,unlinked,invalid,snapshot,partIndices,bodyIds);
+  return new Report(linked.size(),extrusions,unsupported,unlinked,invalid,snapshot,partIndices,bodyIds,bounds);
  }
 }
