@@ -59,3 +59,14 @@ Revisión: 2026-10-25. **Progreso global estimado: 42 % antes de este lote**. Es
 - La prueba `StableFeatureDependenciesTest` verifica conservación de IDs de pasos, reordenación, referencias huérfanas, duplicados y compatibilidad con recetas basadas en índices anteriores.
 
 **Limitaciones:** el grafo cubre las cadenas rectangulares y booleanas actualmente soportadas, no todas las piezas ni el sistema de bocetos Android. No es una solución B-Rep de nombres topológicos tras divisiones, fusiones o redondeos. La compilación CI no sustituye la prueba de reconstrucción y los diálogos táctiles en el Nothing Phone 2a. El avance del objetivo CAD completo sigue estimado en ~42 %, a la espera de hito funcional más amplio.
+
+## Fase: reconstrucción atómica boceto → sólido y auditoría de vínculos
+
+- **Módulo independiente `LinkedSketchSolidPlan`:** calcula geometría de cuerpos dependientes desde bocetos rectangulares o circulares en planos XY/XZ/YZ, con valores en mm, altura de extrusión validada y transformaciones de posicionamiento equivalentes a la interfaz actual. Evalúa todos los cuerpos afectados **antes** de cambiar la geometría existente; si falla alguno, se rechaza el cambio.
+- **Integración Android:** `makeExtrudedPart` utiliza el planificador en lugar de fórmulas duplicadas; `rebuildLinkedParts` prepara todas las sustituciones y luego aplica actualizaciones conservando identidad UUID. La acotación del círculo recibe la misma validación previa que el rectángulo. Se mantiene la posibilidad de editar líneas abiertas sin extruirlas.
+- **Edición independiente sin efecto al cancelar:** ya no se rompe el vínculo del cuerpo al abrir el formulario; se desvincula únicamente si se confirma una edición manual. El ID permanente del cuerpo se conserva.
+- **`LinkedSketchAudit`:** diagnóstico independiente que detecta bocetos duplicados, cuerpos sin ID, referencias a bocetos inexistentes, extrusiones incompatibles y cuerpos cuyas medidas/posición difieren del boceto fuente. Las diferencias se indican como advertencias, sin modificar o bloquear automáticamente documentos anteriores.
+- **Nuevo menú:** `Proyecto → Auditar vínculos de bocetos`, con recuentos de perfiles, cuerpos vinculados y errores detectados. No modifica el proyecto.
+- **Regresiones CI:** `LinkedSketchSolidPlanTest` y `LinkedSketchAuditTest`: validación de rectángulo/círculo en 3 planos, múltiples dependientes, rechazados atómicos, volumen, IDs duplicados, referencias huérfanas y divergencia geométrica. Ejecutadas antes de Gradle.
+
+**Limitaciones:** el puente solamente maneja perfiles circulares y rectangulares básicos. No implementa solver de restricciones, splines, esquinas redondeadas, extrusión de perfiles arbitrarios ni un kernel B-Rep general. La validación automática de compilación no sustituye la comprobación de gestos y diálogos en un teléfono real. Avance global de motor CAD avanzado: estimación **~42 %** hasta lograr un hito funcional más amplio.
