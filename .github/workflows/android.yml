@@ -102,3 +102,69 @@ jobs:
           name: myCad${{ steps.apk.outputs.version }}
           path: ${{ steps.apk.outputs.apk }}
           if-no-files-found: error
+
+  publish-status:
+    name: Publicar estado consultable
+    needs: [verify]
+    if: ${{ always() && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    concurrency:
+      group: mycad-ci-status
+      cancel-in-progress: false
+    steps:
+      - name: Descargar informe anterior
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: informe-mycad-${{ github.run_number }}
+          path: reports
+      - name: Escribir estado en rama separada
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ needs.verify.result }}
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_RUN: ${{ github.run_number }}
+          SOURCE_RUN_ID: ${{ github.run_id }}
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          STATUS="$BUILD_RESULT"
+          mkdir -p /tmp/mycad-status
+          cd /tmp/mycad-status
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+          if git fetch -q origin refs/heads/ci-status:refs/remotes/origin/ci-status; then
+            git checkout -q -B ci-status refs/remotes/origin/ci-status
+          else
+            git checkout -q --orphan ci-status
+          fi
+          mkdir -p history
+          cat > ESTADO_COMPILACION.md <<EOF
+          # Estado de compilación MyCAD
+
+          - **Resultado:** ${STATUS}
+          - **Número de ejecución:** ${SOURCE_RUN}
+          - **Commit compilado:** ${SOURCE_SHA}
+          - **Fecha UTC:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          - **Enlace:** https://github.com/${GH_REPO}/actions/runs/${SOURCE_RUN_ID}
+
+          ## Comprobaciones
+          EOF
+          if test -s "$GITHUB_WORKSPACE/reports/INFORME.md"; then
+            sed -n '/^- Integridad:/p; /^- Pruebas geométricas:/p; /^- Gradle \/ Lint \/ tests:/p; /^- Verificación APK:/p' "$GITHUB_WORKSPACE/reports/INFORME.md" >> ESTADO_COMPILACION.md
+          else
+            echo "Informe detallado no disponible; consultar el enlace de la ejecución." >> ESTADO_COMPILACION.md
+          fi
+          cp ESTADO_COMPILACION.md "history/run-${SOURCE_RUN}.md"
+          git add ESTADO_COMPILACION.md history/
+          if ! git diff --cached --quiet; then
+            git commit -qm "ci-status: ejecución ${SOURCE_RUN} (${STATUS})"
+            git push -q origin HEAD:refs/heads/ci-status
+          fi
+          echo "Estado publicado en rama ci-status" >> "$GITHUB_STEP_SUMMARY"
