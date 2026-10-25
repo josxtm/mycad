@@ -19,6 +19,10 @@ public final class CadIntegrationProbeTest {
    Arrays.asList(new CadIntegrationProbe.SketchData("s",2,2,0,0,2,3)),
    Arrays.asList(new CadIntegrationProbe.PartData("s",4)));
   check(clean.readyForMigration()&&clean.compatibleExtrusions==1,"Clean probe");
+  ParametricSketchDocument preview=ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),r.parametricSnapshot);
+  check(preview.bodies().size()==2&&preview.validateIntegrity().isEmpty(),"Partial preview roundtrip");
+  check(ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),clean.parametricSnapshot).bodies().size()==1,"Full preview roundtrip");
+  check(clean.parametricSnapshot.startsWith("MYCAD-PARAMETRIC|1"),"Versioned preview");
   System.out.println("CadIntegrationProbeTest: OK");
  }
 }
