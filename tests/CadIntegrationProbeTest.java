@@ -23,6 +23,10 @@ public final class CadIntegrationProbeTest {
   check(preview.bodies().size()==2&&preview.validateIntegrity().isEmpty(),"Partial preview roundtrip");
   check(ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),clean.parametricSnapshot).bodies().size()==1,"Full preview roundtrip");
   check(clean.parametricSnapshot.startsWith("MYCAD-PARAMETRIC|1"),"Versioned preview");
+  check(r.compatiblePartIndices.size()==2&&r.compatiblePartIndices.get(0)==0&&r.compatiblePartIndices.get(1)==1,"Source indices");
+  check(r.generatedBodyIds.size()==2&&preview.bodies().containsKey(r.generatedBodyIds.get(0)),"Source to solid binding");
+  check(!r.generatedBodyIds.get(0).equals(r.generatedBodyIds.get(1)),"Unique generated solid IDs");
+  check(clean.compatiblePartIndices.size()==1&&clean.compatiblePartIndices.get(0)==0,"Clean source index");
   System.out.println("CadIntegrationProbeTest: OK");
  }
 }
