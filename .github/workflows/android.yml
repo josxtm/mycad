@@ -62,6 +62,8 @@ jobs:
           java -cp build/geometry-tests CurvedGeometryTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/OrientedThroughHoleTest.java
           java -cp build/geometry-tests OrientedThroughHoleTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/TriangleMeshHealth.java tests/TriangleMeshHealthTest.java
+          java -cp build/geometry-tests TriangleMeshHealthTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/TransformedBody.java tests/TransformedBodyTest.java
           java -cp build/geometry-tests TransformedBodyTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/BoxSurface.java tests/BoxSurfaceTest.java
