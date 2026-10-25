@@ -342,7 +342,7 @@ public class MainActivity extends Activity {
  }else{String text;try(InputStream in=getContentResolver().openInputStream(uri);ByteArrayOutputStream out=new ByteArrayOutputStream()){
  if(in==null)throw new IOException("No se pudo leer");byte[] buf=new byte[8192];int n,total=0;while((n=in.read(buf))!=-1){total+=n;if(total>2*1024*1024)throw new IOException("Archivo demasiado grande");out.write(buf,0,n);}text=new String(out.toByteArray(),StandardCharsets.UTF_8);}
  ParsedDesign loaded=decode(text);
- runOnUiThread(()->{fileBusy=false;checkpoint();parts=loaded.parts;sketches=loaded.sketches;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();info.setText("Archivo abierto · "+parts.size()+" piezas");toast("Diseño abierto correctamente");});
+ runOnUiThread(()->{fileBusy=false;checkpoint();parts=loaded.parts;sketches=loaded.sketches;booleanMeshes=loaded.meshes;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();info.setText("Archivo abierto · "+parts.size()+" piezas");toast("Diseño abierto correctamente");});
  }
  }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AlertDialog.Builder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
  }
