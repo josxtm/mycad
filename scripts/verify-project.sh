@@ -31,7 +31,7 @@ for marker in ("extrusionChains=restored.chains","chainFeatures=restored.feature
 for marker in ("void renderCurrentCadMesh()","isolatedMeshPreview=true","if(isolatedMeshPreview)"):
     if marker not in source:
         raise SystemExit("ERROR: falta protección de visor "+marker)
-for marker in ("throughHoleRecipes", "holeRecipes.add(recipe)", "holeRecipes.add(null)", "editHoleRecipe(int index)"):
+for marker in ("throughHoleRecipes", "holeRecipes.add(recipe)", "holeRecipes.add(null)", "editHoleRecipe(int index)", 'v.optString("axis","Z")', 'v.optDouble("rotationX",0)', "drillAxisChoice", "previous.rotationZ"):
     if marker not in source:
         raise SystemExit("ERROR: perforación no persistente "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
