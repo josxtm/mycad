@@ -29,7 +29,7 @@ public final class ParametricSketchDocumentTest {
   try{ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot.replace("MYCAD-PARAMETRIC|1","MYCAD-PARAMETRIC|2"));}catch(IllegalArgumentException expected){rejected=true;}
   check(rejected,"Invalid version accepted");
   rejected=false;
-  try{ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot.replace("|20.0|10.0","|-20.0|10.0"));}catch(IllegalArgumentException expected){rejected=true;}
+  try{ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot.replace("|30.0|10.0","|-30.0|10.0"));}catch(IllegalArgumentException expected){rejected=true;}
   check(rejected,"Invalid dimensions accepted");
   System.out.println("ParametricSketchDocumentTest: OK");
  }
