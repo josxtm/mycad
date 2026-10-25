@@ -19,17 +19,47 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private int program,position,modelViewProjection,colorUniform;
  private final float[] projection=new float[16],view=new float[16],mvp=new float[16];
  private float yaw=35,pitch=25,distance=300,centerX,centerY,centerZ;
- private float lastX,lastY; private boolean dragging;
+ private float lastX,lastY,downX,downY; private boolean dragging,moved;
+ public interface SurfaceTapListener {void onSurfaceTap(int triangle,double x,double y,double z);}
+ private SurfaceTapListener surfaceTapListener;
+ public void setSurfaceTapListener(SurfaceTapListener listener){surfaceTapListener=listener;}
  public MeshEngine(Context context){super(context);setEGLContextClientVersion(3);setRenderer(this);setRenderMode(RENDERMODE_WHEN_DIRTY);}
  public void setMeshes(List<Mesh> incoming){final ArrayList<Mesh> copy=new ArrayList<>(incoming);queueEvent(()->{meshes.clear();meshes.addAll(copy);fitCamera();requestRender();});}
  public void orbit(float dx,float dy){yaw+=dx*.35f;pitch=Math.max(-89,Math.min(89,pitch+dy*.35f));requestRender();}
  public void zoom(float factor){distance=Math.max(.1f,Math.min(100000f,distance/factor));requestRender();}
  @Override public boolean onTouchEvent(android.view.MotionEvent e){
   if(e.getPointerCount()>1){if(e.getActionMasked()==android.view.MotionEvent.ACTION_MOVE){float dy=e.getY()-lastY;zoom((float)Math.exp(-dy*.008));}lastY=e.getY();return true;}
-  if(e.getActionMasked()==android.view.MotionEvent.ACTION_DOWN){lastX=e.getX();lastY=e.getY();dragging=true;return true;}
-  if(e.getActionMasked()==android.view.MotionEvent.ACTION_MOVE&&dragging){orbit(e.getX()-lastX,e.getY()-lastY);lastX=e.getX();lastY=e.getY();return true;}
-  if(e.getActionMasked()==android.view.MotionEvent.ACTION_UP)dragging=false;
+  if(e.getActionMasked()==android.view.MotionEvent.ACTION_DOWN){lastX=e.getX();lastY=e.getY();downX=lastX;downY=lastY;moved=false;dragging=true;return true;}
+  if(e.getActionMasked()==android.view.MotionEvent.ACTION_MOVE&&dragging){if(Math.hypot(e.getX()-downX,e.getY()-downY)>12*getResources().getDisplayMetrics().density)moved=true;orbit(e.getX()-lastX,e.getY()-lastY);lastX=e.getX();lastY=e.getY();return true;}
+  if(e.getActionMasked()==android.view.MotionEvent.ACTION_UP){dragging=false;if(!moved&&surfaceTapListener!=null){final float x=e.getX(),y=e.getY();queueEvent(()->pickSurfaceAt(x,y));}}
   return true;
+ }
+ private void pickSurfaceAt(float sx,float sy){
+  if(getWidth()<=0||getHeight()<=0||meshes.isEmpty())return;
+  double a=Math.toRadians(yaw),b=Math.toRadians(pitch);
+  float[] camera=new float[16],combined=new float[16],inverse=new float[16];
+  Matrix.setLookAtM(camera,0,centerX+(float)(distance*Math.cos(b)*Math.cos(a)),
+   centerY+(float)(distance*Math.cos(b)*Math.sin(a)),centerZ+(float)(distance*Math.sin(b)),
+   centerX,centerY,centerZ,0,0,1);
+  Matrix.multiplyMM(combined,0,projection,0,camera,0);
+  if(!Matrix.invertM(inverse,0,combined,0))return;
+  float nx=2*sx/getWidth()-1,ny=1-2*sy/getHeight();
+  float[] near={nx,ny,-1,1},far={nx,ny,1,1},p=new float[4],q=new float[4];
+  Matrix.multiplyMV(p,0,inverse,0,near,0);Matrix.multiplyMV(q,0,inverse,0,far,0);
+  if(Math.abs(p[3])<1e-8||Math.abs(q[3])<1e-8)return;
+  for(int j=0;j<3;j++){p[j]/=p[3];q[j]/=q[3];}
+  double dx=q[0]-p[0],dy=q[1]-p[1],dz=q[2]-p[2];
+  es.josxtm.mycad.cad.CadRayPicker.Hit chosen=null;int offset=0,chosenIndex=-1;
+  for(Mesh mesh:meshes){
+   es.josxtm.mycad.cad.CadRayPicker.Hit hit=
+    es.josxtm.mycad.cad.CadRayPicker.pick(mesh.vertices,p[0],p[1],p[2],dx,dy,dz);
+   if(hit!=null&&(chosen==null||hit.distance<chosen.distance)){chosen=hit;chosenIndex=offset+hit.triangle;}
+   offset+=mesh.triangles();
+  }
+  if(chosen!=null){
+   final int triangle=chosenIndex;final double x=chosen.x,y=chosen.y,z=chosen.z;
+   post(()->{if(surfaceTapListener!=null)surfaceTapListener.onSurfaceTap(triangle,x,y,z);});
+  }
  }
  private void fitCamera(){float[] bounds={Float.MAX_VALUE,Float.MAX_VALUE,Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE};
   for(Mesh m:meshes)for(int i=0;i<m.vertices.length;i+=3)for(int k=0;k<3;k++){float v=m.vertices[i+k];bounds[k]=Math.min(bounds[k],v);bounds[k+3]=Math.max(bounds[k+3],v);}
