@@ -64,6 +64,8 @@ jobs:
           java -cp build/geometry-tests CadSceneFaceMapTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadFaceReference.java tests/CadFaceReferenceTest.java
           java -cp build/geometry-tests CadFaceReferenceTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/FaceResize.java tests/FaceResizeTest.java
+          java -cp build/geometry-tests FaceResizeTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadIntegrationProbe.java tests/CadIntegrationProbeTest.java
           java -cp build/geometry-tests CadIntegrationProbeTest
           } 2>&1 | tee reports/geometria.log
