@@ -16,6 +16,17 @@ public final class RigidTransform {
   double x2=x*cy+z1*sy,z2=-x*sy+z1*cy;
   return new double[]{x2*cz-y1*sz+tx,x2*sz+y1*cz+ty,z2+tz};
  }
+ /** Exact reverse of translation and X/Y/Z rotation; used for local feature picking. */
+ public double[] inversePoint(double wx,double wy,double wz){
+  if(!Double.isFinite(wx)||!Double.isFinite(wy)||!Double.isFinite(wz))
+   throw new IllegalArgumentException("Nonfinite coordinate");
+  double vx=wx-tx,vy=wy-ty,vz=wz-tz;
+  double ax=Math.toRadians(rx),ay=Math.toRadians(ry),az=Math.toRadians(rz);
+  double cx=Math.cos(ax),sx=Math.sin(ax),cy=Math.cos(ay),sy=Math.sin(ay),cz=Math.cos(az),sz=Math.sin(az);
+  double x2=vx*cz+vy*sz,y1=-vx*sz+vy*cz,z2=vz;
+  double x=x2*cy-z2*sy,z1=x2*sy+z2*cy;
+  return new double[]{x,y1*cx+z1*sx,-y1*sx+z1*cx};
+ }
  public double[][] vertices(CadKernel.Box box){
   if(box==null)throw new IllegalArgumentException("Box required");
   double[][] v=new double[8][];int n=0;

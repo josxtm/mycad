@@ -66,6 +66,8 @@ jobs:
           java -cp build/geometry-tests TriangleMeshHealthTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/BlindCircularHoleTest.java
           java -cp build/geometry-tests BlindCircularHoleTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CylinderBoxBoolean.java tests/CylinderBoxBooleanTest.java
+          java -cp build/geometry-tests CylinderBoxBooleanTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/TransformedBody.java tests/TransformedBodyTest.java
           java -cp build/geometry-tests TransformedBodyTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/BoxSurface.java tests/BoxSurfaceTest.java

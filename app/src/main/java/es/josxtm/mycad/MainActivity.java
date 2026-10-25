@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;}}).show();}
  void cadEngineDiagnostic(){
   try{
    java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.SketchData> ss=new java.util.ArrayList<>();
@@ -261,6 +261,75 @@ public class MainActivity extends Activity {
        }).show();
      }).show();
    }).setNegativeButton("Cerrar",null).show();
+ }
+ void cylinderBoxBooleanMenu(){
+  if(selected<0||selected>=parts.size()||parts.get(selected).circle){
+   toast("Selecciona primero un prisma rectangular");return;
+  }
+  final int boxIndex=selected;
+  final Part box=parts.get(boxIndex);
+  final java.util.ArrayList<Integer> indexes=new java.util.ArrayList<>();
+  final java.util.ArrayList<String> names=new java.util.ArrayList<>();
+  for(int i=0;i<parts.size();i++){
+   Part p=parts.get(i);
+   if(p.circle&&p.h>0&&p.w>0){
+    indexes.add(i);
+    names.add("Cilindro "+(i+1)+" · Ø"+p.w+" mm · "+p.h+" mm");
+   }
+  }
+  if(indexes.isEmpty()){toast("Crea un cilindro para usarlo como cortador");return;}
+  new AlertDialog.Builder(this).setTitle("Elegir cilindro cortador")
+   .setItems(names.toArray(new String[0]),(d,which)->{
+    final int cutterIndex=indexes.get(which);
+    final Part cylinder=parts.get(cutterIndex);
+    final es.josxtm.mycad.cad.CylinderBoxBoolean.Result result;
+    try{
+     result=es.josxtm.mycad.cad.CylinderBoxBoolean.calculate(
+      box.w,box.d,box.h,new es.josxtm.mycad.cad.RigidTransform(
+       box.x,box.y,box.z,box.rotationX,box.rotationY,box.rotationZ),
+      cylinder.w,cylinder.h,new es.josxtm.mycad.cad.RigidTransform(
+       cylinder.x,cylinder.y,cylinder.z,cylinder.rotationX,cylinder.rotationY,cylinder.rotationZ));
+    }catch(Exception failure){
+     new AlertDialog.Builder(this).setTitle("Operación no compatible")
+      .setMessage("El cilindro debe estar alineado con un eje local del prisma, entrar por su cara positiva y caber completamente en la sección. No se modificó el diseño.")
+      .setPositiveButton("Cerrar",null).show();return;
+    }
+    String[] options={"Previsualizar corte (A − cilindro)","Previsualizar intersección (A ∩ cilindro)",
+     "Guardar corte editable","Guardar intersección como malla"};
+    new AlertDialog.Builder(this).setTitle("Prisma + cilindro · "+result.cut.axis.name())
+     .setMessage(String.format(java.util.Locale.US,
+       "Material intersectado: %.2f mm³. Corte %s. El guardado sustituye los dos cuerpos originales.",
+       result.intersectionVolume,result.cut.drillDepth==0?"pasante":result.cut.drillDepth+" mm"))
+     .setItems(options,(choose,option)->{
+      float[] surface=option%2==0?result.cut.regenerate():result.intersection;
+      if(!es.josxtm.mycad.cad.TriangleMeshHealth.inspect(surface).isWatertight()){
+       toast("La malla no es cerrada");return;
+      }
+      if(option<2){showMeshOnly(new MeshEngine.Mesh(surface));return;}
+      if(parts.size()<=Math.max(boxIndex,cutterIndex)||
+         parts.get(boxIndex)!=box||parts.get(cutterIndex)!=cylinder||
+         booleanMeshes.size()>=100||!box.sourceSketchId.isEmpty()||
+         !cylinder.sourceSketchId.isEmpty()||surface.length>18000){
+       toast("No se puede guardar: revisa selección y vínculos");return;
+      }
+      new AlertDialog.Builder(this).setTitle("Confirmar operación")
+       .setMessage("Se sustituirán el prisma y el cilindro por la malla resultante. Puedes deshacer.")
+       .setNegativeButton("Cancelar",null).setPositiveButton("Guardar",(confirm,w)->{
+        if(parts.size()<=Math.max(boxIndex,cutterIndex)||
+           parts.get(boxIndex)!=box||parts.get(cutterIndex)!=cylinder)return;
+        checkpoint();
+        parts.remove(Math.max(boxIndex,cutterIndex));
+        parts.remove(Math.min(boxIndex,cutterIndex));
+        booleanMeshes.add(new MeshEngine.Mesh(surface));
+        unionRecipes.add(null);
+        holeRecipes.add(option==2?result.cut:null);
+        selected=-1;selectedSketch=-1;activeCadFace=null;
+        save();scene.invalidate();
+        if(meshMode&&meshView!=null)renderCurrentCadMesh();
+        toast(option==2?"Corte circular guardado y editable":"Intersección guardada como malla");
+       }).show();
+     }).setNegativeButton("Cerrar",null).show();
+   }).setNegativeButton("Cancelar",null).show();
  }
  void drillSelectedBox(){
   if(selected<0||selected>=parts.size()){toast("Selecciona primero un prisma");return;}

@@ -12,6 +12,13 @@ public final class RigidTransformTest {
   near(q[1],0,"Rotate X Y");near(q[2],1,"Rotate X Z");
   q=new RigidTransform(0,0,0,0,90,0).point(1,0,0);
   near(q[0],0,"Rotate Y X");near(q[2],-1,"Rotate Y Z");
+  for(double rx:new double[]{0,23,-76,180})for(double ry:new double[]{-47,0,38})
+   for(double rz:new double[]{0,45,130}){
+    RigidTransform pose=new RigidTransform(17,-32,8,rx,ry,rz);
+    double[] world=pose.point(3,-7,11);
+    double[] local=pose.inversePoint(world[0],world[1],world[2]);
+    near(local[0],3,"Inverse X");near(local[1],-7,"Inverse Y");near(local[2],11,"Inverse Z");
+   }
   boolean bad=false;try{new RigidTransform(Double.NaN,0,0,0,0,0);}catch(IllegalArgumentException ok){bad=true;}check(bad,"Reject NaN");
   System.out.println("RigidTransformTest: OK");
  }
