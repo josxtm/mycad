@@ -106,3 +106,11 @@ Se añade `tests/CadDocumentTest.java` al flujo CI para comprobar volumen 1000�
 El prototipo `ParametricSketchDocument` incorpora `exportSnapshot()` e `importSnapshot()` con cabecera de versión `MYCAD-PARAMETRIC|1`, validación de geometría, UUID, límites de tamaño y reconstrucción de extrusiones dependientes. Se añaden pruebas de ida/vuelta y rechazo de versión/dimensiones inválidas. Se trata de un formato textual **experimental del núcleo**, independiente del JSON v1 de la aplicación; no se conecta aún a los controles Guardar/Abrir de Android.
 
 **Pendiente para 30 %:** grafo de features más general, múltiples planos/perfiles, reconstrucción tras edición de bocetos y migración del documento existente. **Pendiente para 100 %:** integración B-Rep, topología robusta, Android, CAD avanzado y validación real en dispositivo.
+
+## Incremento: edición paramétrica de extrusiones — 2026-10-25
+
+- `ParametricSketchDocument.setExtrusionHeight(featureId, height)` actualiza el parámetro y regenera el cuerpo conservando los identificadores de feature y body.
+- `removeExtrusion(featureId)` elimina solo la operación y su cuerpo, manteniendo el boceto original para otras operaciones.
+- Las ediciones inválidas no modifican el estado ni el historial.
+- `ParametricSketchDocumentTest` incorpora regresiones de volumen, identidad, atomicidad y deshacer/rehacer.
+- Las pruebas están conectadas al flujo de geometría de GitHub Actions. **No significa que este motor esté conectado a la UI Android ni que exista aún B-Rep.**
