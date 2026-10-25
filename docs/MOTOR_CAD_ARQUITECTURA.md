@@ -209,3 +209,7 @@ Menú `Proyecto MyCAD` → `Editar cara seleccionada`: con un prisma seleccionad
 ## Edición de caras de prismas — 2026-10-25
 
 La nueva clase `FaceResize` calcula desplazamientos de las seis caras de un prisma sin rotación, preservando la cara opuesta al mover una cara lateral y validando límites de tamaño. El menú `Editar cara seleccionada` permite desplazar en milímetros X_MIN, X_MAX, Y_MIN, Y_MAX y Z_MIN para piezas independientes sin rotación ni boceto vinculado, mediante `checkpoint`, guardado y regeneración de la malla GPU. Z_MAX sigue usando el editor validado de altura existente. Los prismas rotados y vinculados a bocetos se rechazan explícitamente para evitar incoherencias entre historial paramétrico y geometría Android.
+
+## Caras de prismas rotados (2026-10-25)
+
+`RotatedFaceResize` aplica un desplazamiento local a una cara, transforma el cambio de origen mediante los giros X/Y/Z y lo suma a la posición global; conserva las dimensiones y orientación actuales salvo la dimensión editada. Las pruebas cubren Z 90°, X 90°, geometría sin giro y rechazo de colapso. Android lo utiliza al editar caras de prismas independientes, ahora también rotados. Los bocetos vinculados siguen excluidos hasta integrar su historial de dependencias; la cara Z_MAX aún usa el editor existente de altura.
