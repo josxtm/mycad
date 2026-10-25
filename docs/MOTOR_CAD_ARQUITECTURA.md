@@ -72,3 +72,11 @@ Este bloque es contrato de diseño, no código compilable. Se implementará con 
 - Selección de caras/aristas respeta ocultación y distancia ray-cast.
 
 **No implementar fillet, chamfer ni shell sobre triángulos como si fueran operaciones B-Rep.**
+
+## Implementación incremental — documento paramétrico
+
+Se incorpora `CadDocument.java` como módulo Java puro independiente de Android. Registra features de prismas con identificadores estables, reconstruye el conjunto de cuerpos desde sus parámetros y aplica transacciones atómicas. Admite `addBox`, `setBoxHeight`, `removeBody`, `undo` y `redo`, y elimina la rama de rehacer al insertar una operación después de deshacer. Los snapshots son inmutables desde su API pública.
+
+Se añade `tests/CadDocumentTest.java` al flujo CI para comprobar volumen 1000→1600 mm³, conservación de ID, rechazo de altura inválida sin cambio de revisión, deshacer/rehacer, múltiples cuerpos y eliminación.
+
+**Limitación:** reconstrucción limitada a primitivas de caja. Las features todavía no incluyen dependencias entre cuerpos, sketch solver, booleanas B-Rep, serialización propia ni integración en la Activity. Es una base paralela, no sustituye el motor actualmente usado por la app.
