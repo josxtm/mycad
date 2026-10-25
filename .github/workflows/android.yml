@@ -113,6 +113,8 @@ jobs:
           java -cp build/geometry-tests ChainBooleanFeatureTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ChainDependencyReport.java tests/StableFeatureDependenciesTest.java
           java -cp build/geometry-tests StableFeatureDependenciesTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ChainBooleanRebuildCache.java tests/ChainBooleanRebuildCacheTest.java
+          java -cp build/geometry-tests ChainBooleanRebuildCacheTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ParametricFeatureGraph.java tests/ParametricFeatureGraphTest.java
           java -cp build/geometry-tests ParametricFeatureGraphTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ChainTriangleMap.java tests/ChainTriangleMapTest.java
