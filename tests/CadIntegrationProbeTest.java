@@ -27,6 +27,14 @@ public final class CadIntegrationProbeTest {
   check(r.generatedBodyIds.size()==2&&preview.bodies().containsKey(r.generatedBodyIds.get(0)),"Source to solid binding");
   check(!r.generatedBodyIds.get(0).equals(r.generatedBodyIds.get(1)),"Unique generated solid IDs");
   check(clean.compatiblePartIndices.size()==1&&clean.compatiblePartIndices.get(0)==0,"Clean source index");
+  check(r.worldBounds.size()==2,"World bounds aligned");
+  CadIntegrationProbe.Report moved=CadIntegrationProbe.inspect(
+   Arrays.asList(new CadIntegrationProbe.SketchData("m",2,0,0,0,2,4)),
+   Arrays.asList(new CadIntegrationProbe.PartData("m",6,10,20,30,0,0,90)));
+  check(moved.worldBounds.size()==1,"Transformed preview");
+  double[] bounds=moved.worldBounds.get(0);
+  check(Math.abs(bounds[0]-6)<1e-8&&Math.abs(bounds[3]-10)<1e-8,"Rotated X bounds");
+  check(Math.abs(bounds[1]-20)<1e-8&&Math.abs(bounds[4]-22)<1e-8,"Rotated Y bounds");
   System.out.println("CadIntegrationProbeTest: OK");
  }
 }
