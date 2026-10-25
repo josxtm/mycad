@@ -137,3 +137,7 @@ Nuevas operaciones `setExtrusionOffset(featureId, newOffset)` y `setSketchPlane(
 ## Hito de integridad interna — 2026-10-25
 
 `ParametricSketchDocument.validateIntegrity()` comprueba sin modificar el historial la existencia de bocetos referenciados, unicidad de ID de cuerpos, coherencia numérica de cada prisma regenerado y ausencia de cuerpos huérfanos. Devuelve una lista inmutable de diagnósticos. Las pruebas cubren documentos editados, con múltiples dependencias y restaurados. Este control no sustituye a un kernel B-Rep ni constituye integración con la interfaz Android.
+
+## Primer uso del motor en Android — 2026-10-25
+
+La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneExtrusion.extrude(PrimitiveKernel, plano, dimensiones, altura)` antes de confirmar el guardado. Si el motor rechaza la geometría, no se confirma el borrador; si la acepta, el mensaje de volumen procede del motor. La geometría visual y el formato de archivo actuales siguen utilizándose para preservar compatibilidad; los cilindros mantienen el camino previo. **Esta es una integración incremental de validación, no una sustitución del renderizador ni un motor B-Rep.**
