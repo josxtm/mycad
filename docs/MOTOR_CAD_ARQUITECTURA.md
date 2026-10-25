@@ -100,3 +100,9 @@ Se añade `tests/CadDocumentTest.java` al flujo CI para comprobar volumen 1000�
 `ParametricSketchDocument.java` incorpora perfiles rectangulares XY con identificador estable, extrusión vertical y dependencia explícita de cada cuerpo respecto a su boceto. Editar un rectángulo reconstruye los cuerpos dependientes y conserva los IDs. Modificar un boceto o intentar una extrusión inválida no altera el estado si falla la validación. Se admiten deshacer/rehacer y eliminación de bocetos con sus extrusiones dependientes. `ParametricSketchDocumentTest.java` verifica estas condiciones en la CI.
 
 **Restricciones:** solo rectángulos XY y altura positiva. Aún no se enlaza a `MainActivity`, no reemplaza `CadDocument` anterior, no implementa perfiles arbitrarios, curvas, NDK ni B-Rep. El hito del 30 % sigue abierto hasta generalizar dependencias y guardar/reabrir el grafo.
+
+## Incremento: serialización del documento paramétrico
+
+El prototipo `ParametricSketchDocument` incorpora `exportSnapshot()` e `importSnapshot()` con cabecera de versión `MYCAD-PARAMETRIC|1`, validación de geometría, UUID, límites de tamaño y reconstrucción de extrusiones dependientes. Se añaden pruebas de ida/vuelta y rechazo de versión/dimensiones inválidas. Se trata de un formato textual **experimental del núcleo**, independiente del JSON v1 de la aplicación; no se conecta aún a los controles Guardar/Abrir de Android.
+
+**Pendiente para 30 %:** grafo de features más general, múltiples planos/perfiles, reconstrucción tras edición de bocetos y migración del documento existente. **Pendiente para 100 %:** integración B-Rep, topología robusta, Android, CAD avanzado y validación real en dispositivo.
