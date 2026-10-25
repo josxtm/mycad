@@ -6,7 +6,7 @@
 
 ## Verificaciones
 
-- [ ] El código parte de la última \`main\` y el diff no incluye cambios ajenos.
+- [ ] El código parte de la última `main` y el diff no incluye cambios ajenos.
 - [ ] Se han añadido/actualizado pruebas para funciones y regresiones modificadas.
 - [ ] El job **verify** de GitHub Actions ha terminado con éxito para el último commit.
 - [ ] Se ha comprobado el guardado JSON, la selección estable, deshacer/rehacer y las dependencias si el cambio les afecta.

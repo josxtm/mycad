@@ -14,10 +14,10 @@
 | B-Rep analítica | 8 vértices/12 aristas/6 caras de prismas; 3 caras y 2 circunferencias de cilindros | Edición topológica general |
 | Edición de caras | Cambios geométricos de caras en visor experimental | Verificar undo/redo, guardar/reabrir y rendimiento en teléfono |
 | Booleanas | Operaciones específicas y mallas; NO kernel B-Rep general | Generalización geométrica y control topológico |
-| CI | [#320](https://github.com/josxtm/mycad/actions/runs/40244844784), [#321](https://github.com/josxtm/mycad/actions/runs/40245317064) y [#322](https://github.com/josxtm/mycad/actions/runs/40245497754) correctas | PR obligatoria mediante protección de \`main\` |
+| CI | [#320](https://github.com/josxtm/mycad/actions/runs/40244844784), [#321](https://github.com/josxtm/mycad/actions/runs/40245317064) y [#322](https://github.com/josxtm/mycad/actions/runs/40245497754) correctas | PR obligatoria mediante protección de `main` |
 | APK 0.6.0 | No generada | Hito funcional validado y decisión explícita |
 
-**Norma de desarrollo:** rama → Pull Request → job \`verify\` correcto → revisión → merge a \`main\`. Las APK se generan solo en hitos. Las reglas de protección de \`main\` deben activarse por separado en los ajustes de GitHub; [CONTRIBUTING.md](../CONTRIBUTING.md) indica cómo.
+**Norma de desarrollo:** rama → Pull Request → job `verify` correcto → revisión → merge a `main`. Las APK se generan solo en hitos. Las reglas de protección de `main` deben activarse por separado en los ajustes de GitHub; [CONTRIBUTING.md](../CONTRIBUTING.md) indica cómo.
 
 **Nota histórica:** las notas y tablas posteriores conservan el contexto de fases previas y pueden contener estados ya superados; no deben interpretarse como la situación actual del motor.
 

@@ -2,8 +2,8 @@
 
 ## Estado actual: MyCAD 0.6.0 en desarrollo
 
-**Versión configurada en Android:** \`0.6.0\` (\`versionCode 60\`, en \`app/build.gradle\`).
-**Último commit del motor validado por CI antes de esta actualización:** \`d167559\`.
+**Versión configurada en Android:** `0.6.0` (`versionCode 60`, en `app/build.gradle`).
+**Último commit del motor validado por CI antes de esta actualización:** `d167559`.
 **Última ejecución de referencia:** [GitHub Actions #322 — correcta](https://github.com/josxtm/mycad/actions/runs/40245497754).
 
 El código 0.6.0 pasa las pruebas de integridad, las regresiones geométricas y las tareas Gradle de tests y Lint. **Estos cambios aún no se han verificado en el Nothing Phone 2a** y **no se ha compilado una APK 0.6.0**. El código no equivale a una versión estable o lista para producción.
@@ -25,13 +25,13 @@ Detalles: [roadmap actual](docs/ROADMAP.md) · [B-Rep de prismas](docs/CAD_BREP_
 
 La **última APK de referencia es la de 0.5.0**, no la versión actual del código. Está enlazada en la [ejecución histórica de GitHub Actions 0.5.0](https://github.com/josxtm/mycad/actions/runs/40140494636); el artefacto podría haber caducado. Se han comunicado pruebas funcionales satisfactorias de 0.5.0 en Nothing Phone 2a (inicio, plano, dibujo, cotas, navegación y guardar/abrir); extrusión y otros planos no se validaron completamente.
 
-Para futuros hitos 0.6.0: abrir [Actions](https://github.com/josxtm/mycad/actions), lanzar manualmente el workflow con \`generar_apk=true\` o aprobar un commit de hito con prefijo exacto \`release: MyCAD \`. El flujo ordinario de desarrollo **solo ejecuta pruebas y Lint; no construye APK**. Cuando exista un artefacto \`myCad0.6.0\`, descargarlo desde la ejecución correspondiente (Artifacts), descomprimir el ZIP e instalar la APK en Android. **Nunca instalar \`Source code (zip)\` como si fuese una APK.**
+Para futuros hitos 0.6.0: abrir [Actions](https://github.com/josxtm/mycad/actions), lanzar manualmente el workflow con `generar_apk=true` o aprobar un commit de hito con prefijo exacto `release: MyCAD `. El flujo ordinario de desarrollo **solo ejecuta pruebas y Lint; no construye APK**. Cuando exista un artefacto `myCad0.6.0`, descargarlo desde la ejecución correspondiente (Artifacts), descomprimir el ZIP e instalar la APK en Android. **Nunca instalar `Source code (zip)` como si fuese una APK.**
 
 ### Flujo de contribución
 
-Trabajar en una rama \`feature/\`, \`fix/\` o \`maintenance/\`, abrir una Pull Request dirigida a \`main\`, revisar el diff y comprobar que termina correctamente el job **verify** antes de fusionar. No ensamblar ni publicar APK para cada commit. Véanse [CONTRIBUTING.md](CONTRIBUTING.md) y [la plantilla de PR](.github/PULL_REQUEST_TEMPLATE.md).
+Trabajar en una rama `feature/`, `fix/` o `maintenance/`, abrir una Pull Request dirigida a `main`, revisar el diff y comprobar que termina correctamente el job **verify** antes de fusionar. No ensamblar ni publicar APK para cada commit. Véanse [CONTRIBUTING.md](CONTRIBUTING.md) y [la plantilla de PR](.github/PULL_REQUEST_TEMPLATE.md).
 
-**Importante:** el trabajo por PR se documenta y utiliza; para **impedir técnicamente** pushes directos o merges sin CI hay que activar una regla de protección/ruleset de \`main\` en GitHub, que requiere permisos de administración. Esta documentación no sustituye esa protección.
+**Importante:** el trabajo por PR se documenta y utiliza; para **impedir técnicamente** pushes directos o merges sin CI hay que activar una regla de protección/ruleset de `main` en GitHub, que requiere permisos de administración. Esta documentación no sustituye esa protección.
 
 ## Historial anterior (referencia, no estado actual)
 
