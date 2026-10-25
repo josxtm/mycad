@@ -44,6 +44,12 @@ for marker in ("void cylinderBoxBooleanMenu()","CylinderBoxBoolean.calculate(","
                "result.intersection","holeRecipes.add(option==2?result.cut:null)"):
     if marker not in source:
         raise SystemExit("ERROR: operaciones curvas no integradas: "+marker)
+for marker in ('.put("bodyId",p.id)', 'item.id=p.optString("bodyId",item.id)',
+               "q.id=p.id", "loadedBodyIds.add(item.id)",
+               "PrimitiveTopologyMap.Hit", "Face.valueOf(faces[n])",
+               "parts.get(activeCadFace.partIndex).id", "PrimitiveEdges.edge("):
+    if marker not in source:
+        raise SystemExit("ERROR: referencia topológica persistente sin integrar: "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
