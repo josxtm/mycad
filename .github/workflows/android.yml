@@ -59,6 +59,8 @@ jobs:
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedSketchSolidPlan.java app/src/main/java/es/josxtm/mycad/cad/LinkedSketchAudit.java tests/LinkedSketchSolidPlanTest.java tests/LinkedSketchAuditTest.java
           java -cp build/geometry-tests LinkedSketchSolidPlanTest
           java -cp build/geometry-tests LinkedSketchAuditTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SketchDeletionPlan.java tests/SketchDeletionPlanTest.java
+          java -cp build/geometry-tests SketchDeletionPlanTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/RigidTransform.java tests/RigidTransformTest.java
           java -cp build/geometry-tests RigidTransformTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CylinderSurface.java app/src/main/java/es/josxtm/mycad/cad/CircularThroughHole.java app/src/main/java/es/josxtm/mycad/cad/BlindCircularHole.java app/src/main/java/es/josxtm/mycad/cad/OrientedThroughHole.java app/src/main/java/es/josxtm/mycad/cad/DrilledBoxRecipe.java tests/CurvedGeometryTest.java
