@@ -125,3 +125,7 @@ El prototipo `ParametricSketchDocument` incorpora `exportSnapshot()` e `importSn
 ## Integración paramétrica de los planos — 2026-10-25
 
 `ParametricSketchDocument` conserva ahora el plano de cada boceto rectangular (`XY`, `XZ`, `YZ`). El método `addRectangleOnPlane()` y las extrusiones de altura firmada utilizan `PlaneExtrusion` durante la reconstrucción, manteniendo el identificador del cuerpo. `exportSnapshot` guarda el plano por perfil y `importSnapshot` acepta tanto registros nuevos de 7 campos como los antiguos de 6 campos (asumiendo XY). Se han añadido regresiones de volumen, edición y recuperación para los tres planos; pruebas Java puras, todavía no integradas en la UI ni equivalentes a B-Rep.
+
+## Dependencias compartidas y compatibilidad documental
+
+`ParametricSketchDocument.dependentsOf(sketchId)` expone una lista inmutable de extrusiones dependientes. Un mismo boceto puede impulsar varios cuerpos, que se reconstruyen conjuntamente al editar el perfil, conservando los IDs propios. Se incluyen pruebas de eliminación selectiva de una extrusión, deshacer, carga de instantáneas antiguas sin campo de plano (XY por defecto), rechazo de referencias colgantes y duplicados. Estas son pruebas del núcleo Java; el editor Android sigue empleando su modelo previo y la topología B-Rep continúa pendiente.
