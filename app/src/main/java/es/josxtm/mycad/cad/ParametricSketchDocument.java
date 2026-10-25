@@ -86,14 +86,14 @@ public final class ParametricSketchDocument {
  }
  /** Versioned, deterministic text snapshot; separate from legacy Android JSON v1. */
  public String exportSnapshot(){
-  StringBuilder result=new StringBuilder("MYCAD-PARAMETRIC|1\\n");
+  StringBuilder result=new StringBuilder("MYCAD-PARAMETRIC|1\n");
   for(Rectangle shape:sketches().values())
    result.append("R|").append(shape.id).append('|').append(shape.x).append('|')
-    .append(shape.y).append('|').append(shape.width).append('|').append(shape.depth).append('\\n');
+    .append(shape.y).append('|').append(shape.width).append('|').append(shape.depth).append('\n');
   for(Extrusion feature:extrusions().values())
    result.append("E|").append(feature.id).append('|').append(feature.sketchId).append('|')
     .append(feature.bodyId).append('|').append(feature.baseZ).append('|')
-    .append(feature.height).append('\\n');
+    .append(feature.height).append('\n');
   return result.toString();
  }
  private static String uuid(String token){
@@ -102,7 +102,7 @@ public final class ParametricSketchDocument {
  /** Deserialize into a new document and validate every feature before committing. */
  public static ParametricSketchDocument importSnapshot(CadKernel kernel,String encoded){
   if(encoded==null||encoded.length()>2000000)throw new IllegalArgumentException("Documento excede límite");
-  String[] lines=encoded.split("\\n",-1);
+  String[] lines=encoded.split("\n",-1);
   if(lines.length==0||!"MYCAD-PARAMETRIC|1".equals(lines[0]))throw new IllegalArgumentException("Versión incorrecta");
   ParametricSketchDocument document=new ParametricSketchDocument(kernel);
   Map<String,Rectangle> sketches=new LinkedHashMap<>();
