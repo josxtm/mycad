@@ -614,16 +614,11 @@ public class MainActivity extends Activity {
    java.util.ArrayList<BoxBoolean.Box> operands=new java.util.ArrayList<>();
    for(es.josxtm.mycad.cad.FaceExtrusionChain.Solid solid:chain.regenerate())
     operands.add(new BoxBoolean.Box(solid.x,solid.y,solid.z,solid.w,solid.d,solid.h));
-   // Convert the editable chain to its cells, then apply the cutter to each;
-   // the preview is a mesh result, not a destructive feature.
-   java.util.ArrayList<Float> triangles=new java.util.ArrayList<>();
-   BoxBoolean.Box b=new BoxBoolean.Box(cutter.x,cutter.y,cutter.z,cutter.w,cutter.d,cutter.h);
-   for(BoxBoolean.Box a:operands){
-    float[] surface=MultiBoxUnion.build(java.util.Arrays.asList(a,b),operation);
-    for(float value:surface)triangles.add(value);
-   }
-   if(triangles.isEmpty()){toast("El resultado es vacío");return;}
-   float[] mesh=new float[triangles.size()];for(int i=0;i<mesh.length;i++)mesh[i]=triangles.get(i);
+   BoxBoolean.Box tool=new BoxBoolean.Box(cutter.x,cutter.y,cutter.z,cutter.w,cutter.d,cutter.h);
+   operands.add(tool);
+   float[] mesh=MultiBoxUnion.build(operands,operation==MultiBoxUnion.Operation.DIFFERENCE?
+    MultiBoxUnion.Operation.CHAIN_DIFFERENCE:MultiBoxUnion.Operation.CHAIN_INTERSECTION);
+   if(mesh.length==0){toast("El resultado es vacío");return;}
    showMeshOnly(new MeshEngine.Mesh(mesh));
    info.setText(operation==MultiBoxUnion.Operation.DIFFERENCE?"Vista de corte rectangular":"Vista de intersección rectangular");
   }catch(Exception error){toast("No se pudo calcular la operación booleana");}
