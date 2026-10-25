@@ -70,6 +70,8 @@ jobs:
           java -cp build/geometry-tests RotatedFaceResizeTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedFaceResize.java tests/LinkedFaceResizeTest.java
           java -cp build/geometry-tests LinkedFaceResizeTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/FacePrismExtrusion.java tests/FacePrismExtrusionTest.java
+          java -cp build/geometry-tests FacePrismExtrusionTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadIntegrationProbe.java tests/CadIntegrationProbeTest.java
           java -cp build/geometry-tests CadIntegrationProbeTest
           } 2>&1 | tee reports/geometria.log
