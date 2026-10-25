@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;}}).show();}
  void showChainDependencyReport(){
   es.josxtm.mycad.cad.ChainDependencyReport.Result graph=
    es.josxtm.mycad.cad.ChainDependencyReport.inspect(extrusionChains,chainFeatures);
@@ -46,6 +46,28 @@ public class MainActivity extends Activity {
   if(!graph.isValid())for(String error:graph.errors)summary+="\\n"+error;
   new AlertDialog.Builder(this).setTitle("Dependencias paramétricas")
    .setMessage(summary).setPositiveButton("Cerrar",null).show();
+ }
+ void showLinkedSketchAudit(){
+  java.util.ArrayList<es.josxtm.mycad.cad.LinkedSketchAudit.Sketch> profiles=new java.util.ArrayList<>();
+  for(Sketch sketch:sketches)profiles.add(new es.josxtm.mycad.cad.LinkedSketchAudit.Sketch(
+   sketch.id,sketch.type,sketch.plane,sketch.x1,sketch.y1,sketch.x2,sketch.y2));
+  java.util.ArrayList<es.josxtm.mycad.cad.LinkedSketchAudit.Body> solids=new java.util.ArrayList<>();
+  for(Part part:parts)solids.add(new es.josxtm.mycad.cad.LinkedSketchAudit.Body(
+   part.id,part.sourceSketchId,part.circle,part.w,part.d,part.h,part.x,part.y,
+   part.z,part.rotationX,part.rotationY,part.rotationZ));
+  es.josxtm.mycad.cad.LinkedSketchAudit.Report report=
+   es.josxtm.mycad.cad.LinkedSketchAudit.inspect(profiles,solids);
+  StringBuilder message=new StringBuilder("Bocetos: "+report.sketches+
+   "\\nCuerpos vinculados: "+report.linkedBodies+
+   "\\nCuerpos independientes: "+report.independentBodies+
+   "\\nReferencias incorrectas: "+report.errors+
+   "\\nDiferencias geométricas: "+report.warnings);
+  for(int i=0;i<report.diagnostics.size()&&i<12;i++)
+   message.append("\\n").append(report.diagnostics.get(i));
+  if(report.diagnostics.size()>12)message.append("\\n…");
+  message.append("\\n\\nSolo diagnóstico: no cambia ningún cuerpo.");
+  new AlertDialog.Builder(this).setTitle("Auditoría de vínculos boceto / 3D")
+   .setMessage(message.toString()).setPositiveButton("Cerrar",null).show();
  }
  void cadEngineDiagnostic(){
   try{
@@ -543,6 +565,7 @@ public class MainActivity extends Activity {
    .setPositiveButton("Aplicar",(d,n)->{try{
     float height=Float.parseFloat(input.getText().toString().replace(',','.'));
     GeometryMath.requirePositive(height);
+    if(!Float.isFinite(height)||height>10000)throw new IllegalArgumentException("Altura fuera de límites");
     if(!p.sourceSketchId.isEmpty()&&!p.circle){
      Sketch source=null;
      for(Sketch q:sketches)if(q.id.equals(p.sourceSketchId)){source=q;break;}
@@ -573,6 +596,9 @@ public class MainActivity extends Activity {
    }catch(Exception e){toast("Altura inválida");}}).show();
  }
  boolean validateLinkedSketchEdit(Sketch source,float x1,float y1,float x2,float y2){
+  if(source.type==1)return Float.isFinite(x1)&&Float.isFinite(y1)&&
+   Float.isFinite(x2)&&Float.isFinite(y2)&&Math.abs(x1)<=10000&&
+   Math.abs(y1)<=10000&&Math.abs(x2)<=10000&&Math.abs(y2)<=10000;
   try{
    java.util.ArrayList<Double> heights=new java.util.ArrayList<>();
    for(Part part:parts)if(source.id.equals(part.sourceSketchId))heights.add((double)part.h);
