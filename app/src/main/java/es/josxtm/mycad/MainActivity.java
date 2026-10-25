@@ -36,7 +36,17 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;}}).show();}
+ void showChainDependencyReport(){
+  es.josxtm.mycad.cad.ChainDependencyReport.Result graph=
+   es.josxtm.mycad.cad.ChainDependencyReport.inspect(extrusionChains,chainFeatures);
+  String summary="Cadenas: "+graph.chainCount+"\\nPasos de extrusión: "+graph.stepCount+
+   "\\nBooleanas vinculadas: "+graph.booleanCount+"\\nEstado: "+
+   (graph.isValid()?"Referencias correctas":"REFERENCIAS INCORRECTAS");
+  if(!graph.isValid())for(String error:graph.errors)summary+="\\n"+error;
+  new AlertDialog.Builder(this).setTitle("Dependencias paramétricas")
+   .setMessage(summary).setPositiveButton("Cerrar",null).show();
+ }
  void cadEngineDiagnostic(){
   try{
    java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.SketchData> ss=new java.util.ArrayList<>();
@@ -830,6 +840,7 @@ public class MainActivity extends Activity {
   java.util.ArrayList<String> choices=new java.util.ArrayList<>();
   for(int i=0;i<extrusionChains.size();i++)choices.add("Cadena "+(i+1)+" · "+extrusionChains.get(i).size()+" extrusiones");
   choices.add("Crear cadena desde pieza seleccionada");
+  choices.add("Reordenar cadenas sin romper dependencias");
   new AlertDialog.Builder(this).setTitle("Historial paramétrico")
    .setItems(choices.toArray(new String[0]),(dialog,index)->{
     if(index==extrusionChains.size()){
@@ -839,7 +850,36 @@ public class MainActivity extends Activity {
      checkpoint();
      extrusionChains.add(new es.josxtm.mycad.cad.FaceExtrusionChain(p.w,p.d,p.h,p.x,p.y,p.z));
      save();toast("Cadena creada · añade extrusiones desde Historial");
-    }else editExtrusionChain(index);
+    }else if(index==extrusionChains.size()+1){reorderExtrusionChains();}
+    else editExtrusionChain(index);
+   }).setNegativeButton("Cerrar",null).show();
+ }
+ void reorderExtrusionChains(){
+  if(extrusionChains.size()<2){toast("Necesitas al menos dos cadenas");return;}
+  String[] names=new String[extrusionChains.size()];
+  for(int i=0;i<names.length;i++)names[i]="Cadena "+(i+1)+" · "+extrusionChains.get(i).size()+" extrusiones";
+  new AlertDialog.Builder(this).setTitle("Elegir cadena para mover")
+   .setItems(names,(dialog,index)->{
+    final es.josxtm.mycad.cad.FaceExtrusionChain current=extrusionChains.get(index);
+    new AlertDialog.Builder(this).setTitle("Reordenar "+names[index])
+     .setItems(new String[]{"Mover hacia arriba","Mover hacia abajo"},(d,option)->{
+      int destination=index+(option==0?-1:1);
+      if(destination<0||destination>=extrusionChains.size()){toast("Ya está en el extremo");return;}
+      if(extrusionChains.get(index)!=current){toast("La lista de cadenas ha cambiado");return;}
+      java.util.Collections.swap(extrusionChains,index,destination);
+      es.josxtm.mycad.cad.ChainDependencyReport.Result report=
+       es.josxtm.mycad.cad.ChainDependencyReport.inspect(extrusionChains,chainFeatures);
+      if(!report.isValid()){
+       java.util.Collections.swap(extrusionChains,index,destination);
+       toast("No se puede reordenar: referencias inválidas");return;
+      }
+      // Checkpoint captures state before mutation. Swapping twice restores original order.
+      java.util.Collections.swap(extrusionChains,index,destination);
+      checkpoint();
+      java.util.Collections.swap(extrusionChains,index,destination);
+      save();refreshChainScene();
+      toast("Cadena reordenada · vínculos preservados");
+     }).show();
    }).setNegativeButton("Cerrar",null).show();
  }
  void editExtrusionChain(int index){
