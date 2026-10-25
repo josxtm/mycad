@@ -1,10 +1,16 @@
-name: APK Android
+name: MyCAD · Verificación continua y APK por hitos
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      generar_apk:
+        description: "Generar APK de un hito importante"
+        required: true
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -112,14 +118,26 @@ jobs:
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadIntegrationProbe.java tests/CadIntegrationProbeTest.java
           java -cp build/geometry-tests CadIntegrationProbeTest
           } 2>&1 | tee reports/geometria.log
-      - name: Compilar, ejecutar pruebas y comprobar Lint
+      # CI habitual valida Java, tests Android y Lint, SIN generar un APK.
+      - name: Compilar código y comprobar pruebas y Lint (sin APK)
         id: build
         shell: bash
         run: |
           set -o pipefail
-          gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee reports/gradle.log
+          gradle :app:testDebugUnitTest :app:lintDebug --no-daemon --stacktrace 2>&1 | tee reports/gradle.log
+      # Solo en hitos: commit de merge con [apk] o ejecución manual con generar_apk=true.
+      - name: Generar APK únicamente en un hito
+        id: assemble
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.generar_apk == true) ||
+          (github.event_name == 'push' && contains(github.event.head_commit.message, '[apk]'))
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee reports/apk-build.log
       - name: Verificar APK y nombre de versión
         id: apk
+        if: steps.assemble.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -137,6 +155,7 @@ jobs:
           GEOMETRY: ${{ steps.geometry.outcome }}
           BUILD: ${{ steps.build.outcome }}
           APK_CHECK: ${{ steps.apk.outcome }}
+          APK_BUILD: ${{ steps.assemble.outcome }}
         run: |
           mkdir -p reports
           {
@@ -148,7 +167,13 @@ jobs:
             echo "- Integridad: ${INTEGRITY:-unknown}"
             echo "- Pruebas geométricas: ${GEOMETRY:-unknown}"
             echo "- Gradle / Lint / tests: ${BUILD:-unknown}"
+            echo "- Generación APK: ${APK_BUILD:-unknown}"
             echo "- Verificación APK: ${APK_CHECK:-unknown}"
+            if test "${APK_CHECK:-}" = "success"; then
+              echo "- **Modo:** HITO · APK disponible en los artefactos"
+            else
+              echo "- **Modo:** CI diaria · NO se ha generado APK"
+            fi
             echo
             echo "## Errores recientes"
             if test -f reports/geometria.log; then
@@ -158,6 +183,10 @@ jobs:
             if test -f reports/gradle.log; then
               echo "### Android / Gradle"
               grep -Ei '(^| )error:|FAILURE:|What went wrong:|Execution failed|BUILD FAILED|[0-9]+ tests? failed' reports/gradle.log | tail -n 35 || true
+            fi
+            if test -f reports/apk-build.log; then
+              echo "### Ensamblado APK (solo hito)"
+              grep -Ei '(^| )error:|FAILURE:|What went wrong:|Execution failed|BUILD FAILED' reports/apk-build.log | tail -n 35 || true
             fi
             echo
             echo "Consulta reports/gradle.log para el detalle completo."
@@ -172,7 +201,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Publicar APK solo tras superar verificaciones
-        if: github.event_name != 'pull_request'
+        if: steps.apk.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: myCad${{ steps.apk.outputs.version }}
@@ -233,7 +262,7 @@ jobs:
           ## Comprobaciones
           EOF
           if test -s "$GITHUB_WORKSPACE/reports/INFORME.md"; then
-            sed -n '/^- Integridad:/p; /^- Pruebas geométricas:/p; /^- Gradle \/ Lint \/ tests:/p; /^- Verificación APK:/p' "$GITHUB_WORKSPACE/reports/INFORME.md" >> ESTADO_COMPILACION.md
+            sed -n '/^- Integridad:/p; /^- Pruebas geométricas:/p; /^- Gradle \/ Lint \/ tests:/p; /^- Generación APK:/p; /^- Verificación APK:/p; /^- \*\*Modo:/p' "$GITHUB_WORKSPACE/reports/INFORME.md" >> ESTADO_COMPILACION.md
           else
             echo "Informe detallado no disponible; consultar el enlace de la ejecución." >> ESTADO_COMPILACION.md
           fi
