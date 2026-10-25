@@ -108,3 +108,11 @@ Si el motor actual no admite una operación fiable, registrar la limitación y d
 - Para cada cara plana de prisma muestra área nominal en mm², con las dimensiones del sólido.
 - No se seleccionan caras tocándolas directamente en el visor y no se modifican sólidos; todavía no existe selección de aristas ni topología B-Rep.
 - Estado: código subido, compilación y prueba de esta etapa pendientes de confirmar.
+
+## Inspección de aristas — 2026-10-25
+
+- Nuevo botón **⌑ Inspeccionar aristas** en la barra derecha.
+- Para prismas se enumeran las 12 aristas locales agrupadas por ejes X/Y/Z y se muestra su longitud en mm.
+- La selección de arista es por lista; aún no dispone de picking táctil directo ni resaltado 3D de aristas.
+- Los cilindros no se incluyen en esta etapa. La inspección no modifica la geometría.
+- Estado: código incorporado; pendiente de comprobar el workflow y pruebas en teléfono.
