@@ -80,3 +80,13 @@ Revisión: 2026-10-25. **Progreso global estimado: 42 % antes de este lote**. Es
 - **Pruebas**: `SketchDeletionPlanTest` verifica varias extrusiones dependientes, cuerpos ajenos, preservación de UUIDs, eliminación cascada, inmutabilidad y rechazo de planes obsoletos. `verify-project.sh` comprueba que Android utilice el plan, tome snapshot y aplique la operación confirmada.
 
 **Límite:** gestión de dependencias de bocetos y cuerpos primitivos; no elimina ni migra rasgos B-Rep generales, intersecciones arbitrarias o restricciones CAD avanzadas. El progreso estimado de motor CAD sigue en ~42 % mientras no se validen los siguientes hitos en el teléfono.
+
+## Bloque: grafo de rasgos paramétricos e impactos (CI sin APK)
+
+- `ParametricFeatureGraph` incorpora un **DAG** de rasgos con cuatro tipos: `SKETCH`, `BODY`, `CHAIN` y `BOOLEAN`. Las referencias son UUID persistentes; se rechazan nodos duplicados, dependencias huérfanas y ciclos, y se obtiene un orden de ejecución padre → hijos. `affectedBy(id)` devuelve, en orden seguro, los dependientes transitivos de un rasgo que cambie.
+- Cada `ChainBooleanFeature` dispone ahora de UUID propio, preservado tras cambiar sus cotas, parámetros del cortador o tipo de booleana. Se guarda en `chainBooleanFeatures[].id`; al importar documentos antiguos se le asigna automáticamente uno nuevo. `ChainDependencyReport` detecta duplicados.
+- En Android, `Proyecto → Árbol paramétrico e impactos` enseña los rasgos y permite consultar los dependientes de un boceto o una cadena. **Diagnóstico solamente**: en esta fase el DAG no ejecuta booleanas arbitrarias ni sustituye el kernel de malla. Los cambios de perfil ya regeneran sus cuerpos básicos por los mecanismos específicos anteriores; una cadena puede regenerar sus booleanas.
+- `ParametricFeatureGraphTest` verifica orden, propagación transitiva, orfandad, ciclos, identidad y resultados inmutables. La integración está protegida por las pruebas de CI y el verificador estático.
+- Se corrige la política de APK tras la ejecución #315: esta había empaquetado porque el texto `[apk]` aparecía en el cuerpo de un merge. Ahora solo se activa automáticamente si **la primera línea del commit empieza por `release: MyCAD `** o hay petición manual explícita mediante `generar_apk=true`. Los merges normales mantienen tests Android, Lint y geometría sin ensamblar una APK.
+
+**Limitaciones:** no hay B-Rep ni regeneración genérica de todo tipo de operaciones a partir del DAG; es la infraestructura de ordenación, auditoría e impacto para fases posteriores. El porcentaje global continúa estimado en ~42 %, a validar en pruebas de dispositivo.
