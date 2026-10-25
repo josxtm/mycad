@@ -80,6 +80,24 @@ public final class ParametricSketchDocumentTest {
   boolean duplicateRejected=false;
   try{ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),encodedGraph+encodedGraph.split("\n")[1]+"\n");}catch(IllegalArgumentException expected){duplicateRejected=true;}
   check(duplicateRejected,"Duplicated sketch rejected");
+  ParametricSketchDocument transforms=new ParametricSketchDocument(new PrimitiveKernel());
+  String moving=transforms.addRectangle(1,2,4,5);
+  CadKernel.Result<CadKernel.Box> movingBody=transforms.extrude(moving,7,3);
+  check(movingBody.isSuccess(),"Create movable body");
+  String movingId=movingBody.value.id;
+  String movingFeature=transforms.dependentsOf(moving).get(0).id;
+  check(transforms.setExtrusionOffset(movingFeature,11),"Move extrusion offset");
+  check(transforms.bodies().get(movingId).z==11,"Offset rebuilt");
+  check(transforms.setSketchPlane(moving,PlaneExtrusion.Plane.YZ),"Change sketch plane");
+  check(transforms.bodies().get(movingId).x==11,"YZ origin follows offset");
+  check(transforms.bodies().get(movingId).depth==4,"YZ sketch U maps to Y");
+  check(!transforms.setExtrusionOffset(movingFeature,Double.NaN),"Reject invalid offset");
+  check(!transforms.setSketchPlane(moving,null),"Reject null plane");
+  check(transforms.bodies().get(movingId).x==11,"Invalid operations atomic");
+  check(transforms.undo()&&transforms.bodies().get(movingId).z==11,"Undo sketch plane change");
+  check(transforms.redo()&&transforms.bodies().get(movingId).x==11,"Redo sketch plane change");
+  ParametricSketchDocument reopenedTransforms=ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),transforms.exportSnapshot());
+  check(reopenedTransforms.bodies().get(movingId).x==11,"Persist moved sketch plane");
   System.out.println("ParametricSketchDocumentTest: OK");
  }
 }
