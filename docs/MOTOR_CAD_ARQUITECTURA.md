@@ -94,3 +94,9 @@ Se añade `tests/CadDocumentTest.java` al flujo CI para comprobar volumen 1000�
 | 100 % | Tests geométricos integrales, verificación CI y validación funcional en Nothing Phone 2a | Pendiente |
 
 **Último CI confirmado antes de esta actualización:** ejecución #127, commit `0797a788`, `success`; la compilación automática no constituye validación funcional en dispositivo.
+
+## Dependencias boceto → extrusión: prototipo Java aislado
+
+`ParametricSketchDocument.java` incorpora perfiles rectangulares XY con identificador estable, extrusión vertical y dependencia explícita de cada cuerpo respecto a su boceto. Editar un rectángulo reconstruye los cuerpos dependientes y conserva los IDs. Modificar un boceto o intentar una extrusión inválida no altera el estado si falla la validación. Se admiten deshacer/rehacer y eliminación de bocetos con sus extrusiones dependientes. `ParametricSketchDocumentTest.java` verifica estas condiciones en la CI.
+
+**Restricciones:** solo rectángulos XY y altura positiva. Aún no se enlaza a `MainActivity`, no reemplaza `CadDocument` anterior, no implementa perfiles arbitrarios, curvas, NDK ni B-Rep. El hito del 30 % sigue abierto hasta generalizar dependencias y guardar/reabrir el grafo.
