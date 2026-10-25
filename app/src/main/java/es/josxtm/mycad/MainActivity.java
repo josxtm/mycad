@@ -236,7 +236,12 @@ public class MainActivity extends Activity {
  void booleanMeshManager(){
   if(booleanMeshes.isEmpty()){toast("No hay resultados booleanos guardados");return;}
   String[] names=new String[booleanMeshes.size()];
-  for(int i=0;i<names.length;i++)names[i]="Malla "+(i+1)+" · "+booleanMeshes.get(i).triangles()+" triángulos";
+  for(int i=0;i<names.length;i++){
+   es.josxtm.mycad.cad.DrilledBoxRecipe drill=i<holeRecipes.size()?holeRecipes.get(i):null;
+   names[i]="Malla "+(i+1)+" · "+booleanMeshes.get(i).triangles()+" triángulos";
+   if(drill!=null)names[i]+=" · "+drill.axis.name()+" · "+
+    (drill.drillDepth==0?"pasante":drill.drillDepth+" mm de profundidad");
+  }
   new AlertDialog.Builder(this).setTitle("Resultados booleanos")
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
@@ -279,7 +284,7 @@ public class MainActivity extends Activity {
    input.setText(String.valueOf(defaults[i]));inputs[i]=input;fields.addView(input);
   }
   android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.addView(fields);
-  new AlertDialog.Builder(this).setTitle("Perforación circular pasante")
+  new AlertDialog.Builder(this).setTitle("Perforación circular · pasante o ciega")
    .setMessage("Elige el eje local X/Y/Z. La perforación gira con la pieza. Profundidad 0 = pasante; positiva = taladro ciego desde la cara exterior positiva.")
    .setView(scroll).setNegativeButton("Cancelar",null)
    .setNeutralButton("Previsualizar",(dialog,which)->{
@@ -309,7 +314,7 @@ public class MainActivity extends Activity {
      unionRecipes.add(null);holeRecipes.add(recipe);
      selected=-1;selectedSketch=-1;activeCadFace=null;save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
-     toast("Perforación guardada · editable en Resultados booleanos");
+     toast("Perforación guardada · "+(recipe.drillDepth==0?"pasante":"ciega")+" · editable en Resultados booleanos");
     }catch(Exception e){toast("No se pudo guardar la perforación");}
    }).show();
  }
@@ -354,7 +359,7 @@ public class MainActivity extends Activity {
       !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(mesh).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
      checkpoint();holeRecipes.set(index,next);booleanMeshes.set(index,new MeshEngine.Mesh(mesh));
      save();scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();
-     toast("Perforación regenerada en el nuevo eje");
+     toast("Perforación regenerada · "+(next.drillDepth==0?"pasante":"ciega"));
     }catch(Exception error){toast("Eje, diámetro o posición inválidos");}
    }).show();
  }
