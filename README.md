@@ -1,33 +1,41 @@
 # MyCAD — CAD 2D/3D para Android
 
-## Descargar MyCAD 0.5.0 (APK de desarrollo)
+## Estado actual: MyCAD 0.6.0 en desarrollo
 
-**Estado:** GitHub Actions compiló correctamente MyCAD 0.5.0. La APK todavía necesita pruebas funcionales en un teléfono Android.
+**Versión configurada en Android:** \`0.6.0\` (\`versionCode 60\`, en \`app/build.gradle\`).
+**Último commit del motor validado por CI antes de esta actualización:** \`d167559\`.
+**Última ejecución de referencia:** [GitHub Actions #322 — correcta](https://github.com/josxtm/mycad/actions/runs/40245497754).
 
-**[⬇ Descargar el artefacto myCad0.5.0 — compilación correcta](https://github.com/josxtm/mycad/actions/runs/40140494636)**
+El código 0.6.0 pasa las pruebas de integridad, las regresiones geométricas y las tareas Gradle de tests y Lint. **Estos cambios aún no se han verificado en el Nothing Phone 2a** y **no se ha compilado una APK 0.6.0**. El código no equivale a una versión estable o lista para producción.
 
-### Instalación en Android
+### Motor 0.6.0 — funcionalidades ya incorporadas al código
 
-1. Entra en el enlace de la compilación e inicia sesión en GitHub si te lo solicita.
-2. Desplázate hasta **Artifacts**, al final de la página.
-3. Pulsa **myCad0.5.0** para descargar el archivo ZIP.
-4. Abre el ZIP desde **Archivos** en Android y extrae la APK que contiene.
-5. Abre la APK extraída y confirma la instalación. Si Android lo solicita, autoriza temporalmente la instalación desde la aplicación con la que has abierto el archivo.
+- Bocetos, extrusiones y vinculación parcial entre croquis y piezas, con identificadores persistentes.
+- Historial de operaciones y dependencias paramétricas; reconstrucción incremental de algunas operaciones booleanas.
+- Selección lógica persistente de caras y aristas de primitivas.
+- Primera capa B-Rep **analítica y limitada**: prismas con ocho vértices, doce aristas y seis caras; cilindros con tres superficies y dos aristas circulares.
+- Edición de caras de prismas y cilindros desde el visor CAD experimental, incluida conservación de la posición de la cara opuesta y deshacer/rehacer.
+- Operaciones booleanas geométricas específicas con límites; la malla resultante no se convierte en una B-Rep general editable.
 
-> **Importante:** no pulses **Source code (zip)** en la página del repositorio: contiene el código fuente, no la APK. Los artefactos de Actions pueden caducar; si el enlace deja de funcionar, ejecuta de nuevo el workflow desde la pestaña **Actions**.
+**Aún pendiente:** núcleo B-Rep general, booleanas exactas entre sólidos arbitrarios, redondeos/chaflanes, STEP, validación táctil de 0.6.0 y pruebas de regresión en Android real. No se ofrece paridad funcional con Shapr3D.
 
-**[Ver todas las compilaciones](https://github.com/josxtm/mycad/actions)** · **[Documentación de desarrollo 0.5.0](docs/README.md)**
+Detalles: [roadmap actual](docs/ROADMAP.md) · [B-Rep de prismas](docs/CAD_BREP_BOX.md) · [B-Rep de cilindros](docs/CAD_BREP_CYLINDER.md) · [edición Android](docs/CAD_BREP_ANDROID.md).
 
+### APK y pruebas en Android
 
-Aplicación experimental de diseño asistido por ordenador para Android, inspirada en el flujo de trabajo táctil de programas como Shapr3D. Desarrollada en Java y compilada en la nube con **GitHub Actions**. No requiere un ordenador local para descargar e instalar el APK.
+La **última APK de referencia es la de 0.5.0**, no la versión actual del código. Está enlazada en la [ejecución histórica de GitHub Actions 0.5.0](https://github.com/josxtm/mycad/actions/runs/40140494636); el artefacto podría haber caducado. Se han comunicado pruebas funcionales satisfactorias de 0.5.0 en Nothing Phone 2a (inicio, plano, dibujo, cotas, navegación y guardar/abrir); extrusión y otros planos no se validaron completamente.
 
-**Versión actual del código: 0.5.0 (desarrollo)** · **Compilación 0.5.0: correcta (GitHub Actions)** · **Pruebas en móvil de 0.5.0: pendientes**. La última versión validada en móvil es 0.4.8.
+Para futuros hitos 0.6.0: abrir [Actions](https://github.com/josxtm/mycad/actions), lanzar manualmente el workflow con \`generar_apk=true\` o aprobar un commit de hito con prefijo exacto \`release: MyCAD \`. El flujo ordinario de desarrollo **solo ejecuta pruebas y Lint; no construye APK**. Cuando exista un artefacto \`myCad0.6.0\`, descargarlo desde la ejecución correspondiente (Artifacts), descomprimir el ZIP e instalar la APK en Android. **Nunca instalar \`Source code (zip)\` como si fuese una APK.**
 
-> **Importante:** compilar correctamente no equivale a comprobar todas las funciones en un teléfono. El usuario confirmó la creación y movimiento XYZ del prisma en 0.4.6 y la rotación Z en 0.4.7. El usuario confirmó el funcionamiento de los aros táctiles XYZ y la rotación numérica en 0.4.8.
+### Flujo de contribución
 
-## Documentación y siguiente etapa
+Trabajar en una rama \`feature/\`, \`fix/\` o \`maintenance/\`, abrir una Pull Request dirigida a \`main\`, revisar el diff y comprobar que termina correctamente el job **verify** antes de fusionar. No ensamblar ni publicar APK para cada commit. Véanse [CONTRIBUTING.md](CONTRIBUTING.md) y [la plantilla de PR](.github/PULL_REQUEST_TEMPLATE.md).
 
-La planificación de **MyCAD 0.5.0** y todas las fases posteriores se documentan en [docs/README.md](docs/README.md). Incluye diseño funcional, roadmap, referencias de vídeo, arquitectura, pruebas y registro de decisiones. El código 0.5.0 todavía no está implementado.
+**Importante:** el trabajo por PR se documenta y utiliza; para **impedir técnicamente** pushes directos o merges sin CI hay que activar una regla de protección/ruleset de \`main\` en GitHub, que requiere permisos de administración. Esta documentación no sustituye esa protección.
+
+## Historial anterior (referencia, no estado actual)
+
+La siguiente sección conserva hitos pasados. Las menciones a versiones, pruebas, límites o flujos CI antiguos describen **su contexto histórico**; el estado vigente está arriba.
 
 ## Versión 0.4.8 — rotación XYZ táctil
 
@@ -60,9 +68,9 @@ La planificación de **MyCAD 0.5.0** y todas las fases posteriores se documentan
 3. Descarga el artefacto `myCad<VERSIÓN>` (por ejemplo, `myCad0.4.5`).
 4. Descomprime el ZIP e instala `myCad<VERSIÓN>.apk` en Android, autorizando la instalación de APK si es necesario.
 
-El proyecto usa **Android SDK 35**, **minSdk 26**, **Java 17** y **Gradle 8.9** en el flujo CI. La tarea ejecuta `gradle :app:assembleDebug :app:lintDebug --no-daemon`. La salida es una **APK debug**, no una publicación firmada para tienda. El nombre del APK y del artefacto se calcula a partir de `versionName` en `app/build.gradle`.
+El proyecto usa **Android SDK 35**, **minSdk 26**, **Java 17** y **Gradle 8.9** en el flujo CI. **Ahora** la ejecución normal valida con `gradle :app:testDebugUnitTest :app:lintDebug --no-daemon`; la tarea `:app:assembleDebug` se reserva para un hito explícito. La salida del hito es una **APK debug** y el nombre depende de `versionName` en `app/build.gradle`.
 
-**Última ejecución v0.4.5 verificada:** [GitHub Actions #40132020733](https://github.com/josxtm/mycad/actions/runs/40132020733) — compilación, Lint y subida de artefacto correctos.
+**Ejecución histórica de v0.4.5:** [GitHub Actions #40132020733](https://github.com/josxtm/mycad/actions/runs/40132020733) — compilación, Lint y subida de artefacto correctos.
 
 ## Funcionalidades
 
@@ -111,7 +119,7 @@ Todas las versiones descritas corresponden a las iteraciones de este repositorio
 | `.iges` / `.igs` | Pendiente | Pendiente | No implementado. |
 | `.dwg`, `.3mf`, `.cad` | Pendiente | Pendiente | No implementado; `.cad` no es un formato universal. |
 
-**Limitaciones actuales:** STL/OBJ importados son mallas y no conservan operaciones paramétricas originales. El visor GPU es un componente adicional, no el motor de edición de toda la interfaz; no hay todavía operaciones booleanas, sólidos B-Rep, extrusión paramétrica de perfiles ni exportación STEP. El rendimiento con modelos complejos depende del dispositivo y del tamaño de la malla; no existe un límite de triángulos validado en pruebas.
+**Limitaciones actuales:** STL/OBJ importados siguen siendo mallas sin historial paramétrico original. Existen booleanas específicas, algunas extrusiones vinculadas y B-Rep analítica **solo para primitivas** (prismas y cilindros); no existe todavía un motor B-Rep general ni exportación STEP. La integración completa entre visor y motor está pendiente, y el rendimiento con diseños grandes no se ha validado en móvil.
 
 ## Organización del proyecto
 
@@ -124,14 +132,14 @@ Todas las versiones descritas corresponden a las iteraciones de este repositorio
 - `DIRECTRIZ_GESTOS.md`: especificación original de interacción; **las reglas de doble/triple toque de ese documento fueron sustituidas en la v0.4.5 por modos explícitos**.
 - `GUIA.md`: documentación de uso y pruebas, que puede contener referencias a versiones anteriores.
 
-## Próximos pasos
+## Próximos pasos para 0.6.0
 
-1. Validar en el teléfono los modos Navegar/Mover/Editar de v0.4.5 y el comportamiento de selección.
-2. Comprobar importación y exportación STL/OBJ con modelos reales, orientación, dimensiones y archivos grandes.
-3. Integrar el visor GPU en la experiencia CAD principal y mejorar iluminación, rendimiento, selección y manipulación de mallas.
-4. Añadir compatibilidad DXF y estudiar motores CAD para STEP/IGES y operaciones de sólidos.
-5. Actualizar guías y documentación de gestos tras la validación en móvil.
+1. Unificar selección/edición de caras y aristas con el grafo paramétrico, manteniendo UUID estables.
+2. Añadir pruebas geométricas y de persistencia para cualquier nueva operación del motor.
+3. Validar en Nothing Phone 2a las nuevas operaciones, navegación, undo/redo, guardado y archivos.
+4. Publicar APK 0.6.0 **únicamente** cuando exista un bloque funcional relevante y la CI esté verde.
+5. Mantener documentadas las limitaciones: B-Rep de primitivas ≠ kernel CAD universal.
 
 ---
 
-**Fecha de actualización:** 24 de octubre de 2026. Este README documenta los cambios comprobados en el código, las compilaciones conocidas y las validaciones comunicadas; no presenta como probadas funciones que aún requieren ensayos en Android.
+**Actualización del estado:** 26 de octubre de 2026. Las secciones de historial anteriores se conservan como referencia cronológica, no como afirmaciones sobre el estado actual.
