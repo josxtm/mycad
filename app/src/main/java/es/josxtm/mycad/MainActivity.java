@@ -454,9 +454,11 @@ public class MainActivity extends Activity {
     if(found!=null){
      selected=found.partIndex;selectedSketch=-1;scene.invalidate();
      label="Cuerpo "+(found.partIndex+1)+" · cara "+found.face.name().replace('_',' ');
+     if(meshView!=null)meshView.highlightFace(triangle-(found.triangleInPart%2));
     }
    }
   }
+  if(meshView!=null&&!label.startsWith("Cuerpo "))meshView.highlightFace(-1);
   info.setText(String.format(java.util.Locale.US,"%s · X %.1f · Y %.1f · Z %.1f mm",label,x,y,z));
  }
  void toggleCadGpuMesh(){
