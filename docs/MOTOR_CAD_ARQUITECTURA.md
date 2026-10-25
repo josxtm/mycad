@@ -114,3 +114,10 @@ El prototipo `ParametricSketchDocument` incorpora `exportSnapshot()` e `importSn
 - Las ediciones inválidas no modifican el estado ni el historial.
 - `ParametricSketchDocumentTest` incorpora regresiones de volumen, identidad, atomicidad y deshacer/rehacer.
 - Las pruebas están conectadas al flujo de geometría de GitHub Actions. **No significa que este motor esté conectado a la UI Android ni que exista aún B-Rep.**
+
+## Implementación: mapeo de extrusión XY/XZ/YZ
+
+- `PlaneExtrusion` adapta perfiles rectangulares en coordenadas locales (u,v) a prismas axis-aligned en los planos XY, XZ y YZ.
+- Admite extrusión con altura firmada: el sentido negativo desplaza el origen al otro lado del plano manteniendo dimensiones positivas.
+- Pruebas independientes de Android verifican volumen, dirección y dimensiones en los tres planos, así como rechazo de entradas inválidas.
+- **Todavía no está conectado al grafo `ParametricSketchDocument` ni a la interfaz Android.** Es una capa geométrica separada; no supone selección avanzada ni B-Rep.
