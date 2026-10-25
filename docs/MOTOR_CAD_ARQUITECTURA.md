@@ -173,3 +173,7 @@ La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneEx
 ## Triangulación de prismas transformados
 
 `BoxSurface.triangles(TransformedBody)` devuelve 12 triángulos (36 vértices, coordenadas float XYZ) de la superficie del cuboide con transformaciones rígidas aplicadas. Las caras se ordenan con normales exteriores y las pruebas validan límites y orientación. Es una malla destinada a renderizado, no una topología B-Rep editable. Aún no está conectada al visor Android.
+
+## Primer visor CAD experimental (2026-10-25)
+
+El menú de proyecto ofrece `Alternar visor CAD experimental`, desactivado inicialmente. Si está activo y todas las piezas del editor son prismas, `currentMesh()` pasa por `PrimitiveKernel` → `TransformedBody` → `BoxSurface` para generar triángulos XYZ con traslación y rotaciones. Conserva las mallas importadas/booleanas; cuando hay cilindros usa el visor clásico para no ocultarlos. Es una opción temporal de representación GPU, no altera `parts`, ni el guardado, ni el algoritmo principal de pantalla; todavía no incluye selección B-Rep ni cilindros en el nuevo motor.
