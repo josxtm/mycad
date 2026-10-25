@@ -33,3 +33,31 @@ Fuentes:
 
 ## Política de entrega
 Distinguir **diseñado**, **implementado**, **compilado** y **validado en móvil**. Un artefacto compilado no prueba que extrusión ni ViewCube funcionen. El flujo CI falla ante errores de tests/lint/compilación y evita publicar un APK fallido.
+
+
+## Auditoría recuperada y contrastada — 2026-10-25
+
+**Referencia REA:** https://github.com/morluto/rea (Reverse Engineer Anything).
+REA es una herramienta de análisis mediante agentes/CLI/MCP, no una biblioteca CAD ni un motor geométrico intercambiable. Se puede emplear con software y artefactos a los que se tenga acceso autorizado y cumpliendo sus licencias. Para ingeniería inversa nativa requiere herramientas adicionales y los resultados deben verificarse; no consta ninguna ejecución de REA contra Shapr3D.
+
+**Código real de MyCAD revisado:**
+
+| Módulo | Implementación actual | Limitación relevante |
+|---|---|---|
+| `MainActivity.java` | Editor táctil con primitivas, bocetos, extrusión, cámara, selección proyectada, almacenamiento JSON | Lógica y renderizado mayoritariamente concentrados en una Activity |
+| `MeshEngine.java` | Renderización GPU OpenGL ES 3 de mallas triangulares XYZ | No tiene entidades topológicas paramétricas |
+| `BoxBooleanMesh.java` | Genera superficies triangulares de unión/resta/intersección de dos cajas alineadas a ejes | No generaliza a caras inclinadas, cilindros ni geometría arbitraria |
+| `MeshIO.java` | Lectura/escritura STL y OBJ | Los formatos triangulares no preservan features o bocetos CAD |
+| Documento JSON v1 | Guarda piezas, bocetos enlazados y mallas booleanas | No incluye un árbol general de operaciones CAD reconstruibles |
+
+**Resultado:** seguir añadiendo controles visuales de edición facial antes de introducir una representación sólida/topológica extensible sería arriesgado. La selección actual de caras se basa en polígonos proyectados y profundidad media: no equivale a ray casting de precisión ni a caras B-Rep.
+
+### Próximo bloque recomendado
+
+1. Crear pruebas de aceptación geométrica sobre sólidos (volumen, orientación, tolerancias, manifold, guardado y reapertura).
+2. Extraer de `MainActivity` una capa independiente `CadDocument` / `CadBody` / `CadFace` / `CadEdge` / `CadFeature` que mantenga las operaciones y sus relaciones.
+3. Evaluar un kernel B-Rep existente compatible con Android (por ejemplo, Open CASCADE), incluyendo compilación NDK, huella de APK, rendimiento y condiciones de licencia. **Evaluación no equivale a integración**.
+4. Mantener el actual flujo de mallas para visualización y STL/OBJ mientras el nuevo kernel se prueba en paralelo.
+5. Usar REA como investigación secundaria para interacciones de Shapr3D y sus evidencias observables; no copiar código propietario, formatos privados ni recursos.
+
+**Criterio de salida:** editar una cara, regenerar el sólido, deshacer y guardar/reabrir sin pérdida topológica. Hasta entonces, MyCAD 0.6.0 continúa en fase experimental.
