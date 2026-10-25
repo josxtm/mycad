@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;}}).show();}
  void cadEngineDiagnostic(){
   try{
    java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.SketchData> ss=new java.util.ArrayList<>();
@@ -538,6 +538,84 @@ public class MainActivity extends Activity {
   if(meshView!=null&&!label.startsWith("Cuerpo "))meshView.highlightFace(-1);
   info.setText(String.format(java.util.Locale.US,"%s · X %.1f · Y %.1f · Z %.1f mm",label,x,y,z));
  }
+ void manageExtrusionChains(){
+  java.util.ArrayList<String> choices=new java.util.ArrayList<>();
+  for(int i=0;i<extrusionChains.size();i++)choices.add("Cadena "+(i+1)+" · "+extrusionChains.get(i).size()+" extrusiones");
+  choices.add("Crear cadena desde pieza seleccionada");
+  new AlertDialog.Builder(this).setTitle("Historial paramétrico")
+   .setItems(choices.toArray(new String[0]),(dialog,index)->{
+    if(index==extrusionChains.size()){
+     if(selected<0||selected>=parts.size()||parts.get(selected).circle){toast("Selecciona un prisma rectangular");return;}
+     Part p=parts.get(selected);
+     if(p.rotationX!=0||p.rotationY!=0||p.rotationZ!=0){toast("Por ahora solo prismas sin rotación");return;}
+     checkpoint();
+     extrusionChains.add(new es.josxtm.mycad.cad.FaceExtrusionChain(p.w,p.d,p.h,p.x,p.y,p.z));
+     save();toast("Cadena creada · añade extrusiones desde Historial");
+    }else editExtrusionChain(index);
+   }).setNegativeButton("Cerrar",null).show();
+ }
+ void editExtrusionChain(int index){
+  if(index<0||index>=extrusionChains.size())return;
+  es.josxtm.mycad.cad.FaceExtrusionChain chain=extrusionChains.get(index);
+  java.util.ArrayList<String> actions=new java.util.ArrayList<>();
+  actions.add("Añadir extrusión");
+  for(es.josxtm.mycad.cad.FaceExtrusionChain.Step step:chain.history())
+   actions.add(step.face.name()+" · "+step.distance+" mm · editar");
+  actions.add("Eliminar última extrusión");
+  new AlertDialog.Builder(this).setTitle("Cadena "+(index+1))
+   .setItems(actions.toArray(new String[0]),(dialog,choice)->{
+    if(choice==actions.size()-1){
+     if(chain.size()==0){toast("No hay extrusiones");return;}
+     checkpoint();chain.removeLast();save();refreshChainScene();
+    }else{
+     int stepIndex=choice-1;
+     final String[] faces={"X_MIN","X_MAX","Y_MIN","Y_MAX","Z_MIN","Z_MAX"};
+     if(stepIndex<0){
+      new AlertDialog.Builder(this).setTitle("Cara de la nueva extrusión")
+       .setItems(faces,(d,n)->chainDistanceDialog(chain,index,-1,es.josxtm.mycad.cad.BoxFaceSelection.Face.values()[n])).show();
+     }else chainDistanceDialog(chain,index,stepIndex,chain.history().get(stepIndex).face);
+    }
+   }).setNegativeButton("Cerrar",null).show();
+ }
+ void chainDistanceDialog(es.josxtm.mycad.cad.FaceExtrusionChain chain,int index,int step,es.josxtm.mycad.cad.BoxFaceSelection.Face face){
+  EditText amount=new EditText(this);amount.setInputType(8194|4096);
+  amount.setText(step<0?"10":String.valueOf(chain.history().get(step).distance));
+  new AlertDialog.Builder(this).setTitle(face.name()+" · milímetros").setView(amount)
+   .setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(dialog,w)->{
+    try{
+     if(index>=extrusionChains.size()||extrusionChains.get(index)!=chain)throw new IllegalArgumentException();
+     double distance=Double.parseDouble(amount.getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.FaceExtrusionChain next=copyExtrusionChain(chain);
+     if(step<0)next.append(face,distance);else next.update(step,distance);
+     if(next.regenerate().size()>51)throw new IllegalArgumentException();
+     checkpoint();extrusionChains.set(index,next);save();refreshChainScene();
+    }catch(Exception error){toast("Distancia inválida");}
+   }).show();
+ }
+ es.josxtm.mycad.cad.FaceExtrusionChain copyExtrusionChain(es.josxtm.mycad.cad.FaceExtrusionChain source){
+  es.josxtm.mycad.cad.FaceExtrusionChain.Solid root=source.regenerate().get(0);
+  es.josxtm.mycad.cad.FaceExtrusionChain copy=new es.josxtm.mycad.cad.FaceExtrusionChain(root.w,root.d,root.h,root.x,root.y,root.z);
+  for(es.josxtm.mycad.cad.FaceExtrusionChain.Step step:source.history())copy.append(step.face,step.distance);
+  return copy;
+ }
+ void refreshChainScene(){
+  if(!meshMode)toggleMeshView();
+  else if(meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+  info.setText("Historial regenerado · visor GPU");
+ }
+ void appendChainTriangles(java.util.ArrayList<Float> out){
+  for(es.josxtm.mycad.cad.FaceExtrusionChain chain:extrusionChains){
+   java.util.List<es.josxtm.mycad.cad.FaceExtrusionChain.Solid> solids=chain.regenerate();
+   for(int i=1;i<solids.size();i++){
+    es.josxtm.mycad.cad.FaceExtrusionChain.Solid solid=solids.get(i);
+    es.josxtm.mycad.cad.CadKernel.Result<es.josxtm.mycad.cad.CadKernel.Box> box=
+     new es.josxtm.mycad.cad.PrimitiveKernel().createBox(-solid.w/2,-solid.d/2,0,solid.w,solid.d,solid.h);
+    if(!box.isSuccess())continue;
+    for(float f:es.josxtm.mycad.cad.BoxSurface.triangles(new es.josxtm.mycad.cad.TransformedBody(
+      box.value,new es.josxtm.mycad.cad.RigidTransform(solid.x,solid.y,solid.z,0,0,0))))out.add(f);
+   }
+  }
+ }
  void extrudeSelectedCadFace(){
   if(!cadGpuMesh||activeCadFace==null||!activeCadFace.isValidFor(parts.size())){
    toast("Selecciona una cara en el visor CAD experimental");return;
@@ -663,6 +741,7 @@ public class MainActivity extends Activity {
     result.value,new es.josxtm.mycad.cad.RigidTransform(part.x,part.y,part.z,part.rotationX,part.rotationY,part.rotationZ));
    for(float value:es.josxtm.mycad.cad.BoxSurface.triangles(body))floats.add(value);
   }
+  appendChainTriangles(floats);
   float[] coordinates=new float[floats.size()];for(int i=0;i<coordinates.length;i++)coordinates[i]=floats.get(i);
   return new MeshEngine.Mesh(coordinates);
  }
@@ -680,6 +759,7 @@ public class MainActivity extends Activity {
    if(p.circle){int n=48;float radius=p.w/2;for(int i=0;i<n;i++){double t=i*2*Math.PI/n,u=(i+1)*2*Math.PI/n;float[] b={p.x+(float)Math.cos(t)*radius,p.y+(float)Math.sin(t)*radius,z},c={p.x+(float)Math.cos(u)*radius,p.y+(float)Math.sin(u)*radius,z},d={b[0],b[1],top},e={c[0],c[1],top};quad(a,b,c,e,d);addTri(a,new float[]{p.x,p.y,z},c,b);addTri(a,new float[]{p.x,p.y,top},d,e);}}
    else{float x=p.x,y=p.y,w=p.w/2,h=p.d/2;float[][] v={{x-w,y-h,z},{x+w,y-h,z},{x+w,y+h,z},{x-w,y+h,z},{x-w,y-h,top},{x+w,y-h,top},{x+w,y+h,top},{x-w,y+h,top}};for(float[] pt:v){float dx=pt[0]-p.x,dy=pt[1]-p.y,angle=(float)Math.toRadians(p.rotationZ);pt[0]=p.x+(float)(dx*Math.cos(angle)-dy*Math.sin(angle));pt[1]=p.y+(float)(dx*Math.sin(angle)+dy*Math.cos(angle));}quad(a,v[3],v[2],v[1],v[0]);quad(a,v[4],v[5],v[6],v[7]);quad(a,v[0],v[1],v[5],v[4]);quad(a,v[1],v[2],v[6],v[5]);quad(a,v[2],v[3],v[7],v[6]);quad(a,v[3],v[0],v[4],v[7]);}
   }
+  appendChainTriangles(a);
   float[] vertices=new float[a.size()];for(int i=0;i<vertices.length;i++)vertices[i]=a.get(i);return new MeshEngine.Mesh(vertices);
  }
  void toggleMeshView(){
