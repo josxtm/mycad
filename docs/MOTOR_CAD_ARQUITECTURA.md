@@ -259,3 +259,7 @@ Desde `Historial de extrusiones → Cadena` hay vistas **no destructivas** de co
 ## Lote booleano sobre cadena unificada
 
 `MultiBoxUnion` soporta `CHAIN_DIFFERENCE` y `CHAIN_INTERSECTION` interpretando todas las cajas salvo la última como unión de la cadena y la última como herramienta de corte. Produce una única malla exterior sin duplicar caras de los cuerpos encadenados. La vista Android de corte/intersección usa esta operación completa, no la concatenación de resultados parciales. `ChainBooleanTest` comprueba la resta y la intersección de un cortador que atraviesa dos extrusiones adyacentes. Las operaciones son todavía previsualizaciones no destructivas, no entradas persistentes en el historial.
+
+## Booleanas vinculadas al historial (lote)
+
+`ChainBooleanFeature` conserva índice de cadena, tipo de operación (corte o intersección) y geometría rectangular del cortador como instantánea. Regenera la malla al consultar el resultado leyendo los pasos actuales de `FaceExtrusionChain`; los cambios de extrusión se reflejan en la próxima regeneración. El JSON v1 añade la propiedad opcional `chainBooleanFeatures`; se recupera al abrir el archivo y en deshacer/rehacer. Menús: `Historial de extrusiones → Cadena → Guardar corte/intersección paramétrica` y `Proyecto → Booleanas guardadas`. Las operaciones pueden eliminarse, sin alterar la cadena. Limitaciones: el cortador es una instantánea, no cambia automáticamente si se edita su pieza de origen; la salida es una malla regenerable, no topología B-Rep ni un cuerpo editable por caras.
