@@ -71,3 +71,14 @@ Si el motor actual no admite una operación fiable, registrar la limitación y d
 - Confirmar elimina la previsualización, registra el punto de deshacer y crea el sólido definitivo.
 - Extrusiones limitadas a perfiles rectangulares y circulares; sin motor B-Rep ni vínculo paramétrico persistente todavía.
 - **Estado: implementado en código; pendiente de confirmar compilación y validación táctil en Nothing Phone 2a.**
+
+## Fase de enlaces paramétricos — 2026-10-25
+
+- Part incorpora `sourceSketchId` y Sketch incorpora `id` persistente (UUID).
+- Al crear una extrusión, se guarda el identificador del croquis origen.
+- Desde **Editar pieza**, si hay vínculo, se ofrecen: cambiar altura, editar perfil de origen o editar cuerpo sin vínculo.
+- Modificar cotas/coordenadas del croquis reconstruye sus cuerpos vinculados conservando la altura.
+- Eliminar el croquis de origen desvincula los cuerpos existentes para conservar la geometría.
+- `encode/decode` conserva los campos opcionales sin cambiar el formato JSON v1; los archivos anteriores siguen admitidos.
+- Falta validar en móvil y comprobar el último workflow. No confundir esta implementación con un kernel B-Rep: booleanas y edición de caras siguen pendientes.
+- Prueba recomendada: croquis rectángulo 20×10, extruir 5; modificar a 30×10; comprobar dimensiones 30×10×5; modificar altura a 8; guardar, reabrir y repetir; deshacer y eliminar perfil.
