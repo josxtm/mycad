@@ -366,7 +366,19 @@ public class MainActivity extends Activity {
  void updateStep(){if(nextStep!=null)nextStep.setText(parts.isEmpty()?"1 · Crea una figura con medidas":"2 · Edita / revisa en 3D   →   3 · Guarda un archivo");}
  String encode() throws Exception {
  JSONArray a=new JSONArray();for(Part p:parts)a.put(new JSONObject().put("c",p.circle).put("w",p.w).put("d",p.d).put("h",p.h).put("x",p.x).put("y",p.y).put("z",p.z).put("rotationX",p.rotationX).put("rotationY",p.rotationY).put("rotationZ",p.rotationZ).put("sourceSketchId",p.sourceSketchId));
- JSONArray sk=new JSONArray();for(Sketch q:sketches)sk.put(new JSONObject().put("t",q.type).put("id",q.id).put("plane",q.plane).put("x1",q.x1).put("y1",q.y1).put("x2",q.x2).put("y2",q.y2));return new JSONObject().put("format","mycad").put("version",1).put("units","mm").put("parts",a).put("sketches",sk).put("booleanMeshes",encodeBooleanMeshes()).toString(2);
+ JSONArray sk=new JSONArray();for(Sketch q:sketches)sk.put(new JSONObject().put("t",q.type).put("id",q.id).put("plane",q.plane).put("x1",q.x1).put("y1",q.y1).put("x2",q.x2).put("y2",q.y2));JSONObject file=new JSONObject().put("format","mycad").put("version",1).put("units","mm").put("parts",a).put("sketches",sk).put("booleanMeshes",encodeBooleanMeshes());
+ try{
+  java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.SketchData> profiles=new java.util.ArrayList<>();
+  java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.PartData> solids=new java.util.ArrayList<>();
+  for(Sketch q:sketches)profiles.add(new es.josxtm.mycad.cad.CadIntegrationProbe.SketchData(q.id,q.type,q.plane,q.x1,q.y1,q.x2,q.y2));
+  for(Part p:parts)solids.add(new es.josxtm.mycad.cad.CadIntegrationProbe.PartData(p.sourceSketchId,p.h));
+  es.josxtm.mycad.cad.CadIntegrationProbe.Report report=es.josxtm.mycad.cad.CadIntegrationProbe.inspect(profiles,solids);
+  file.put("parametricPreview",report.parametricSnapshot);
+  file.put("parametricPreviewComplete",report.readyForMigration());
+ }catch(Exception ignored){
+  // Preview is optional; never prevent a legacy project from being saved.
+ }
+ return file.toString(2);
  }
  JSONArray encodeBooleanMeshes()throws Exception{
   JSONArray all=new JSONArray();for(MeshEngine.Mesh mesh:booleanMeshes){
