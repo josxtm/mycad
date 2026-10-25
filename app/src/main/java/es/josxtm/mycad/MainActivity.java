@@ -374,7 +374,7 @@ public class MainActivity extends Activity {
   for(Part p:parts)solids.add(new es.josxtm.mycad.cad.CadIntegrationProbe.PartData(p.sourceSketchId,p.h));
   es.josxtm.mycad.cad.CadIntegrationProbe.Report report=es.josxtm.mycad.cad.CadIntegrationProbe.inspect(profiles,solids);
   file.put("parametricPreview",report.parametricSnapshot);
-  file.put("parametricPreviewComplete",report.readyForMigration());
+  file.put("parametricPreviewCoverageComplete",report.readyForMigration());
  }catch(Exception ignored){
   // Preview is optional; never prevent a legacy project from being saved.
  }
