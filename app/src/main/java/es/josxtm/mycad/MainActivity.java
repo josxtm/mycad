@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;}}).show();}
  void cadEngineDiagnostic(){
   try{
    java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.SketchData> ss=new java.util.ArrayList<>();
@@ -464,6 +464,34 @@ public class MainActivity extends Activity {
   if(!label.startsWith("Cuerpo "))activeCadFace=null;
   if(meshView!=null&&!label.startsWith("Cuerpo "))meshView.highlightFace(-1);
   info.setText(String.format(java.util.Locale.US,"%s · X %.1f · Y %.1f · Z %.1f mm",label,x,y,z));
+ }
+ void extrudeSelectedCadFace(){
+  if(!cadGpuMesh||activeCadFace==null||!activeCadFace.isValidFor(parts.size())){
+   toast("Selecciona una cara en el visor CAD experimental");return;
+  }
+  final int index=activeCadFace.partIndex;
+  final Part parent=parts.get(index);
+  if(parent.circle||parts.size()>=500){toast("Solo prismas · máximo 500 piezas");return;}
+  final es.josxtm.mycad.cad.BoxFaceSelection.Face face=activeCadFace.face;
+  EditText input=new EditText(this);input.setInputType(8194|4096);input.setText("10");
+  new AlertDialog.Builder(this).setTitle("Extruir cara "+face.name()+" · mm")
+   .setMessage("Crea un prisma adyacente independiente. No fusiona sólidos.")
+   .setView(input).setNegativeButton("Cancelar",null).setPositiveButton("Extruir",(dialog,which)->{
+    try{
+     if(index>=parts.size()||parts.get(index)!=parent||parts.size()>=500)throw new IllegalArgumentException();
+     double amount=Double.parseDouble(input.getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.FacePrismExtrusion.Result result=
+      es.josxtm.mycad.cad.FacePrismExtrusion.create(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,
+       parent.rotationX,parent.rotationY,parent.rotationZ,face,amount);
+     Part child=new Part(false,(float)result.w,(float)result.d,(float)result.h,(float)result.x);
+     child.y=(float)result.y;child.z=(float)result.z;
+     child.rotationX=parent.rotationX;child.rotationY=parent.rotationY;child.rotationZ=parent.rotationZ;
+     checkpoint();parts.add(child);selected=parts.size()-1;selectedSketch=-1;activeCadFace=null;
+     save();scene.invalidate();
+     if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+     info.setText("Nuevo prisma adyacente · "+amount+" mm");
+    }catch(Exception error){toast("Extrusión inválida o fuera de límites");}
+   }).show();
  }
  void editSelectedCadFace(){
   if(activeCadFace==null||!cadGpuMesh||!activeCadFace.isValidFor(parts.size())){
