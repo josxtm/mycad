@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
  ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
- static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104; MeshEngine meshView; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
+ static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104; MeshEngine meshView; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
  class Part { String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
@@ -206,20 +206,30 @@ public class MainActivity extends Activity {
      rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));
     }
     meshMode=true;meshView.setVisibility(View.VISIBLE);
+    isolatedMeshPreview=true;activeCadFace=null;meshView.highlightFace(-1);
     meshView.setMeshes(java.util.Collections.singletonList(new MeshEngine.Mesh(triangles)));
     info.setText("Previsualización booleana · "+(triangles.length/9)+" triángulos");
     new AlertDialog.Builder(this).setTitle("Guardar resultado booleano")
      .setMessage("Guardar una copia de la malla en el proyecto. Los dos sólidos originales se conservarán. Podrás exportar todo como STL/OBJ.")
      .setPositiveButton("Guardar malla",(confirm,which)->{
       checkpoint();booleanMeshes.add(new MeshEngine.Mesh(triangles));unionRecipes.add(null);save();
-      meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+      renderCurrentCadMesh();
       info.setText("Malla booleana guardada · "+booleanMeshes.size()+" resultado(s)");
      }).setNegativeButton("Solo previsualizar",null).show();
    }).setNegativeButton("Cancelar",null).show();
  }
+ void renderCurrentCadMesh(){
+  if(meshView==null)return;
+  isolatedMeshPreview=false;
+  activeCadFace=null;
+  meshView.highlightFace(-1);
+  meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+ }
  void showMeshOnly(MeshEngine.Mesh mesh){
   if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->showGpuSurfaceSelection(triangle,x,y,z));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=true;meshView.setVisibility(View.VISIBLE);
+  isolatedMeshPreview=true;activeCadFace=null;
+  meshView.highlightFace(-1);
   meshView.setMeshes(java.util.Collections.singletonList(mesh));
   info.setText("Resultado booleano · "+mesh.triangles()+" triángulos");
  }
@@ -240,7 +250,7 @@ public class MainActivity extends Activity {
        .setNegativeButton("Cancelar",null)
        .setPositiveButton("Eliminar",(confirm,which)->{
         checkpoint();int removed=booleanMeshes.indexOf(mesh);booleanMeshes.remove(mesh);if(removed>=0&&removed<unionRecipes.size())unionRecipes.remove(removed);save();
-        if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+        if(meshMode&&meshView!=null)renderCurrentCadMesh();
         toast("Resultado eliminado");
        }).show();
      }).show();
@@ -268,7 +278,7 @@ public class MainActivity extends Activity {
      if(generated.length==0)throw new IllegalArgumentException();
      checkpoint();booleanMeshes.set(meshIndex,new MeshEngine.Mesh(generated));unionRecipes.set(meshIndex,updated);
      save();scene.invalidate();
-     if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast("Malla fusionada regenerada");
     }catch(Exception error){toast("No se pudo regenerar la extrusión");}
    }).show();
@@ -366,7 +376,7 @@ public class MainActivity extends Activity {
     }else p.h=height;
     save();scene.invalidate();
     activeCadFace=null;
-    if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+    if(meshMode&&meshView!=null)renderCurrentCadMesh();
    }catch(Exception e){toast("Altura inválida");}}).show();
  }
  boolean validateLinkedSketchEdit(Sketch source,float x1,float y1,float x2,float y2){
@@ -522,10 +532,10 @@ public class MainActivity extends Activity {
  Part item=new Part(circle,w,d,h,x);item.y=(float)p.optDouble("y",0);item.z=(float)p.optDouble("z",0);item.rotationX=(float)p.optDouble("rotationX",0);item.rotationY=(float)p.optDouble("rotationY",0);item.rotationZ=(float)p.optDouble("rotationZ",0);item.sourceSketchId=p.optString("sourceSketchId","");if(!Float.isFinite(item.y+item.z+item.rotationX+item.rotationY+item.rotationZ)||Math.abs(item.y)>10000||Math.abs(item.z)>10000)throw new IOException("Posición inválida");list.add(item);}return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedChains,parsedFeatures);
  }
  void checkpoint(){try{undo.push(encode());if(undo.size()>50)undo.removeLast();redo.clear();}catch(Exception e){}}
- void history(boolean back){activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);ArrayDeque<String> src=back?undo:redo,dst=back?redo:undo;if(src.isEmpty()){toast("Sin cambios");return;}try{dst.push(encode());ParsedDesign restored=decode(src.pop());parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();}catch(Exception e){toast("Error al recuperar cambio");}}
+ void history(boolean back){activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);ArrayDeque<String> src=back?undo:redo,dst=back?redo:undo;if(src.isEmpty()){toast("Sin cambios");return;}try{dst.push(encode());ParsedDesign restored=decode(src.pop());parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();}catch(Exception e){toast("Error al recuperar cambio");}}
  void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
  void save(){try{getPreferences(MODE_PRIVATE).edit().putString("design",encode()).apply();updateStep();}catch(Exception e){toast("No se pudo guardar el borrador interno");}}
- void load(){activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
+ void load(){activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
  protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putString("pendingExport",pendingExport);}
 
  void addTri(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r){for(float v:p)a.add(v);for(float v:q)a.add(v);for(float v:r)a.add(v);}
@@ -553,6 +563,7 @@ public class MainActivity extends Activity {
    }).show();
  }
  void showGpuSurfaceSelection(int triangle,double x,double y,double z){
+  if(isolatedMeshPreview){activeCadFace=null;info.setText("Vista previa · sin selección de piezas");return;}
   String label="Triángulo "+(triangle+1);
   if(cadGpuMesh){
    boolean circles=false;for(Part p:parts)if(p.circle){circles=true;break;}
@@ -647,15 +658,68 @@ public class MainActivity extends Activity {
    names[i]=(f.operation==MultiBoxUnion.Operation.CHAIN_DIFFERENCE?"Corte":"Intersección")+" · cadena "+(f.chainIndex+1);
   }
   new AlertDialog.Builder(this).setTitle("Booleanas paramétricas")
-   .setItems(names,(dialog,index)->new AlertDialog.Builder(this).setTitle(names[index])
-    .setItems(new String[]{"Mostrar resultado regenerado","Eliminar operación"},(d,choice)->{
-     if(choice==0){
-      try{float[] result=chainFeatures.get(index).regenerate(extrusionChains);
-       if(result.length==0){toast("Resultado vacío");return;}
-       showMeshOnly(new MeshEngine.Mesh(result));
-      }catch(Exception e){toast("Error al regenerar operación");}
-     }else{checkpoint();chainFeatures.remove(index);save();toast("Operación eliminada");}
-    }).show()).show();
+   .setItems(names,(dialog,index)->{
+    final es.josxtm.mycad.cad.ChainBooleanFeature original=chainFeatures.get(index);
+    new AlertDialog.Builder(this).setTitle(names[index])
+     .setItems(new String[]{"Mostrar resultado regenerado","Editar cortador XYZ y medidas","Cambiar corte / intersección","Eliminar operación"},(d,choice)->{
+      if(index>=chainFeatures.size()||chainFeatures.get(index)!=original){
+       toast("La operación ha cambiado");return;
+      }
+      if(choice==0){
+       try{float[] result=original.regenerate(extrusionChains);
+        if(result.length==0){toast("Resultado vacío");return;}
+        showMeshOnly(new MeshEngine.Mesh(result));
+       }catch(Exception e){toast("Error al regenerar operación");}
+      }else if(choice==1){editSavedChainBooleanCutter(index,original);}
+      else if(choice==2){
+       MultiBoxUnion.Operation next=original.operation==MultiBoxUnion.Operation.CHAIN_DIFFERENCE?
+        MultiBoxUnion.Operation.CHAIN_INTERSECTION:MultiBoxUnion.Operation.CHAIN_DIFFERENCE;
+       try{
+        es.josxtm.mycad.cad.ChainBooleanFeature updated=original.withOperation(next);
+        if(updated.regenerate(extrusionChains).length==0){toast("El resultado sería vacío");return;}
+        checkpoint();chainFeatures.set(index,updated);save();
+        if(meshMode&&meshView!=null)renderCurrentCadMesh();
+        toast("Operación actualizada y regenerable");
+       }catch(Exception error){toast("No se pudo cambiar la operación");}
+      }else{
+       new AlertDialog.Builder(this).setTitle("Eliminar operación paramétrica")
+        .setMessage("La operación se eliminará del historial. Podrás deshacer este cambio.")
+        .setNegativeButton("Cancelar",null)
+        .setPositiveButton("Eliminar",(confirm,w)->{
+         if(index>=chainFeatures.size()||chainFeatures.get(index)!=original)return;
+         checkpoint();chainFeatures.remove(index);save();
+         if(meshMode&&meshView!=null)renderCurrentCadMesh();
+         toast("Operación eliminada");
+        }).show();
+      }
+     }).show();
+   }).setNegativeButton("Cerrar",null).show();
+ }
+ void editSavedChainBooleanCutter(int index,es.josxtm.mycad.cad.ChainBooleanFeature previous){
+  final String[] labels={"X (mm)","Y (mm)","Z (mm)","Ancho X (mm)","Fondo Y (mm)","Alto Z (mm)"};
+  double[] original={previous.x,previous.y,previous.z,previous.w,previous.d,previous.h};
+  LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
+  final EditText[] inputs=new EditText[labels.length];
+  for(int i=0;i<labels.length;i++){
+   TextView name=new TextView(this);name.setText(labels[i]);fields.addView(name);
+   EditText input=new EditText(this);input.setInputType(8194|4096);
+   input.setText(String.valueOf(original[i]));inputs[i]=input;fields.addView(input);
+  }
+  android.widget.ScrollView scroller=new android.widget.ScrollView(this);scroller.addView(fields);
+  new AlertDialog.Builder(this).setTitle("Editar cortador · "+(index+1))
+   .setView(scroller).setNegativeButton("Cancelar",null).setPositiveButton("Regenerar",(d,w)->{
+    try{
+     if(index>=chainFeatures.size()||chainFeatures.get(index)!=previous)throw new IllegalArgumentException();
+     double[] values=new double[inputs.length];
+     for(int i=0;i<values.length;i++)values[i]=Double.parseDouble(inputs[i].getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.ChainBooleanFeature edited=previous.withCutter(
+      values[0],values[1],values[2],values[3],values[4],values[5]);
+     if(edited.regenerate(extrusionChains).length==0){toast("El resultado sería vacío");return;}
+     checkpoint();chainFeatures.set(index,edited);save();
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     toast("Cortador actualizado · historial conservado");
+    }catch(Exception e){toast("Coordenadas o medidas inválidas");}
+   }).show();
  }
  void previewChainBoolean(es.josxtm.mycad.cad.FaceExtrusionChain chain,MultiBoxUnion.Operation operation){
   if(selected<0||selected>=parts.size()){toast("Selecciona antes el prisma que servirá como cortador");return;}
@@ -708,7 +772,7 @@ public class MainActivity extends Activity {
  }
  void refreshChainScene(){
   if(!meshMode)toggleMeshView();
-  else if(meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+  else if(meshView!=null)renderCurrentCadMesh();
   info.setText("Historial regenerado · visor GPU");
  }
  void appendChainTriangles(java.util.ArrayList<Float> out){
@@ -768,7 +832,7 @@ public class MainActivity extends Activity {
     info.setText("Nuevo prisma adyacente · "+amount+" mm");
    }
    selectedSketch=-1;activeCadFace=null;save();scene.invalidate();
-   if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+   if(meshMode&&meshView!=null)renderCurrentCadMesh();
   }catch(Exception error){toast("Extrusión inválida o fuera de límites");}
  }
  void editSelectedCadFace(){
@@ -807,7 +871,7 @@ public class MainActivity extends Activity {
       checkpoint();linked.x1=newX1;linked.y1=newY1;linked.x2=newX2;linked.y2=newY2;
       rebuildLinkedParts(linked);
       activeCadFace=null;save();scene.invalidate();
-      if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      }catch(Exception error){toast("Cambio no válido para este boceto");}
     }).show();
    return;
@@ -827,13 +891,13 @@ public class MainActivity extends Activity {
      part.w=(float)updated.w;part.d=(float)updated.d;part.h=(float)updated.h;
      part.x=(float)updated.x;part.y=(float)updated.y;part.z=(float)updated.z;
      activeCadFace=null;save();scene.invalidate();
-     if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
     }catch(Exception error){toast("Distancia inválida o fuera de los límites");}
    }).show();
  }
  void toggleCadGpuMesh(){
   activeCadFace=null;cadGpuMesh=!cadGpuMesh;
-  if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+  if(meshMode&&meshView!=null)renderCurrentCadMesh();
   toast(cadGpuMesh?"Visor CAD experimental activo · prismas XYZ":"Visor clásico restaurado");
  }
  MeshEngine.Mesh experimentalCadMesh(){
@@ -873,7 +937,7 @@ public class MainActivity extends Activity {
  void toggleMeshView(){
   if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->showGpuSurfaceSelection(triangle,x,y,z));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=!meshMode;meshView.setVisibility(meshMode?View.VISIBLE:View.GONE);
-  if(meshMode){meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));toast("Visor GPU: arrastra para girar");}
+  if(meshMode){renderCurrentCadMesh();toast("Visor GPU: arrastra para girar");}
  }
  void importMesh(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");try{startActivityForResult(i,IMPORT_MESH);}catch(Exception e){toast("No se pudo abrir el selector");}}
  void exportMeshMenu(){pendingMeshExport=null;if(importedMesh==null&&parts.isEmpty()&&booleanMeshes.isEmpty()){toast("Primero crea una pieza o importa una malla");return;}new AlertDialog.Builder(this).setTitle("Exportar malla importada").setItems(new String[]{"STL binario","OBJ"},(d,n)->{meshExportFormat=n==0?"stl":"obj";Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(n==0?"model/stl":"text/plain");i.putExtra(Intent.EXTRA_TITLE,"MyCAD_export."+meshExportFormat);try{startActivityForResult(i,EXPORT_MESH);}catch(Exception e){toast("No se pudo abrir el selector");}}).show();}
@@ -884,7 +948,7 @@ public class MainActivity extends Activity {
    String filename="modelo.stl";android.database.Cursor c=getContentResolver().query(uri,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null);
    if(c!=null){try{if(c.moveToFirst())filename=c.getString(0);}finally{c.close();}}
    MeshEngine.Mesh m;try(InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new IOException("Archivo inaccesible");m=MeshIO.read(filename,in);}
-   runOnUiThread(()->{importedMesh=m;fileBusy=false;if(!meshMode)toggleMeshView();else meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));toast("Malla importada: "+m.triangles()+" triángulos");});
+   runOnUiThread(()->{importedMesh=m;fileBusy=false;if(!meshMode)toggleMeshView();else renderCurrentCadMesh();toast("Malla importada: "+m.triangles()+" triángulos");});
   }catch(Exception e){runOnUiThread(()->{fileBusy=false;new AlertDialog.Builder(this).setTitle("Error al importar").setMessage(e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();}
   else{MeshEngine.Mesh m=pendingMeshExport!=null?pendingMeshExport:currentMesh();pendingMeshExport=null;String format=meshExportFormat;new Thread(()->{try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){
    if(out==null)throw new IOException("Archivo inaccesible");if(format.equals("stl"))MeshIO.writeStl(m,out);else MeshIO.writeObj(m,out);
