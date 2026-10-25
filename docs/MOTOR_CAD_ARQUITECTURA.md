@@ -288,3 +288,12 @@ Android: `Proyecto → Perforar prisma (circular)` permite previsualizar y guard
 - `CylinderSurface` cierra exactamente la costura de los segmentos circulares reutilizando el primer vértice al completar el anillo.
 - `TriangleMeshHealth` inspecciona triángulos degenerados, aristas de frontera, aristas no-manifold y orientación de aristas compartidas, además del volumen firmado. La herramienta de perforación rechaza resultados no cerrados antes de previsualizar, guardar o regenerar. `OrientedThroughHoleTest` y `TriangleMeshHealthTest` se ejecutan antes de Gradle en GitHub Actions.
 - **Limitaciones:** solo agujeros pasantes según ejes locales, no diagonales arbitrarias dentro del cuerpo, ni roscas, taladros ciegos, B-Rep/NURBS o dependencia automática de un boceto. Las superficies son aproximaciones de malla, no círculos exactos; falta probar los gestos y resultados en el móvil.
+
+## Fase: taladros ciegos y profundidad editable (bloque 0.6.0)
+
+- `BlindCircularHole` crea la superficie triangular exterior de un prisma con cavidad cilíndrica de **fondo plano**. Conserva la cara inferior maciza del bloque, la boca anular, la pared interior del agujero y una tapa de fondo orientada hacia la cavidad. Se comprueba que la profundidad sea estrictamente positiva y menor que la longitud del cuerpo según el eje elegido.
+- `OrientedThroughHole` admite un parámetro de profundidad adicional para X/Y/Z locales, incluso si el prisma está rotado mediante `RigidTransform`. El valor **0** selecciona el comportamiento antiguo de agujero pasante.
+- `DrilledBoxRecipe.drillDepth` guarda la profundidad con el resto de los parámetros. El JSON v1 escribe `drillDepth`; al leer archivos antiguos se utiliza `optDouble("drillDepth",0)` para garantizar compatibilidad. Las operaciones siguen siendo regenerables y deshacibles.
+- Android: `Proyecto → Perforar prisma (circular)` y `Resultados booleanos → Editar perforación circular` incluyen ahora profundidad en milímetros, con 0 para pasante. La lista de mallas indica eje y profundidad.
+- `BlindCircularHoleTest` comprueba volúmenes analíticos y mallas cerradas para tres ejes, rotaciones combinadas, cambios de profundidad, recuperación del método pasante, parámetros inválidos y compatibilidad con el constructor anterior. Se ejecuta antes de Gradle en GitHub Actions.
+- Limitaciones: el taladro ciego tiene **fondo plano**, no punta de broca cónica; el algoritmo es una aproximación poligonal y no un B-Rep exacto. No incluye todavía operaciones booleanas entre piezas curvas arbitrarias.
