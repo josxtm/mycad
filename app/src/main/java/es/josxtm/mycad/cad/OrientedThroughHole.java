@@ -13,13 +13,20 @@ public final class OrientedThroughHole {
  public static float[] triangles(double width,double depth,double height,
                                  double offsetU,double offsetV,double diameter,
                                  Axis axis,RigidTransform pose){
+  return triangles(width,depth,height,offsetU,offsetV,diameter,axis,pose,0);
+ }
+ /** depth=0 represents a full through-hole; positive depths are blind and must be shorter. */
+ public static float[] triangles(double width,double depth,double height,
+                                 double offsetU,double offsetV,double diameter,
+                                 Axis axis,RigidTransform pose,double holeDepth){
   if(axis==null||pose==null)throw new IllegalArgumentException("Axis and pose required");
   // Permutations (u,v,axis) -> (x,y,z) are cyclic, keeping triangle winding.
   final double faceWidth=axis==Axis.Z?width:axis==Axis.X?depth:height;
   final double faceDepth=axis==Axis.Z?depth:axis==Axis.X?height:width;
   final double length=axis==Axis.Z?height:axis==Axis.X?width:depth;
-  float[] local=CircularThroughHole.triangles(0,0,0,faceWidth,faceDepth,length,
-                                              offsetU,offsetV,diameter);
+  float[] local=holeDepth==0?
+   CircularThroughHole.triangles(0,0,0,faceWidth,faceDepth,length,offsetU,offsetV,diameter):
+   BlindCircularHole.triangles(0,0,0,faceWidth,faceDepth,length,offsetU,offsetV,diameter,holeDepth);
   float[] result=new float[local.length];
   for(int i=0;i<local.length;i+=3){
    double u=local[i],v=local[i+1],longitudinal=local[i+2];
