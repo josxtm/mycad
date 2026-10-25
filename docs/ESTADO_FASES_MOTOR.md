@@ -46,3 +46,16 @@ Revisión: 2026-10-25. **Progreso global estimado: 42 % antes de este lote**. Es
 - **Pruebas**: `PrimitiveTopologyMapTest`, `PrimitiveEdgesTest` e integridad de proyecto se suman a GitHub Actions; cubren orden de triángulos, claves, reordenación, selección de cilindros, cambios de resolución, duplicados, giros y aristas.
 
 **Alcance limitado**: esto constituye *identificación lógica de caras y aristas de primitivas*, NO un kernel B-Rep, ray casting completo ni denominación topológica estable tras booleanas arbitrarias, particiones o fusiones. Falta validación táctil en Nothing Phone 2a. El avance global sigue estimado en **~42 %**, sin aumentar por cambios aislados no validados.
+
+## Fase de historial paramétrico: UUID estables y dependencia de operaciones
+
+**Incremento funcional:**
+
+- `FaceExtrusionChain` dispone de un UUID permanente de cadena; cada `Step` incorpora también UUID propio. Editar una distancia conserva el identificador de ese paso; duplicados dentro de una cadena se rechazan, con límite de 50 pasos.
+- `ChainBooleanFeature` añade `chainId` opcional, que localiza la cadena origen por identidad y no únicamente por su posición en la lista. Las modificaciones de la operación o sus seis parámetros conservan ese vínculo. Si se elimina la cadena original, la operación falla explícitamente: nunca se redirige silenciosamente a otra cadena.
+- El JSON v1 escribe `extrusionChains[].id`, `steps[].id` y `chainBooleanFeatures[].chainId`. **Archivos antiguos**: se asignan UUIDs durante la importación y las booleanas legadas basadas en índice se vinculan a la cadena identificada en el momento de la migración. Guardar persiste la identidad a partir de entonces.
+- `ChainDependencyReport` comprueba UUIDs de cadenas y pasos, duplicados, fallos de reconstrucción y referencias booleanas huérfanas. Se ejecuta al abrir un archivo y está disponible en Android mediante `Proyecto → Estado de dependencias CAD`.
+- `Historial paramétrico → Reordenar cadenas sin romper dependencias` permite desplazarlas arriba o abajo conservando los vínculos por UUID y deshacer/rehacer. Editar y eliminar la última extrusión trabaja sobre una copia de la cadena para conservar la identidad y el historial previo.
+- La prueba `StableFeatureDependenciesTest` verifica conservación de IDs de pasos, reordenación, referencias huérfanas, duplicados y compatibilidad con recetas basadas en índices anteriores.
+
+**Limitaciones:** el grafo cubre las cadenas rectangulares y booleanas actualmente soportadas, no todas las piezas ni el sistema de bocetos Android. No es una solución B-Rep de nombres topológicos tras divisiones, fusiones o redondeos. La compilación CI no sustituye la prueba de reconstrucción y los diálogos táctiles en el Nothing Phone 2a. El avance del objetivo CAD completo sigue estimado en ~42 %, a la espera de hito funcional más amplio.
