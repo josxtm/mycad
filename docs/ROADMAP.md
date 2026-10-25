@@ -100,3 +100,11 @@ Si el motor actual no admite una operación fiable, registrar la limitación y d
 - Se limpia la malla pendiente si se cancela el selector de exportación, para evitar exportar el resultado incorrecto posteriormente.
 - El visor GPU muestra una sola malla cuando se selecciona esa acción; **no** se ha implementado todavía su selección/edición topológica en el lienzo principal.
 - Estado: cambios subidos a GitHub; compilación y prueba funcional de este incremento pendientes de comprobar.
+
+## Inspección de caras de primitivas — 2026-10-25
+
+- Nueva acción **▦ Inspeccionar caras** en la barra derecha del editor.
+- Requiere seleccionar previamente un cuerpo; lista seis caras nominales en prismas y tres regiones en cilindros.
+- Para cada cara plana de prisma muestra área nominal en mm², con las dimensiones del sólido.
+- No se seleccionan caras tocándolas directamente en el visor y no se modifican sólidos; todavía no existe selección de aristas ni topología B-Rep.
+- Estado: código subido, compilación y prueba de esta etapa pendientes de confirmar.
