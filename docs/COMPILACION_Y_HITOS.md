@@ -10,7 +10,7 @@ Solo tras un **hito funcional importante** que merezca probarse en el Nothing Ph
 
 Se puede generar de dos formas:
 
-1. **Integración etiquetada por el asistente:** título del PR de hito con el texto literal `[apk]`; el squash merge hereda esta marca en su mensaje y activa la fase de ensamblado/publicación de APK en el push a `main`. No incluir `[apk]` en un PR corriente.
+1. **Integración explícita de hito:** título del PR de lanzamiento comienza exactamente por `release: MyCAD ` (por ejemplo, `release: MyCAD 0.7.0`). La condición comprueba únicamente el **inicio** del mensaje del commit y no textos en el cuerpo o comentarios. Así, mencionar una APK en una PR ordinaria no provoca un empaquetado accidental. No utilizar el prefijo en PRs corrientes.
 2. **Ejecución manual sin cambiar código:** GitHub → Actions → «MyCAD · Verificación continua y APK por hitos» → «Run workflow» → `main` → marcar `generar_apk = true`.
 
 El flujo vuelve a ejecutar pruebas, Gradle, Lint y `assembleDebug`, comprueba el nombre/archivo y publica el artefacto `myCad<version>`. Si la verificación falla, no publica el artefacto de APK.
@@ -25,3 +25,5 @@ El flujo vuelve a ejecutar pruebas, Gradle, Lint y `assembleDebug`, comprueba el
 ## Limitaciones
 
 Aunque no se invoque `assembleDebug`, Gradle puede compilar código y recursos necesarios para tests o Lint y tardar un tiempo. La mejora es eliminar el ensamblado/publicación de APK redundantes, no evitar todas las tareas de Android. La compilación CI tampoco verifica gestos táctiles ni rendimiento real.
+
+Nota correctiva: la ejecución #315 generó una APK no deseada porque el texto `[apk]` aparecía dentro del mensaje del squash merge. Este requisito de prefijo estricto evita ese falso positivo.
