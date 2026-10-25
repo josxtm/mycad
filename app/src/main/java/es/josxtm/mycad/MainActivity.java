@@ -441,7 +441,7 @@ public class MainActivity extends Activity {
  ).setPositiveButton("Cerrar",null).show();}
  class Face {float[][] vertices;float depth;int color;Face(float[][] v,int c){vertices=v;color=c;for(float[] p:v)depth+=p[2]/v.length;}}
  class Scene extends View{
- Paint paint=new Paint(3);int partHandle=-1;float originalW,originalD,originalH,originalX,originalY,originalZ;boolean geometryChanged=false,entityDrag=false;int activeMoveAxis=-1,activeRotateAxis=-1;float rotationStart,rotationOriginal;float yaw=.65f,pitch=.6f,zoom=3,lastX,lastY,multiMidX,multiMidY,panX,panY;boolean movingEntity=false,editingHandle=false,gestureMulti=false;int handleIndex=-1,tapCount=0,lastTapEntity=-999;long lastTapTime=0;float movieYaw,movieOldYaw,movieOldPitch,movieOldZoom,moviePivotX,moviePivotY,moviePivotZ;boolean movieOldFlat,movieCameraSaved=false;long movieLast;android.os.Handler movieHandler=new android.os.Handler(android.os.Looper.getMainLooper());Runnable movieFrame;ScaleGestureDetector scale;
+ Paint paint=new Paint(3);int selectedFaceBody=-1,selectedFaceIndex=-1;int partHandle=-1;float originalW,originalD,originalH,originalX,originalY,originalZ;boolean geometryChanged=false,entityDrag=false;int activeMoveAxis=-1,activeRotateAxis=-1;float rotationStart,rotationOriginal;float yaw=.65f,pitch=.6f,zoom=3,lastX,lastY,multiMidX,multiMidY,panX,panY;boolean movingEntity=false,editingHandle=false,gestureMulti=false;int handleIndex=-1,tapCount=0,lastTapEntity=-999;long lastTapTime=0;float movieYaw,movieOldYaw,movieOldPitch,movieOldZoom,moviePivotX,moviePivotY,moviePivotZ;boolean movieOldFlat,movieCameraSaved=false;long movieLast;android.os.Handler movieHandler=new android.os.Handler(android.os.Looper.getMainLooper());Runnable movieFrame;ScaleGestureDetector scale;
  boolean cubeDragging=false; float cubeDownX,cubeDownY;
  float cubeSize(){return dp(96);}
  float cubeLeft(){return getWidth()-cubeSize()-dp(12);}
@@ -488,7 +488,7 @@ public class MainActivity extends Activity {
  faces.add(new Face(high,j==selected?Color.rgb(112,220,229):Color.rgb(154,180,204)));
  }
  Collections.sort(faces,(a,b)->Float.compare(a.depth,b.depth));
- for(Face f:faces){Path path=new Path();path.moveTo(f.vertices[0][0],f.vertices[0][1]);for(int i=1;i<f.vertices.length;i++)path.lineTo(f.vertices[i][0],f.vertices[i][1]);path.close();paint.setStyle(Paint.Style.FILL);paint.setColor(f.color);c.drawPath(path,paint);paint.setStyle(Paint.Style.STROKE);paint.setColor(Color.rgb(23,65,85));c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}if(selected>=0&&selected<parts.size()){if(rotationMode)drawRotationRings(c,parts.get(selected));else if(interactionMode==1)drawMoveGizmo(c,parts.get(selected));else if(interactionMode==2)drawPartHandles(c,parts.get(selected));}
+ for(Face f:faces){Path path=new Path();path.moveTo(f.vertices[0][0],f.vertices[0][1]);for(int i=1;i<f.vertices.length;i++)path.lineTo(f.vertices[i][0],f.vertices[i][1]);path.close();paint.setStyle(Paint.Style.FILL);paint.setColor(f.color);c.drawPath(path,paint);paint.setStyle(Paint.Style.STROKE);paint.setColor(Color.rgb(23,65,85));c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}drawSelectedFace(c);if(selected>=0&&selected<parts.size()){if(rotationMode)drawRotationRings(c,parts.get(selected));else if(interactionMode==1)drawMoveGizmo(c,parts.get(selected));else if(interactionMode==2)drawPartHandles(c,parts.get(selected));}
  paint.setColor(darkMode?Color.WHITE:Color.rgb(25,38,55));paint.setTextSize(30);c.drawText(flat?"PLANTA · 2D":"VISTA · 3D",20,40,paint);paint.setStrokeWidth(3);paint.setStyle(Paint.Style.STROKE);for(int i=0;i<sketches.size();i++){paint.setColor(i==selectedSketch?Color.rgb(255,193,91):Color.rgb(112,220,229));paint.setStrokeWidth(i==selectedSketch?6:3);drawSketch(c,sketches.get(i));if(i==selectedSketch)drawHandles(c,sketches.get(i));}if(preview!=null)drawSketch(c,preview);paint.setStyle(Paint.Style.FILL);if(sketchTool>0){paint.setColor(Color.WHITE);c.drawText("BOCETO "+new String[]{"","LÍNEA","RECTÁNGULO","CÍRCULO"}[sketchTool],20,40,paint);}else if(parts.isEmpty()&&sketches.isEmpty())c.drawText("Añade una figura para empezar",20,getHeight()/2f,paint);
  drawOrientationCube(c);
  }
@@ -511,6 +511,56 @@ public class MainActivity extends Activity {
  void drawSketch(Canvas c,Sketch q){float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);if(q.type==1)c.drawLine(a[0],a[1],b[0],b[1],paint);else if(q.type==2)c.drawRect(Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1]),paint);else c.drawCircle(a[0],a[1],(float)Math.hypot(b[0]-a[0],b[1]-a[1]),paint);}
  int hitSketch(float sx,float sy){int best=-1;float distance=dp(18);for(int i=0;i<sketches.size();i++){Sketch q=sketches.get(i);float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);float d;if(q.type==1){float vx=b[0]-a[0],vy=b[1]-a[1],len=vx*vx+vy*vy;float t=len<.01f?0:Math.max(0,Math.min(1,((sx-a[0])*vx+(sy-a[1])*vy)/len));d=(float)Math.hypot(sx-a[0]-t*vx,sy-a[1]-t*vy);}else if(q.type==2){float l=Math.min(a[0],b[0]),r=Math.max(a[0],b[0]),t=Math.min(a[1],b[1]),bt=Math.max(a[1],b[1]);d=Math.min(Math.min(Math.abs(sx-l),Math.abs(sx-r)),Math.min(Math.abs(sy-t),Math.abs(sy-bt)));if(sx<l-distance||sx>r+distance||sy<t-distance||sy>bt+distance)d=Float.MAX_VALUE;}else{float radius=(float)Math.hypot(b[0]-a[0],b[1]-a[1]);d=Math.abs((float)Math.hypot(sx-a[0],sy-a[1])-radius);}if(d<distance){distance=d;best=i;}}return best;}
  long downAt;float downX,downY;boolean moved,drag;
+ float[][] facePolygon(Part p,int face){
+  float[][] corners=new float[8][];
+  for(int i=0;i<4;i++){
+   float x=(i==0||i==3)?-p.w/2:p.w/2,y=i<2?-p.d/2:p.d/2;
+   float[] low=rotatePoint(p,x,y,-p.h/2),high=rotatePoint(p,x,y,p.h/2);
+   corners[i]=project(low[0]+p.x,low[1]+p.y,low[2]+p.z+p.h/2);
+   corners[i+4]=project(high[0]+p.x,high[1]+p.y,high[2]+p.z+p.h/2);
+  }
+  int[] ids;
+  switch(face){
+   case 0:ids=new int[]{4,5,6,7};break;
+   case 1:ids=new int[]{0,1,2,3};break;
+   case 2:ids=new int[]{1,2,6,5};break;
+   case 3:ids=new int[]{3,0,4,7};break;
+   case 4:ids=new int[]{2,3,7,6};break;
+   default:ids=new int[]{0,1,5,4};break;
+  }
+  float[][] polygon=new float[4][];for(int i=0;i<4;i++)polygon[i]=corners[ids[i]];
+  return polygon;
+ }
+ boolean insidePolygon(float x,float y,float[][] vertices){
+  boolean inside=false;
+  for(int i=0,j=vertices.length-1;i<vertices.length;j=i++){
+   float[] a=vertices[i],b=vertices[j];
+   if((a[1]>y)!=(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside;
+  }
+  return inside;
+ }
+ int[] pickFace(float x,float y){
+  if(flat)return null;
+  int[] result=null;float nearest=-Float.MAX_VALUE;
+  for(int i=0;i<parts.size();i++){
+   Part p=parts.get(i);if(p.circle)continue;
+   for(int face=0;face<6;face++){
+    float[][] polygon=facePolygon(p,face);if(!insidePolygon(x,y,polygon))continue;
+    float depth=0;for(float[] v:polygon)depth+=v[2]/4f;
+    if(depth>nearest){nearest=depth;result=new int[]{i,face};}
+   }
+  }
+  return result;
+ }
+ void drawSelectedFace(Canvas c){
+  if(flat||selectedFaceBody!=selected||selected<0||selected>=parts.size()||selectedFaceIndex<0||parts.get(selected).circle)return;
+  float[][] v=facePolygon(parts.get(selected),selectedFaceIndex);
+  Path outline=new Path();outline.moveTo(v[0][0],v[0][1]);
+  for(int i=1;i<v.length;i++)outline.lineTo(v[i][0],v[i][1]);outline.close();
+  paint.setStyle(Paint.Style.FILL);paint.setColor(Color.argb(90,255,197,62));c.drawPath(outline,paint);
+  paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(3));paint.setColor(Color.rgb(255,196,56));c.drawPath(outline,paint);
+  paint.setStyle(Paint.Style.FILL);
+ }
  int hit(float sx,float sy){for(int j=parts.size()-1;j>=0;j--){Part p=parts.get(j);float[] q=project(p.x,p.y,p.z+p.h/2);if(Math.hypot(q[0]-sx,q[1]-sy)<Math.max(30,Math.max(p.w,p.d)*zoom*.6f))return j;}return -1;}
 
  public boolean onTouchEvent(android.view.MotionEvent e){
@@ -551,7 +601,7 @@ public class MainActivity extends Activity {
    else if(interactionMode==0&&!flat){yaw+=dx*.01f*rotateSensitivity;pitch=Math.max(-1.5f,Math.min(1.5f,pitch+dy*.01f*rotateSensitivity));invalidate();}
    lastX=e.getX();lastY=e.getY();return true;
   }
-  if(action==android.view.MotionEvent.ACTION_UP){if((entityDrag||activeRotateAxis>=0)&&moved&&geometryChanged)save();if(!moved&&activeRotateAxis<0){int n=hit(e.getX(),e.getY()),sk=hitSketch(e.getX(),e.getY());selectedSketch=sk;selected=sk>=0?-1:n;info.setText(selected>=0?"Pieza seleccionada · "+new String[]{"Navegar","Mover","Editar"}[interactionMode]:"Selecciona una pieza o cambia de modo");invalidate();}partHandle=-1;editingHandle=false;entityDrag=false;activeMoveAxis=-1;activeRotateAxis=-1;return true;}
+  if(action==android.view.MotionEvent.ACTION_UP){if((entityDrag||activeRotateAxis>=0)&&moved&&geometryChanged)save();if(!moved&&activeRotateAxis<0){int n=hit(e.getX(),e.getY()),sk=hitSketch(e.getX(),e.getY());int[] face=interactionMode==0?pickFace(e.getX(),e.getY()):null;if(face!=null&&sk<0)n=face[0];selectedSketch=sk;selected=sk>=0?-1:n;selectedFaceBody=face!=null&&sk<0?face[0]:-1;selectedFaceIndex=face!=null&&sk<0?face[1]:-1;info.setText(selectedFaceIndex>=0?"Cuerpo "+(selected+1)+" · Cara "+new String[]{"Superior","Inferior","Derecha","Izquierda","Posterior","Frontal"}[selectedFaceIndex]:selected>=0?"Pieza seleccionada · "+new String[]{"Navegar","Mover","Editar"}[interactionMode]:"Selecciona una pieza o cambia de modo");invalidate();}partHandle=-1;editingHandle=false;entityDrag=false;activeMoveAxis=-1;activeRotateAxis=-1;return true;}
   return true;
  }
 }
