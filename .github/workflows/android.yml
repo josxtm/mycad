@@ -44,6 +44,8 @@ jobs:
           java -cp build/geometry-tests MultiBoxUnionTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/MultiBoxOperationsTest.java
           java -cp build/geometry-tests MultiBoxOperationsTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/ChainBooleanTest.java
+          java -cp build/geometry-tests ChainBooleanTest
           javac -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadKernel.java app/src/main/java/es/josxtm/mycad/cad/PrimitiveKernel.java tests/CadKernelTest.java
           java -cp build/geometry-tests CadKernelTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadDocument.java tests/CadDocumentTest.java
