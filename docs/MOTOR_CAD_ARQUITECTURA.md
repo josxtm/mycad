@@ -177,3 +177,7 @@ La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneEx
 ## Primer visor CAD experimental (2026-10-25)
 
 El menú de proyecto ofrece `Alternar visor CAD experimental`, desactivado inicialmente. Si está activo y todas las piezas del editor son prismas, `currentMesh()` pasa por `PrimitiveKernel` → `TransformedBody` → `BoxSurface` para generar triángulos XYZ con traslación y rotaciones. Conserva las mallas importadas/booleanas; cuando hay cilindros usa el visor clásico para no ocultarlos. Es una opción temporal de representación GPU, no altera `parts`, ni el guardado, ni el algoritmo principal de pantalla; todavía no incluye selección B-Rep ni cilindros en el nuevo motor.
+
+## Selección geométrica inicial (ray picking)
+
+`CadRayPicker` realiza intersección rayo-triángulo sobre una superficie triangulada ya transformada, devuelve el triángulo más cercano y coordenadas de impacto, o null cuando no hay contacto. Incluye controles de entradas inválidas y pruebas sobre prisma rotado, selección de cara superior y rayos que no alcanzan la pieza. No está conectado aún a gestos Android, ni da una entidad de cara B-Rep persistente.
