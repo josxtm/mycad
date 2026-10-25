@@ -225,3 +225,7 @@ En prismas procedentes de bocetos rectangulares del plano XY, `Editar cara selec
 ## Extrusión de cara a prisma adyacente (2026-10-25)
 
 `FacePrismExtrusion` calcula un prisma rectangular nuevo y contiguo a cualquiera de las seis caras, en ejes locales, incluidos cuerpos rotados. La pantalla incorpora `Proyecto → Extruir cara (nuevo cuerpo)` con distancia positiva en milímetros, historial/deshacer, guardado y refresco GPU. **No realiza unión booleana, ni crea una dependencia paramétrica con el cuerpo padre:** genera una pieza independiente y el diseño existente permanece inalterado. Las pruebas geométricas verifican seis caras, rotación 90° y rechazo de valores negativos. Pendiente: unión B-Rep y selección persistente.
+
+## Extruir cara y fusionar como malla (2026-10-25)
+
+La herramienta `Extruir cara` tiene una opción adicional `Fusionar malla`: para un prisma sin rotación y sin boceto vinculado, construye el prisma contiguo con `FacePrismExtrusion` y aplica `BoxBooleanMesh.Operation.UNION` mediante el convenio del constructor `BoxBoolean.Box` (X/Y en el centro y Z en la base). El resultado sustituye la pieza inicial por una malla consolidada en `booleanMeshes`; conserva los demás cuerpos, soporta deshacer/rehacer y se guarda con el proyecto. Se indica expresamente que la conversión pierde editabilidad paramétrica de ese cuerpo y no es un B-Rep. La alternativa `Extruir` sigue creando un sólido independiente. Prueba automatizada `FaceExtrusionUnionTest` verifica las seis caras y los volúmenes aditivos de sólidos contiguos.
