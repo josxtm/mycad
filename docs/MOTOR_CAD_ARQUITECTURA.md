@@ -221,3 +221,7 @@ En prismas procedentes de bocetos rectangulares del plano XY, `Editar cara selec
 ## Edición vinculada en los tres planos (2026-10-25)
 
 `LinkedFaceResize` modifica los lados locales X_MIN/X_MAX/Y_MIN/Y_MAX de bocetos rectangulares XY, XZ e YZ, manteniendo fijo el lado opuesto, respetando extremos invertidos y validando medidas. `MainActivity` reutiliza el validador de dependencias, `checkpoint`, `rebuildLinkedParts`, guardado y refresco GPU. Z_MIN queda fijo y Z_MAX conserva el editor de extrusión. Pruebas para los tres planos incluidas en GitHub Actions. Pendiente: operaciones B-Rep y selección persistente de caras.
+
+## Extrusión de cara a prisma adyacente (2026-10-25)
+
+`FacePrismExtrusion` calcula un prisma rectangular nuevo y contiguo a cualquiera de las seis caras, en ejes locales, incluidos cuerpos rotados. La pantalla incorpora `Proyecto → Extruir cara (nuevo cuerpo)` con distancia positiva en milímetros, historial/deshacer, guardado y refresco GPU. **No realiza unión booleana, ni crea una dependencia paramétrica con el cuerpo padre:** genera una pieza independiente y el diseño existente permanece inalterado. Las pruebas geométricas verifican seis caras, rotación 90° y rechazo de valores negativos. Pendiente: unión B-Rep y selección persistente.
