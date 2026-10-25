@@ -88,7 +88,12 @@ jobs:
             echo "- Verificación APK: ${APK_CHECK:-unknown}"
             echo
             echo "## Errores recientes"
+            if test -f reports/geometria.log; then
+              echo "### Geometría"
+              grep -Ei 'AssertionError|Exception in thread|error:|FAILURE:|FAILED' reports/geometria.log | tail -n 35 || true
+            fi
             if test -f reports/gradle.log; then
+              echo "### Android / Gradle"
               grep -Ei '(^| )error:|FAILURE:|What went wrong:|Execution failed|BUILD FAILED|[0-9]+ tests? failed' reports/gradle.log | tail -n 35 || true
             fi
             echo
