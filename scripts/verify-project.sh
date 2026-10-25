@@ -50,6 +50,17 @@ for marker in ('.put("bodyId",p.id)', 'item.id=p.optString("bodyId",item.id)',
                "parts.get(activeCadFace.partIndex).id", "PrimitiveEdges.edge("):
     if marker not in source:
         raise SystemExit("ERROR: referencia topológica persistente sin integrar: "+marker)
+for marker in ('new es.josxtm.mycad.cad.FaceExtrusionChain.Step(',
+               'new es.josxtm.mycad.cad.ChainBooleanFeature(',
+               'entry.optString("id",java.util.UUID.randomUUID().toString())',
+               'step.optString("id",java.util.UUID.randomUUID().toString())',
+               '.put("chainId",f.chainId==null?"":f.chainId)',
+               'feature.regenerate(parsedChains)',
+               'ChainDependencyReport.requireValid(parsedChains,parsedFeatures)',
+               "copy.appendStep(step)",
+               "reorderExtrusionChains()"):
+    if marker not in source:
+        raise SystemExit("ERROR: historial paramétrico UUID incompleto: "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
