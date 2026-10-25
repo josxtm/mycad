@@ -544,7 +544,7 @@ public class MainActivity extends Activity {
   if(!cadGpuMesh||triangle<0)return;
   int offset=importedMesh==null?0:importedMesh.triangles();
   for(MeshEngine.Mesh m:booleanMeshes)offset+=m.triangles();
-  for(Part p:parts){if(p.circle)return;offset+=12;}
+  for(Part p:parts)offset+=p.circle?es.josxtm.mycad.cad.CylinderSurface.triangleCount(48):12;
   int[] counts=new int[extrusionChains.size()];
   for(int i=0;i<counts.length;i++)counts[i]=extrusionChains.get(i).size();
   es.josxtm.mycad.cad.ChainTriangleMap.Hit hit=
@@ -566,24 +566,29 @@ public class MainActivity extends Activity {
   if(isolatedMeshPreview){activeCadFace=null;info.setText("Vista previa · sin selección de piezas");return;}
   String label="Triángulo "+(triangle+1);
   if(cadGpuMesh){
-   boolean circles=false;for(Part p:parts)if(p.circle){circles=true;break;}
-   if(!circles){
-    es.josxtm.mycad.cad.CadSceneFaceMap map=new es.josxtm.mycad.cad.CadSceneFaceMap();
-    int first=importedMesh==null?0:importedMesh.triangles();
-    for(MeshEngine.Mesh m:booleanMeshes)first+=m.triangles();
-    for(int i=0;i<parts.size();i++){
-     Part part=parts.get(i);
-     if(part.w>0&&part.d>0&&part.h>0){
-      map.addBox(i,first);first+=12;
-     }
+   es.josxtm.mycad.cad.CadSceneFaceMap map=new es.josxtm.mycad.cad.CadSceneFaceMap();
+   int first=importedMesh==null?0:importedMesh.triangles();
+   for(MeshEngine.Mesh m:booleanMeshes)first+=m.triangles();
+   int selectedCylinder=-1;
+   for(int i=0;i<parts.size();i++){
+    Part p=parts.get(i);
+    if(p.circle){
+     int count=es.josxtm.mycad.cad.CylinderSurface.triangleCount(48);
+     if(triangle>=first&&triangle<first+count)selectedCylinder=i;
+     first+=count;
+    }else{
+     map.addBox(i,first);first+=12;
     }
-    es.josxtm.mycad.cad.CadSceneFaceMap.Selection found=map.resolve(triangle);
-    if(found!=null){
-     selected=found.partIndex;selectedSketch=-1;scene.invalidate();
-     activeCadFace=new es.josxtm.mycad.cad.CadFaceReference(found.partIndex,found.face);
-     label="Cuerpo "+(found.partIndex+1)+" · cara "+found.face.name().replace('_',' ');
-     if(meshView!=null)meshView.highlightFace(triangle-(found.triangleInPart%2));
-    }
+   }
+   es.josxtm.mycad.cad.CadSceneFaceMap.Selection found=map.resolve(triangle);
+   if(found!=null){
+    selected=found.partIndex;selectedSketch=-1;scene.invalidate();
+    activeCadFace=new es.josxtm.mycad.cad.CadFaceReference(found.partIndex,found.face);
+    label="Cuerpo "+(found.partIndex+1)+" · cara "+found.face.name().replace('_',' ');
+    if(meshView!=null)meshView.highlightFace(triangle-(found.triangleInPart%2));
+   }else if(selectedCylinder>=0){
+    selected=selectedCylinder;selectedSketch=-1;activeCadFace=null;scene.invalidate();
+    label="Cilindro "+(selectedCylinder+1)+" · cuerpo seleccionado";
    }
   }
   if(!label.startsWith("Cuerpo "))activeCadFace=null;
@@ -898,14 +903,19 @@ public class MainActivity extends Activity {
  void toggleCadGpuMesh(){
   activeCadFace=null;cadGpuMesh=!cadGpuMesh;
   if(meshMode&&meshView!=null)renderCurrentCadMesh();
-  toast(cadGpuMesh?"Visor CAD experimental activo · prismas XYZ":"Visor clásico restaurado");
+  toast(cadGpuMesh?"Visor CAD experimental · prismas y cilindros XYZ":"Visor clásico restaurado");
  }
  MeshEngine.Mesh experimentalCadMesh(){
   java.util.ArrayList<Float> floats=new java.util.ArrayList<>();
   if(importedMesh!=null)for(float v:importedMesh.vertices)floats.add(v);
   for(MeshEngine.Mesh m:booleanMeshes)for(float v:m.vertices)floats.add(v);
   for(Part part:parts){
-   if(part.circle){continue;}
+   if(part.circle){
+    es.josxtm.mycad.cad.RigidTransform pose=new es.josxtm.mycad.cad.RigidTransform(
+     part.x,part.y,part.z,part.rotationX,part.rotationY,part.rotationZ);
+    for(float v:es.josxtm.mycad.cad.CylinderSurface.triangles(part.w,part.h,pose,48))floats.add(v);
+    continue;
+   }
    es.josxtm.mycad.cad.CadKernel.Result<es.josxtm.mycad.cad.CadKernel.Box> result=
     new es.josxtm.mycad.cad.PrimitiveKernel().createBox(-part.w/2,-part.d/2,0,part.w,part.d,part.h);
    if(!result.isSuccess())continue;
@@ -918,11 +928,7 @@ public class MainActivity extends Activity {
   return new MeshEngine.Mesh(coordinates);
  }
  MeshEngine.Mesh currentMesh(){
-  if(cadGpuMesh){
-   // Circles still use the original GPU mesh until the new kernel supports cylinders.
-   boolean circles=false;for(Part p:parts)if(p.circle){circles=true;break;}
-   if(!circles)return experimentalCadMesh();
-  }
+  if(cadGpuMesh)return experimentalCadMesh();
   java.util.ArrayList<Float> a=new java.util.ArrayList<>();
   if(importedMesh!=null)for(float v:importedMesh.vertices)a.add(v);
   for(MeshEngine.Mesh mesh:booleanMeshes)for(float value:mesh.vertices)a.add(value);
