@@ -61,6 +61,13 @@ for marker in ('new es.josxtm.mycad.cad.FaceExtrusionChain.Step(',
                "reorderExtrusionChains()"):
     if marker not in source:
         raise SystemExit("ERROR: historial paramétrico UUID incompleto: "+marker)
+for marker in ("LinkedSketchSolidPlan.build(", "LinkedSketchSolidPlan.plan(",
+               "LinkedSketchAudit.inspect(", "showLinkedSketchAudit()",
+               'q.sourceSketchId="";}checkpoint();if(existing)parts.set(selected,q);',
+               "if(!validateLinkedSketchEdit(q,q.x1,q.y1,nextX,nextY))",
+               "java.util.ArrayList<Part> originals=new java.util.ArrayList<>(),staged=new java.util.ArrayList<>();"):
+    if marker not in source:
+        raise SystemExit("ERROR: no se conserva el puente paramétrico atómico: "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
