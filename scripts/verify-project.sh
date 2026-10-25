@@ -37,6 +37,9 @@ for marker in ("throughHoleRecipes", "holeRecipes.add(recipe)", "holeRecipes.add
 for marker in ('.put("axis",drill.axis.name())', 'Axis.valueOf(v.optString("axis","Z"))', 'TriangleMeshHealth.inspect(geometry)', 'TriangleMeshHealth.inspect(mesh)', "drillAxisChoice(int choice)"):
     if marker not in source:
         raise SystemExit("ERROR: soporte de perforaciones orientadas incompleto: "+marker)
+for marker in ('.put("drillDepth",drill.drillDepth)', 'v.optDouble("drillDepth",0)', 'previous.rotationZ,vals[3]', 'axis,parent.rotationX,parent.rotationY,parent.rotationZ,vals[3]', "drill.drillDepth==0"):
+    if marker not in source:
+        raise SystemExit("ERROR: profundidad de perforación no persistente: "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
