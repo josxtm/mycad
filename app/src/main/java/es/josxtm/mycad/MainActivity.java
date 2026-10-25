@@ -126,13 +126,22 @@ public class MainActivity extends Activity {
    try{
     float h=Float.parseFloat(input.getText().toString().replace(',','.'));
     GeometryMath.requirePositive(h);
+    es.josxtm.mycad.cad.CadKernel.Result<es.josxtm.mycad.cad.CadKernel.Box> checkedSolid=null;
+    if(q.type==2){
+     checkedSolid=es.josxtm.mycad.cad.PlaneExtrusion.extrude(
+      new es.josxtm.mycad.cad.PrimitiveKernel(),
+      es.josxtm.mycad.cad.PlaneExtrusion.Plane.values()[q.plane],
+      Math.min(q.x1,q.x2),Math.min(q.y1,q.y2),0,
+      Math.abs(q.x2-q.x1),Math.abs(q.y2-q.y1),h);
+     if(!checkedSolid.isSuccess()){toast("El motor CAD rechazó la geometría");return;}
+    }
     Part result=makeExtrudedPart(q,h);
     // Remove transient preview before taking the undo snapshot.
     int index=draftIndex(parts,draft);parts.remove(index);
     selected=previousSelection;flat=previousFlat;checkpoint();
     parts.add(result);selected=parts.size()-1;selectedSketch=-1;sketchTool=0;flat=false;
     accepted[0]=true;save();scene.invalidate();
-    double volume=q.type==3?GeometryMath.cylinderVolume(w,h):GeometryMath.rectangleVolume(w,d,h);
+    double volume=checkedSolid!=null?checkedSolid.value.volume():GeometryMath.cylinderVolume(w,h);
     info.setText(String.format(java.util.Locale.US,"Extrusión %.1f mm · volumen %.1f mm³",h,volume));
     dialog.dismiss();
    }catch(Exception ex){toast("Altura válida: mayor que 0 y hasta 10000 mm");}
