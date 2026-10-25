@@ -161,3 +161,7 @@ La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneEx
 ## Vínculos entre cuerpos Android y vista previa (2026-10-25)
 
 `CadIntegrationProbe.Report` registra `compatiblePartIndices` y `generatedBodyIds` en el mismo orden, enlazando cada parte antigua con el cuerpo generado. `MainActivity.encode()` añade el campo opcional `parametricBodyBindings` con índice, ID, boceto origen, traslación XYZ y giros XYZ. Son metadatos complementarios; las posiciones y rotaciones todavía **no se aplican al sólido del núcleo**, de modo que no deben considerarse una migración geométrica completa. El JSON v1 sigue siendo la fuente autoritativa. Pruebas cubren orden y unicidad de los vínculos.
+
+## Núcleo de transformaciones rígidas 3D
+
+`RigidTransform` implementa rotaciones en grados alrededor de X, después Y y después Z, seguidas de traslación XYZ. Transforma puntos y los ocho vértices de los prismas, y calcula una caja contenedora AABB de la geometría rotada. Valida entradas finitas; las pruebas cubren los tres ejes, traslaciones y límites. **No cambia todavía el renderizado Android ni dota al kernel de caras/aristas B-Rep; las cajas contenedoras no sustituyen sólidos rotados.**
