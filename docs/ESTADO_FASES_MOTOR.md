@@ -35,3 +35,14 @@ Revisión: 2026-10-25. **Progreso global estimado: 42 % antes de este lote**. Es
 - Se corrige la posición espacial de taladros X/Y, cuyo mapeo local anteriormente desplazaba el centro en Z media altura.
 - Las pruebas abarcan volumen, manifold, transformación inversa, taladros espaciales y rechazos de casos fuera del subconjunto. **No se admiten** cilindros inclinados respecto de los ejes del prisma, cilindros que cruzan un lateral, unión general ni diferencias con entradas por la cara negativa.
 - Es un incremento de alcance restringido y no cambia la estimación global de 42 % sin validación del teléfono y criterios más amplios de aceptación.
+
+## Lote de topología lógica para primitivas — selección 0.6.0
+
+- **IDs de cuerpos persistentes**: cada `Part` posee ahora `bodyId` UUID, guardado como campo opcional en el JSON v1. Los proyectos anteriores generan un UUID al abrirse; al guardar conservan esa identidad. Editar medidas conserva el ID; duplicados, valores malformados y colisiones se rechazan en importación. Deshacer y rehacer utilizan el mismo ID del snapshot.
+- **Mapa de caras estable para primitivas**: `PrimitiveTopologyMap` convierte índices de triángulos GPU a referencias `<bodyId>/face/<tipo>`, independientes del orden de las piezas y de la resolución de teselado. Reconoce 6 caras de prismas y **tapa/base/lateral** de cilindros de 48 segmentos. No asigna topología a mallas booleanas/importadas.
+- **Selección segura**: `CadFaceReference` conserva UUID opcional y comprueba el cuerpo antes de editar una cara; evita modificar por accidente otro prisma si cambió el índice. El visor muestra selección de cilindros con región lógica (sin permitir todavía editar directamente las superficies curvas).
+- **Aristas**: `PrimitiveEdges` enumera 12 ranuras geométricas de prismas, con claves estables `<bodyId>/edge/<eje>_<índice>`, longitud y extremos XYZ mundiales, incluidos giros.
+- **Error corregido**: el menú de extrusión ya no usa `Face.values()[n]` (orden incompatible con las etiquetas), sino `Face.valueOf(faces[n])` y respeta la cara elegida.
+- **Pruebas**: `PrimitiveTopologyMapTest`, `PrimitiveEdgesTest` e integridad de proyecto se suman a GitHub Actions; cubren orden de triángulos, claves, reordenación, selección de cilindros, cambios de resolución, duplicados, giros y aristas.
+
+**Alcance limitado**: esto constituye *identificación lógica de caras y aristas de primitivas*, NO un kernel B-Rep, ray casting completo ni denominación topológica estable tras booleanas arbitrarias, particiones o fusiones. Falta validación táctil en Nothing Phone 2a. El avance global sigue estimado en **~42 %**, sin aumentar por cambios aislados no validados.

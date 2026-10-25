@@ -80,6 +80,10 @@ jobs:
           java -cp build/geometry-tests CadSceneFaceMapTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadFaceReference.java tests/CadFaceReferenceTest.java
           java -cp build/geometry-tests CadFaceReferenceTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/PrimitiveTopologyMap.java tests/PrimitiveTopologyMapTest.java
+          java -cp build/geometry-tests PrimitiveTopologyMapTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/PrimitiveEdges.java tests/PrimitiveEdgesTest.java
+          java -cp build/geometry-tests PrimitiveEdgesTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/FaceResize.java tests/FaceResizeTest.java
           java -cp build/geometry-tests FaceResizeTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/RotatedFaceResize.java tests/RotatedFaceResizeTest.java

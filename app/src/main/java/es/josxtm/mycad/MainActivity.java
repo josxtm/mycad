@@ -15,7 +15,7 @@ public class MainActivity extends Activity {
  ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
  static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104; MeshEngine meshView; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
- class Part { String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
+ class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);rootLayout=root;root.setBackgroundColor(Color.rgb(18,25,36));
  TextView title=new TextView(this);title.setText("MyCAD · 0.6.0");titleView=title;title.setTextSize(17);title.setTextColor(Color.WHITE);
@@ -482,11 +482,19 @@ public class MainActivity extends Activity {
   };
   new AlertDialog.Builder(this).setTitle("Aristas del cuerpo "+(bodyIndex+1))
    .setItems(names,(dialog,index)->{
-    float length=index<4?p.w:index<8?p.d:p.h;
-    info.setText(String.format(java.util.Locale.US,"Arista %d · longitud %.2f mm",index+1,length));
-    new AlertDialog.Builder(this).setTitle(names[index])
-     .setMessage(String.format(java.util.Locale.US,"Longitud: %.2f mm.\nIdentificación local, sin modificar el cuerpo.",length))
-     .setPositiveButton("Cerrar",null).show();
+    if(bodyIndex>=parts.size()||parts.get(bodyIndex)!=p)return;
+    try{
+     es.josxtm.mycad.cad.PrimitiveEdges.Edge edge=es.josxtm.mycad.cad.PrimitiveEdges.edge(
+      p.id,index,p.w,p.d,p.h,
+      new es.josxtm.mycad.cad.RigidTransform(p.x,p.y,p.z,p.rotationX,p.rotationY,p.rotationZ));
+     info.setText(String.format(java.util.Locale.US,"Arista %d · longitud %.2f mm",index+1,edge.length));
+     String message=String.format(java.util.Locale.US,
+      "Longitud: %.2f mm\nInicio XYZ: %.2f, %.2f, %.2f\nFin XYZ: %.2f, %.2f, %.2f\nReferencia lógica: %s",
+      edge.length,edge.start[0],edge.start[1],edge.start[2],
+      edge.end[0],edge.end[1],edge.end[2],edge.key);
+     new AlertDialog.Builder(this).setTitle(names[index])
+      .setMessage(message).setPositiveButton("Cerrar",null).show();
+    }catch(Exception error){toast("No se pudo calcular la arista");}
    }).setNegativeButton("Cancelar",null).show();
  }
  void inspectSelectedFaces(){
@@ -577,12 +585,12 @@ public class MainActivity extends Activity {
  float[] vals={p.w,p.d,p.h,p.x};EditText[] fields=new EditText[4];
  for(int i=0;i<4;i++){TextView t=new TextView(this);t.setText(labels[i]);box.addView(t);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);if(circle&&i==1){t.setVisibility(View.GONE);fields[i].setVisibility(View.GONE);}}
  AlertDialog dlg=new AlertDialog.Builder(this).setTitle(existing?"Editar pieza":"Figura y extrusión").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",null).create();
- dlg.setOnShowListener(v->dlg.getButton(-1).setOnClickListener(w->{try{float a=Float.parseFloat(fields[0].getText().toString().replace(',','.'));float d=circle?a:Float.parseFloat(fields[1].getText().toString().replace(',','.'));float h=Float.parseFloat(fields[2].getText().toString().replace(',','.'));float x=Float.parseFloat(fields[3].getText().toString().replace(',','.'));if(!Float.isFinite(a+d+h+x)||a<=0||d<=0||h<=0||a>10000||d>10000||h>10000||Math.abs(x)>10000)throw new Exception();Part q=new Part(circle,a,d,h,x);if(existing){q.y=p.y;q.z=p.z;q.rotationX=p.rotationX;q.rotationY=p.rotationY;q.rotationZ=p.rotationZ;q.sourceSketchId=p.sourceSketchId;}checkpoint();if(existing)parts.set(selected,q);else{parts.add(q);selected=parts.size()-1;}save();scene.invalidate();dlg.dismiss();}catch(Exception e){toast("Introduce medidas positivas hasta 10000 mm y posición válida");}}));dlg.show();
+ dlg.setOnShowListener(v->dlg.getButton(-1).setOnClickListener(w->{try{float a=Float.parseFloat(fields[0].getText().toString().replace(',','.'));float d=circle?a:Float.parseFloat(fields[1].getText().toString().replace(',','.'));float h=Float.parseFloat(fields[2].getText().toString().replace(',','.'));float x=Float.parseFloat(fields[3].getText().toString().replace(',','.'));if(!Float.isFinite(a+d+h+x)||a<=0||d<=0||h<=0||a>10000||d>10000||h>10000||Math.abs(x)>10000)throw new Exception();Part q=new Part(circle,a,d,h,x);if(existing){q.id=p.id;q.y=p.y;q.z=p.z;q.rotationX=p.rotationX;q.rotationY=p.rotationY;q.rotationZ=p.rotationZ;q.sourceSketchId=p.sourceSketchId;}checkpoint();if(existing)parts.set(selected,q);else{parts.add(q);selected=parts.size()-1;}save();scene.invalidate();dlg.dismiss();}catch(Exception e){toast("Introduce medidas positivas hasta 10000 mm y posición válida");}}));dlg.show();
  }
 
  void updateStep(){if(nextStep!=null)nextStep.setText(parts.isEmpty()?"1 · Crea una figura con medidas":"2 · Edita / revisa en 3D   →   3 · Guarda un archivo");}
  String encode() throws Exception {
- JSONArray a=new JSONArray();for(Part p:parts)a.put(new JSONObject().put("c",p.circle).put("w",p.w).put("d",p.d).put("h",p.h).put("x",p.x).put("y",p.y).put("z",p.z).put("rotationX",p.rotationX).put("rotationY",p.rotationY).put("rotationZ",p.rotationZ).put("sourceSketchId",p.sourceSketchId));
+ JSONArray a=new JSONArray();for(Part p:parts)a.put(new JSONObject().put("c",p.circle).put("w",p.w).put("d",p.d).put("h",p.h).put("x",p.x).put("y",p.y).put("z",p.z).put("rotationX",p.rotationX).put("rotationY",p.rotationY).put("rotationZ",p.rotationZ).put("sourceSketchId",p.sourceSketchId).put("bodyId",p.id));
  JSONArray sk=new JSONArray();for(Sketch q:sketches)sk.put(new JSONObject().put("t",q.type).put("id",q.id).put("plane",q.plane).put("x1",q.x1).put("y1",q.y1).put("x2",q.x2).put("y2",q.y2));JSONObject file=new JSONObject().put("format","mycad").put("version",1).put("units","mm").put("parts",a).put("sketches",sk).put("booleanMeshes",encodeBooleanMeshes());
  JSONArray recipes=new JSONArray();
  for(es.josxtm.mycad.cad.FaceUnionRecipe recipe:unionRecipes){
@@ -731,12 +739,14 @@ public class MainActivity extends Activity {
  JSONArray sk=o.optJSONArray("sketches");if(sk!=null){if(sk.length()>2000)throw new IOException("Demasiados bocetos");for(int i=0;i<sk.length();i++){JSONObject q=sk.getJSONObject(i);int t=q.getInt("t");float x1=(float)q.getDouble("x1"),y1=(float)q.getDouble("y1"),x2=(float)q.getDouble("x2"),y2=(float)q.getDouble("y2");if(t<1||t>3||!Float.isFinite(x1+y1+x2+y2)||Math.max(Math.max(Math.abs(x1),Math.abs(y1)),Math.max(Math.abs(x2),Math.abs(y2)))>10000)throw new IOException("Boceto inválido");Sketch loaded=new Sketch(t,x1,y1,x2,y2);loaded.id=q.optString("id",loaded.id);loaded.plane=q.optInt("plane",0);if(loaded.plane<0||loaded.plane>2)throw new IOException("Plano inválido");parsedSketches.add(loaded);}}}
  else throw new IOException("Archivo no válido");
  if(a.length()>500)throw new IOException("Máximo 500 piezas");
+ java.util.HashSet<String> loadedBodyIds=new java.util.HashSet<>();
  ArrayList<Part> list=new ArrayList<>();
  for(int i=0;i<a.length();i++){JSONObject p=a.getJSONObject(i);float w=(float)p.getDouble("w"),d=(float)p.getDouble("d"),h=(float)p.getDouble("h"),x=(float)p.getDouble("x");
  if(!Float.isFinite(w+d+h+x)||w<=0||d<=0||h<=0||w>10000||d>10000||h>10000||Math.abs(x)>10000)throw new IOException("Medidas no válidas");
  boolean circle=p.getBoolean("c");if(circle&&w!=d)throw new IOException("Diámetro inconsistente");
- Part item=new Part(circle,w,d,h,x);item.y=(float)p.optDouble("y",0);item.z=(float)p.optDouble("z",0);item.rotationX=(float)p.optDouble("rotationX",0);item.rotationY=(float)p.optDouble("rotationY",0);item.rotationZ=(float)p.optDouble("rotationZ",0);item.sourceSketchId=p.optString("sourceSketchId","");if(!Float.isFinite(item.y+item.z+item.rotationX+item.rotationY+item.rotationZ)||Math.abs(item.y)>10000||Math.abs(item.z)>10000)throw new IOException("Posición inválida");list.add(item);}return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedChains,parsedFeatures,parsedDrills);
+ Part item=new Part(circle,w,d,h,x);item.id=p.optString("bodyId",item.id);item.y=(float)p.optDouble("y",0);item.z=(float)p.optDouble("z",0);item.rotationX=(float)p.optDouble("rotationX",0);item.rotationY=(float)p.optDouble("rotationY",0);item.rotationZ=(float)p.optDouble("rotationZ",0);item.sourceSketchId=p.optString("sourceSketchId","");if(!Float.isFinite(item.y+item.z+item.rotationX+item.rotationY+item.rotationZ)||Math.abs(item.y)>10000||Math.abs(item.z)>10000||item.id.length()>100||!validBodyId(item.id))throw new IOException("Posición o ID de cuerpo inválidos");if(!loadedBodyIds.add(item.id))throw new IOException("Cuerpos duplicados");list.add(item);}return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedChains,parsedFeatures,parsedDrills);
  }
+ boolean validBodyId(String id){try{return java.util.UUID.fromString(id).toString().equals(id);}catch(Exception e){return false;}}
  void checkpoint(){try{undo.push(encode());if(undo.size()>50)undo.removeLast();redo.clear();}catch(Exception e){}}
  void history(boolean back){activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);ArrayDeque<String> src=back?undo:redo,dst=back?redo:undo;if(src.isEmpty()){toast("Sin cambios");return;}try{dst.push(encode());ParsedDesign restored=decode(src.pop());parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();}catch(Exception e){toast("Error al recuperar cambio");}}
  void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
@@ -770,37 +780,45 @@ public class MainActivity extends Activity {
  }
  void showGpuSurfaceSelection(int triangle,double x,double y,double z){
   if(isolatedMeshPreview){activeCadFace=null;info.setText("Vista previa · sin selección de piezas");return;}
-  String label="Triángulo "+(triangle+1);
+  boolean handled=false;
   if(cadGpuMesh){
-   es.josxtm.mycad.cad.CadSceneFaceMap map=new es.josxtm.mycad.cad.CadSceneFaceMap();
+   es.josxtm.mycad.cad.PrimitiveTopologyMap map=new es.josxtm.mycad.cad.PrimitiveTopologyMap();
    int first=importedMesh==null?0:importedMesh.triangles();
    for(MeshEngine.Mesh m:booleanMeshes)first+=m.triangles();
-   int selectedCylinder=-1;
    for(int i=0;i<parts.size();i++){
     Part p=parts.get(i);
     if(p.circle){
-     int count=es.josxtm.mycad.cad.CylinderSurface.triangleCount(48);
-     if(triangle>=first&&triangle<first+count)selectedCylinder=i;
-     first+=count;
+     map.addCylinder(i,p.id,first,48);
+     first+=es.josxtm.mycad.cad.CylinderSurface.triangleCount(48);
     }else{
-     map.addBox(i,first);first+=12;
+     map.addBox(i,p.id,first);
+     first+=12;
     }
    }
-   es.josxtm.mycad.cad.CadSceneFaceMap.Selection found=map.resolve(triangle);
-   if(found!=null){
-    selected=found.partIndex;selectedSketch=-1;scene.invalidate();
-    activeCadFace=new es.josxtm.mycad.cad.CadFaceReference(found.partIndex,found.face);
-    label="Cuerpo "+(found.partIndex+1)+" · cara "+found.face.name().replace('_',' ');
-    if(meshView!=null)meshView.highlightFace(triangle-(found.triangleInPart%2));
-   }else if(selectedCylinder>=0){
-    selected=selectedCylinder;selectedSketch=-1;activeCadFace=null;scene.invalidate();
-    label="Cilindro "+(selectedCylinder+1)+" · cuerpo seleccionado";
+   es.josxtm.mycad.cad.PrimitiveTopologyMap.Hit hit=map.resolve(triangle);
+   if(hit!=null&&hit.partIndex<parts.size()&&parts.get(hit.partIndex).id.equals(hit.bodyId)){
+    selected=hit.partIndex;selectedSketch=-1;scene.invalidate();
+    String description;
+    if(hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.BOX){
+     activeCadFace=new es.josxtm.mycad.cad.CadFaceReference(hit.partIndex,hit.bodyId,hit.boxFace);
+     description="Prisma "+(hit.partIndex+1)+" · "+hit.boxFace.name().replace('_',' ');
+    }else{
+     activeCadFace=null;
+     description="Cilindro "+(hit.partIndex+1)+" · "+
+      (hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.CYLINDER_SIDE?"lateral":
+       hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.CYLINDER_BOTTOM?"base":"tapa");
+    }
+    if(meshView!=null)meshView.highlightFace(hit.highlightTriangle());
+    info.setText(String.format(java.util.Locale.US,"%s · X %.1f Y %.1f Z %.1f mm",description,x,y,z));
+    handled=true;
    }
   }
-  if(!label.startsWith("Cuerpo "))activeCadFace=null;
-  if(meshView!=null&&!label.startsWith("Cuerpo "))meshView.highlightFace(-1);
-  info.setText(String.format(java.util.Locale.US,"%s · X %.1f · Y %.1f · Z %.1f mm",label,x,y,z));
-  if(!label.startsWith("Cuerpo "))selectChainTriangle(triangle);
+  if(!handled){
+   activeCadFace=null;
+   if(meshView!=null)meshView.highlightFace(-1);
+   info.setText(String.format(java.util.Locale.US,"Triángulo %d · X %.1f Y %.1f Z %.1f mm",triangle+1,x,y,z));
+   selectChainTriangle(triangle);
+  }
  }
  void manageExtrusionChains(){
   java.util.ArrayList<String> choices=new java.util.ArrayList<>();
@@ -846,7 +864,7 @@ public class MainActivity extends Activity {
      final String[] faces={"X_MIN","X_MAX","Y_MIN","Y_MAX","Z_MIN","Z_MAX"};
      if(stepIndex<0){
       new AlertDialog.Builder(this).setTitle("Cara de la nueva extrusión")
-       .setItems(faces,(d,n)->chainDistanceDialog(chain,index,-1,es.josxtm.mycad.cad.BoxFaceSelection.Face.values()[n])).show();
+       .setItems(faces,(d,n)->chainDistanceDialog(chain,index,-1,es.josxtm.mycad.cad.BoxFaceSelection.Face.valueOf(faces[n]))).show();
      }else chainDistanceDialog(chain,index,stepIndex,chain.history().get(stepIndex).face);
     }
    }).setNegativeButton("Cerrar",null).show();
@@ -1000,7 +1018,7 @@ public class MainActivity extends Activity {
   }
  }
  void extrudeSelectedCadFace(){
-  if(!cadGpuMesh||activeCadFace==null||!activeCadFace.isValidFor(parts.size())){
+  if(!cadGpuMesh||activeCadFace==null||!(activeCadFace.isValidFor(parts.size())&&activeCadFace.isValidFor(parts.size(),parts.get(activeCadFace.partIndex).id))){
    toast("Selecciona una cara en el visor CAD experimental");return;
   }
   final int index=activeCadFace.partIndex;
@@ -1047,7 +1065,7 @@ public class MainActivity extends Activity {
   }catch(Exception error){toast("Extrusión inválida o fuera de límites");}
  }
  void editSelectedCadFace(){
-  if(activeCadFace==null||!cadGpuMesh||!activeCadFace.isValidFor(parts.size())){
+  if(activeCadFace==null||!cadGpuMesh||!(activeCadFace.isValidFor(parts.size())&&activeCadFace.isValidFor(parts.size(),parts.get(activeCadFace.partIndex).id))){
    toast("Toca primero una cara en el visor CAD experimental");return;
   }
   Part part=parts.get(activeCadFace.partIndex);
