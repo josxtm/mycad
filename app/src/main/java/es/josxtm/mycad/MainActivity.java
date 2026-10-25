@@ -231,9 +231,10 @@ public class MainActivity extends Activity {
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
     new AlertDialog.Builder(this).setTitle(names[index])
-     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado"},(d,choice)->{
+     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada"},(d,choice)->{
       if(choice==0){showMeshOnly(mesh);}
       else if(choice==1){exportMeshMenuFor(mesh);}
+      else if(choice==3){editFaceUnionRecipe(index);}
       else new AlertDialog.Builder(this).setTitle("Eliminar resultado")
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
@@ -244,6 +245,33 @@ public class MainActivity extends Activity {
        }).show();
      }).show();
    }).setNegativeButton("Cerrar",null).show();
+ }
+ void editFaceUnionRecipe(int meshIndex){
+  if(meshIndex<0||meshIndex>=unionRecipes.size()||unionRecipes.get(meshIndex)==null){
+   toast("Esta malla no tiene historial de extrusión editable");return;
+  }
+  final es.josxtm.mycad.cad.FaceUnionRecipe recipe=unionRecipes.get(meshIndex);
+  EditText input=new EditText(this);input.setInputType(8194|4096);
+  input.setText(String.valueOf(recipe.distance));
+  new AlertDialog.Builder(this).setTitle("Editar extrusión fusionada · mm")
+   .setMessage("Regenera la malla desde el prisma original y la distancia nueva.")
+   .setView(input).setNegativeButton("Cancelar",null).setPositiveButton("Regenerar",(d,w)->{
+    try{
+     if(meshIndex>=unionRecipes.size()||unionRecipes.get(meshIndex)!=recipe)throw new IllegalArgumentException();
+     double distance=Double.parseDouble(input.getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.FaceUnionRecipe updated=recipe.withDistance(distance);
+     es.josxtm.mycad.cad.FacePrismExtrusion.Result ext=
+      es.josxtm.mycad.cad.FacePrismExtrusion.create(updated.width,updated.depth,updated.height,updated.x,updated.y,updated.z,0,0,0,updated.face,updated.distance);
+     float[] generated=BoxBooleanMesh.build(
+      new BoxBoolean.Box(updated.x,updated.y,updated.z,updated.width,updated.depth,updated.height),
+      new BoxBoolean.Box(ext.x,ext.y,ext.z,ext.w,ext.d,ext.h),BoxBooleanMesh.Operation.UNION);
+     if(generated.length==0)throw new IllegalArgumentException();
+     checkpoint();booleanMeshes.set(meshIndex,new MeshEngine.Mesh(generated));unionRecipes.set(meshIndex,updated);
+     save();scene.invalidate();
+     if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+     toast("Malla fusionada regenerada");
+    }catch(Exception error){toast("No se pudo regenerar la extrusión");}
+   }).show();
  }
  void exportMeshMenuFor(MeshEngine.Mesh target){
   new AlertDialog.Builder(this).setTitle("Exportar geometría")
