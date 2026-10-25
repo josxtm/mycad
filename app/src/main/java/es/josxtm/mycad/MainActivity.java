@@ -482,11 +482,19 @@ public class MainActivity extends Activity {
   };
   new AlertDialog.Builder(this).setTitle("Aristas del cuerpo "+(bodyIndex+1))
    .setItems(names,(dialog,index)->{
-    float length=index<4?p.w:index<8?p.d:p.h;
-    info.setText(String.format(java.util.Locale.US,"Arista %d · longitud %.2f mm",index+1,length));
-    new AlertDialog.Builder(this).setTitle(names[index])
-     .setMessage(String.format(java.util.Locale.US,"Longitud: %.2f mm.\nIdentificación local, sin modificar el cuerpo.",length))
-     .setPositiveButton("Cerrar",null).show();
+    if(bodyIndex>=parts.size()||parts.get(bodyIndex)!=p)return;
+    try{
+     es.josxtm.mycad.cad.PrimitiveEdges.Edge edge=es.josxtm.mycad.cad.PrimitiveEdges.edge(
+      p.id,index,p.w,p.d,p.h,
+      new es.josxtm.mycad.cad.RigidTransform(p.x,p.y,p.z,p.rotationX,p.rotationY,p.rotationZ));
+     info.setText(String.format(java.util.Locale.US,"Arista %d · longitud %.2f mm",index+1,edge.length));
+     String message=String.format(java.util.Locale.US,
+      "Longitud: %.2f mm\nInicio XYZ: %.2f, %.2f, %.2f\nFin XYZ: %.2f, %.2f, %.2f\nReferencia lógica: %s",
+      edge.length,edge.start[0],edge.start[1],edge.start[2],
+      edge.end[0],edge.end[1],edge.end[2],edge.key);
+     new AlertDialog.Builder(this).setTitle(names[index])
+      .setMessage(message).setPositiveButton("Cerrar",null).show();
+    }catch(Exception error){toast("No se pudo calcular la arista");}
    }).setNegativeButton("Cancelar",null).show();
  }
  void inspectSelectedFaces(){
