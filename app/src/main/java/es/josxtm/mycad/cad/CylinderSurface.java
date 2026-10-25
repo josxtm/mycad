@@ -10,7 +10,7 @@ public final class CylinderSurface {
   double radius=diameter/2;
   float[] output=new float[triangleCount(segments)*9];int at=0;
   for(int i=0;i<segments;i++){
-   double angle=2*Math.PI*i/segments,next=2*Math.PI*(i+1)/segments;
+   double angle=2*Math.PI*i/segments,next=2*Math.PI*((i+1)%segments)/segments;
    double[] b0=pose.point(radius*Math.cos(angle),radius*Math.sin(angle),0);
    double[] b1=pose.point(radius*Math.cos(next),radius*Math.sin(next),0);
    double[] t0=pose.point(radius*Math.cos(angle),radius*Math.sin(angle),height);
