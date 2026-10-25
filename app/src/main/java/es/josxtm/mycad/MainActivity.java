@@ -471,11 +471,30 @@ public class MainActivity extends Activity {
   }
   Part part=parts.get(activeCadFace.partIndex);
   if(part.circle){toast("Solo prismas por ahora");return;}
-  if(activeCadFace.face!=es.josxtm.mycad.cad.BoxFaceSelection.Face.Z_MAX){
-   toast("Primera herramienta: altura desde la cara Z MAX");return;
+  if(activeCadFace.face==es.josxtm.mycad.cad.BoxFaceSelection.Face.Z_MAX){
+   editExtrusionHeight(part);return;
   }
-  // Reuse the existing validated extrusion-height workflow, including undo and save.
-  editExtrusionHeight(part);
+  if(!part.sourceSketchId.isEmpty()||part.rotationX!=0||part.rotationY!=0||part.rotationZ!=0){
+   toast("Edición lateral disponible en prismas sin boceto vinculado ni rotación");return;
+  }
+  final es.josxtm.mycad.cad.BoxFaceSelection.Face face=activeCadFace.face;
+  final int partIndex=activeCadFace.partIndex;
+  EditText input=new EditText(this);input.setInputType(8194|4096);input.setText("5");
+  new AlertDialog.Builder(this).setTitle("Desplazar cara "+face.name()+" · mm")
+   .setMessage("Positivo: hacia fuera. Negativo: hacia dentro.").setView(input)
+   .setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(dialog,which)->{
+    try{
+     if(partIndex<0||partIndex>=parts.size()||parts.get(partIndex)!=part)throw new IllegalArgumentException();
+     double delta=Double.parseDouble(input.getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.FaceResize.Dimensions updated=
+      es.josxtm.mycad.cad.FaceResize.move(part.w,part.d,part.h,part.x,part.y,part.z,face,delta);
+     checkpoint();
+     part.w=(float)updated.w;part.d=(float)updated.d;part.h=(float)updated.h;
+     part.x=(float)updated.x;part.y=(float)updated.y;part.z=(float)updated.z;
+     activeCadFace=null;save();scene.invalidate();
+     if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+    }catch(Exception error){toast("Distancia inválida o fuera de los límites");}
+   }).show();
  }
  void toggleCadGpuMesh(){
   activeCadFace=null;cadGpuMesh=!cadGpuMesh;
