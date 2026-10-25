@@ -616,14 +616,14 @@ public class MainActivity extends Activity {
  for(es.josxtm.mycad.cad.FaceExtrusionChain chain:extrusionChains){
   java.util.List<es.josxtm.mycad.cad.FaceExtrusionChain.Solid> solids=chain.regenerate();
   es.josxtm.mycad.cad.FaceExtrusionChain.Solid root=solids.get(0);
-  JSONObject entry=new JSONObject().put("w",root.w).put("d",root.d).put("h",root.h).put("x",root.x).put("y",root.y).put("z",root.z);
-  JSONArray steps=new JSONArray();for(es.josxtm.mycad.cad.FaceExtrusionChain.Step step:chain.history())steps.put(new JSONObject().put("face",step.face.name()).put("mm",step.distance));
+  JSONObject entry=new JSONObject().put("id",chain.id).put("w",root.w).put("d",root.d).put("h",root.h).put("x",root.x).put("y",root.y).put("z",root.z);
+  JSONArray steps=new JSONArray();for(es.josxtm.mycad.cad.FaceExtrusionChain.Step step:chain.history())steps.put(new JSONObject().put("id",step.id).put("face",step.face.name()).put("mm",step.distance));
   chains.put(entry.put("steps",steps));
  }
  file.put("extrusionChains",chains);
  JSONArray storedFeatures=new JSONArray();
  for(es.josxtm.mycad.cad.ChainBooleanFeature f:chainFeatures)
-  storedFeatures.put(new JSONObject().put("chain",f.chainIndex).put("operation",f.operation.name())
+  storedFeatures.put(new JSONObject().put("chain",f.chainIndex).put("chainId",f.chainId==null?"":f.chainId).put("operation",f.operation.name())
    .put("x",f.x).put("y",f.y).put("z",f.z).put("w",f.w).put("d",f.d).put("h",f.h));
  file.put("chainBooleanFeatures",storedFeatures);
  try{
@@ -682,10 +682,10 @@ public class MainActivity extends Activity {
   for(int ci=0;ci<chainArray.length();ci++){
    JSONObject entry=chainArray.getJSONObject(ci);
    try{
-    es.josxtm.mycad.cad.FaceExtrusionChain chain=new es.josxtm.mycad.cad.FaceExtrusionChain(entry.getDouble("w"),entry.getDouble("d"),entry.getDouble("h"),entry.getDouble("x"),entry.getDouble("y"),entry.getDouble("z"));
+    es.josxtm.mycad.cad.FaceExtrusionChain chain=new es.josxtm.mycad.cad.FaceExtrusionChain(entry.optString("id",java.util.UUID.randomUUID().toString()),entry.getDouble("w"),entry.getDouble("d"),entry.getDouble("h"),entry.getDouble("x"),entry.getDouble("y"),entry.getDouble("z"));
     JSONArray steps=entry.getJSONArray("steps");
     if(steps.length()>50)throw new IOException("Demasiadas extrusiones");
-    for(int si=0;si<steps.length();si++){JSONObject step=steps.getJSONObject(si);chain.append(es.josxtm.mycad.cad.BoxFaceSelection.Face.valueOf(step.getString("face")),step.getDouble("mm"));}
+    for(int si=0;si<steps.length();si++){JSONObject step=steps.getJSONObject(si);chain.appendStep(new es.josxtm.mycad.cad.FaceExtrusionChain.Step(step.optString("id",java.util.UUID.randomUUID().toString()),es.josxtm.mycad.cad.BoxFaceSelection.Face.valueOf(step.getString("face")),step.getDouble("mm")));}
     chain.regenerate();parsedChains.add(chain);
    }catch(IllegalArgumentException error){throw new IOException("Cadena inválida",error);}
   }
@@ -696,8 +696,14 @@ public class MainActivity extends Activity {
   for(int fi=0;fi<stored.length();fi++){
    JSONObject f=stored.getJSONObject(fi);
    try{
+    int legacyIndex=f.getInt("chain");
+    String stableId=f.optString("chainId","");
+    if(stableId.isEmpty()){
+     if(legacyIndex<0||legacyIndex>=parsedChains.size())throw new IOException("Referencia a cadena inexistente");
+     stableId=parsedChains.get(legacyIndex).id;
+    }
     es.josxtm.mycad.cad.ChainBooleanFeature feature=new es.josxtm.mycad.cad.ChainBooleanFeature(
-     f.getInt("chain"),MultiBoxUnion.Operation.valueOf(f.getString("operation")),
+     legacyIndex,stableId,MultiBoxUnion.Operation.valueOf(f.getString("operation")),
      f.getDouble("x"),f.getDouble("y"),f.getDouble("z"),f.getDouble("w"),f.getDouble("d"),f.getDouble("h"));
     feature.regenerate(parsedChains);
     parsedFeatures.add(feature);
@@ -744,7 +750,7 @@ public class MainActivity extends Activity {
  for(int i=0;i<a.length();i++){JSONObject p=a.getJSONObject(i);float w=(float)p.getDouble("w"),d=(float)p.getDouble("d"),h=(float)p.getDouble("h"),x=(float)p.getDouble("x");
  if(!Float.isFinite(w+d+h+x)||w<=0||d<=0||h<=0||w>10000||d>10000||h>10000||Math.abs(x)>10000)throw new IOException("Medidas no válidas");
  boolean circle=p.getBoolean("c");if(circle&&w!=d)throw new IOException("Diámetro inconsistente");
- Part item=new Part(circle,w,d,h,x);item.id=p.optString("bodyId",item.id);item.y=(float)p.optDouble("y",0);item.z=(float)p.optDouble("z",0);item.rotationX=(float)p.optDouble("rotationX",0);item.rotationY=(float)p.optDouble("rotationY",0);item.rotationZ=(float)p.optDouble("rotationZ",0);item.sourceSketchId=p.optString("sourceSketchId","");if(!Float.isFinite(item.y+item.z+item.rotationX+item.rotationY+item.rotationZ)||Math.abs(item.y)>10000||Math.abs(item.z)>10000||item.id.length()>100||!validBodyId(item.id))throw new IOException("Posición o ID de cuerpo inválidos");if(!loadedBodyIds.add(item.id))throw new IOException("Cuerpos duplicados");list.add(item);}return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedChains,parsedFeatures,parsedDrills);
+ Part item=new Part(circle,w,d,h,x);item.id=p.optString("bodyId",item.id);item.y=(float)p.optDouble("y",0);item.z=(float)p.optDouble("z",0);item.rotationX=(float)p.optDouble("rotationX",0);item.rotationY=(float)p.optDouble("rotationY",0);item.rotationZ=(float)p.optDouble("rotationZ",0);item.sourceSketchId=p.optString("sourceSketchId","");if(!Float.isFinite(item.y+item.z+item.rotationX+item.rotationY+item.rotationZ)||Math.abs(item.y)>10000||Math.abs(item.z)>10000||item.id.length()>100||!validBodyId(item.id))throw new IOException("Posición o ID de cuerpo inválidos");if(!loadedBodyIds.add(item.id))throw new IOException("Cuerpos duplicados");list.add(item);}try{es.josxtm.mycad.cad.ChainDependencyReport.requireValid(parsedChains,parsedFeatures);}catch(IllegalArgumentException e){throw new IOException("Historial paramétrico inválido",e);}return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedChains,parsedFeatures,parsedDrills);
  }
  boolean validBodyId(String id){try{return java.util.UUID.fromString(id).toString().equals(id);}catch(Exception e){return false;}}
  void checkpoint(){try{undo.push(encode());if(undo.size()>50)undo.removeLast();redo.clear();}catch(Exception e){}}
@@ -858,7 +864,7 @@ public class MainActivity extends Activity {
     if(choice==actions.size()-5){showChainUnion(chain);return;}
     if(choice==actions.size()-6){
      if(chain.size()==0){toast("No hay extrusiones");return;}
-     checkpoint();chain.removeLast();save();refreshChainScene();
+     checkpoint();es.josxtm.mycad.cad.FaceExtrusionChain changed=copyExtrusionChain(chain);changed.removeLast();extrusionChains.set(index,changed);save();refreshChainScene();
     }else{
      int stepIndex=choice-1;
      final String[] faces={"X_MIN","X_MAX","Y_MIN","Y_MAX","Z_MIN","Z_MAX"};
@@ -874,7 +880,7 @@ public class MainActivity extends Activity {
   Part p=parts.get(selected);
   if(p.circle||p.rotationX!=0||p.rotationY!=0||p.rotationZ!=0){toast("El cortador no debe tener rotación");return;}
   try{
-   es.josxtm.mycad.cad.ChainBooleanFeature feature=new es.josxtm.mycad.cad.ChainBooleanFeature(chainIndex,op,p.x,p.y,p.z,p.w,p.d,p.h);
+   es.josxtm.mycad.cad.ChainBooleanFeature feature=new es.josxtm.mycad.cad.ChainBooleanFeature(chainIndex,extrusionChains.get(chainIndex).id,op,p.x,p.y,p.z,p.w,p.d,p.h);
    if(feature.regenerate(extrusionChains).length==0){toast("Operación sin resultado");return;}
    checkpoint();chainFeatures.add(feature);save();toast("Operación guardada en el proyecto");
   }catch(Exception ex){toast("No se pudo guardar la operación");}
@@ -884,7 +890,7 @@ public class MainActivity extends Activity {
   String[] names=new String[chainFeatures.size()];
   for(int i=0;i<names.length;i++){
    es.josxtm.mycad.cad.ChainBooleanFeature f=chainFeatures.get(i);
-   names[i]=(f.operation==MultiBoxUnion.Operation.CHAIN_DIFFERENCE?"Corte":"Intersección")+" · cadena "+(f.chainIndex+1);
+   names[i]=(f.operation==MultiBoxUnion.Operation.CHAIN_DIFFERENCE?"Corte":"Intersección")+" · cadena "+(f.resolvedChainIndex(extrusionChains)+1);
   }
   new AlertDialog.Builder(this).setTitle("Booleanas paramétricas")
    .setItems(names,(dialog,index)->{
@@ -995,8 +1001,8 @@ public class MainActivity extends Activity {
  }
  es.josxtm.mycad.cad.FaceExtrusionChain copyExtrusionChain(es.josxtm.mycad.cad.FaceExtrusionChain source){
   es.josxtm.mycad.cad.FaceExtrusionChain.Solid root=source.regenerate().get(0);
-  es.josxtm.mycad.cad.FaceExtrusionChain copy=new es.josxtm.mycad.cad.FaceExtrusionChain(root.w,root.d,root.h,root.x,root.y,root.z);
-  for(es.josxtm.mycad.cad.FaceExtrusionChain.Step step:source.history())copy.append(step.face,step.distance);
+  es.josxtm.mycad.cad.FaceExtrusionChain copy=new es.josxtm.mycad.cad.FaceExtrusionChain(source.id,root.w,root.d,root.h,root.x,root.y,root.z);
+  for(es.josxtm.mycad.cad.FaceExtrusionChain.Step step:source.history())copy.appendStep(step);
   return copy;
  }
  void refreshChainScene(){
