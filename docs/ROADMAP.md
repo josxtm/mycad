@@ -91,3 +91,12 @@ Si el motor actual no admite una operación fiable, registrar la limitación y d
 - `currentMesh()` incorpora las mallas guardadas a la exportación STL/OBJ, además de los sólidos de origen.
 - **Limitación importante:** el resultado se añade como malla independiente; los operandos originales no se ocultan ni eliminan y la malla no es un sólido B-Rep editable. Al exportar toda la escena pueden existir superficies solapadas. No usar sin revisar para fabricación/impresión 3D.
 - Estado: código subido, sin verificación de ejecución nueva ni prueba en móvil para esta fase.
+
+## Gestión individual de resultados booleanos — 2026-10-25
+
+- Añadido botón **▤ Resultados booleanos** en la barra derecha.
+- Lista de mallas persistidas con acciones **ver por separado**, **exportar únicamente esa malla en STL/OBJ** y **eliminar resultado** con confirmación.
+- Los prismas operandos no se modifican. El borrado se registra en deshacer y se persiste.
+- Se limpia la malla pendiente si se cancela el selector de exportación, para evitar exportar el resultado incorrecto posteriormente.
+- El visor GPU muestra una sola malla cuando se selecciona esa acción; **no** se ha implementado todavía su selección/edición topológica en el lienzo principal.
+- Estado: cambios subidos a GitHub; compilación y prueba funcional de este incremento pendientes de comprobar.
