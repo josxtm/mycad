@@ -23,17 +23,30 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Preparar informes
+        run: mkdir -p reports
       - name: Comprobar integridad del proyecto
-        run: bash scripts/verify-project.sh
+        id: integrity
+        run: set -o pipefail; bash scripts/verify-project.sh 2>&1 | tee reports/integridad.log
+        shell: bash
       - name: Probar geometría sin Android
+        id: geometry
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p build/geometry-tests
+          {
           javac -d build/geometry-tests app/src/main/java/es/josxtm/mycad/GeometryMath.java app/src/main/java/es/josxtm/mycad/BoxBoolean.java app/src/main/java/es/josxtm/mycad/BoxBooleanMesh.java tests/GeometryMathTest.java tests/BoxBooleanTest.java tests/BoxBooleanMeshTest.java
           java -cp build/geometry-tests GeometryMathTest
           java -cp build/geometry-tests BoxBooleanTest
           java -cp build/geometry-tests BoxBooleanMeshTest
+          } 2>&1 | tee reports/geometria.log
       - name: Compilar, ejecutar pruebas y comprobar Lint
-        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
+        id: build
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee reports/gradle.log
       - name: Verificar APK y nombre de versión
         id: apk
         shell: bash
@@ -45,6 +58,43 @@ jobs:
           test -s "$APK"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "apk=$APK" >> "$GITHUB_OUTPUT"
+      - name: Crear informe de ejecución
+        if: always()
+        shell: bash
+        env:
+          INTEGRITY: ${{ steps.integrity.outcome }}
+          GEOMETRY: ${{ steps.geometry.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          APK_CHECK: ${{ steps.apk.outcome }}
+        run: |
+          mkdir -p reports
+          {
+            echo "# MyCAD · Informe de compilación"
+            echo
+            echo "- Ejecución: $GITHUB_RUN_NUMBER"
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Rama: $GITHUB_REF_NAME"
+            echo "- Integridad: ${INTEGRITY:-unknown}"
+            echo "- Pruebas geométricas: ${GEOMETRY:-unknown}"
+            echo "- Gradle / Lint / tests: ${BUILD:-unknown}"
+            echo "- Verificación APK: ${APK_CHECK:-unknown}"
+            echo
+            echo "## Errores recientes"
+            if test -f reports/gradle.log; then
+              grep -Ei '(^| )error:|FAILURE:|What went wrong:|Execution failed|BUILD FAILED|[0-9]+ tests? failed' reports/gradle.log | tail -n 35 || true
+            fi
+            echo
+            echo "Consulta reports/gradle.log para el detalle completo."
+          } > reports/INFORME.md
+          cat reports/INFORME.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publicar informe incluso si falla
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-mycad-${{ github.run_number }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
       - name: Publicar APK solo tras superar verificaciones
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
