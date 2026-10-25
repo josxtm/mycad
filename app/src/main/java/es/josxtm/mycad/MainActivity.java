@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
  icon(left,"✎","Boceto 2D",()->chooseSketchPlane());icon(left,"↥","Extruir boceto",()->extrudeSketch());icon(left,"□","Crear rectángulo",()->edit(false,false));icon(left,"◯","Crear círculo",()->edit(true,false));icon(left,"✎","Editar pieza",()->{if(selected>=0)editLinkedOrPart();else toast("Selecciona una pieza");});icon(left,"☞","Modo navegar / mover / editar",()->chooseInteractionMode());icon(left,"✥","Mover / restricciones",()->moveOptions());icon(left,"⌫","Eliminar pieza",()->{if(selected>=0){checkpoint();parts.remove(selected);selected=-1;save();scene.invalidate();}else toast("Selecciona una pieza");});
  scene=new Scene();workspace.addView(scene,new LinearLayout.LayoutParams(0,-1,1));
  LinearLayout right=new LinearLayout(this);right.setOrientation(LinearLayout.VERTICAL);workspace.addView(right);rightBar=right;
- icon(right,"☷","Árbol de cuerpos",()->bodyTree());icon(right,"∩","Analizar booleanas",()->booleanAnalysis());icon(right,"▤","Resultados booleanos",()->booleanMeshManager());icon(right,"◇","Alternar vista 2D / 3D",()->{flat=!flat;scene.invalidate();});icon(right,"⊡","Centrar vista",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});icon(right,"▱","Visor 3D GPU",()->toggleMeshView());icon(right,"?","Guía",()->guide());
+ icon(right,"☷","Árbol de cuerpos",()->bodyTree());icon(right,"∩","Analizar booleanas",()->booleanAnalysis());icon(right,"▤","Resultados booleanos",()->booleanMeshManager());icon(right,"▦","Inspeccionar caras",()->inspectSelectedFaces());icon(right,"◇","Alternar vista 2D / 3D",()->{flat=!flat;scene.invalidate();});icon(right,"⊡","Centrar vista",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});icon(right,"▱","Visor 3D GPU",()->toggleMeshView());icon(right,"?","Guía",()->guide());
  LinearLayout modes=new LinearLayout(this);modes.setGravity(Gravity.CENTER);root.addView(modes);button(modes,"NAVEGAR",()->setInteractionMode(0));button(modes,"MOVER",()->setInteractionMode(1));button(modes,"EDITAR",()->setInteractionMode(2));button(modes,"GIRAR 3D",()->{rotationMode=true;setInteractionMode(0);scene.invalidate();rotateSelected3D();});button(modes,"XYZ mm",()->positionSelected());
  nextStep=new TextView(this);nextStep.setTextColor(Color.rgb(112,220,229));nextStep.setTextSize(11);root.addView(nextStep);
  root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(16+insets.getSystemWindowInsetLeft(),16+insets.getSystemWindowInsetTop(),16+insets.getSystemWindowInsetRight(),16+insets.getSystemWindowInsetBottom());return insets;});setContentView(root);root.requestApplyInsets();loadSettings();applyTheme();load();if(b!=null)pendingExport=b.getString("pendingExport");updateStep();
@@ -227,6 +227,23 @@ public class MainActivity extends Activity {
     try{startActivityForResult(i,EXPORT_MESH);}
     catch(Exception e){pendingMeshExport=null;toast("No se pudo abrir el selector");}
    }).show();
+ }
+ void inspectSelectedFaces(){
+  if(selected<0||selected>=parts.size()){toast("Selecciona primero un cuerpo");return;}
+  Part p=parts.get(selected);
+  if(p.circle){new AlertDialog.Builder(this).setTitle("Superficies del cilindro")
+    .setItems(new String[]{"Tapa superior","Tapa inferior","Superficie lateral"},(d,n)->{
+      info.setText("Cuerpo "+(selected+1)+" · "+new String[]{"Tapa superior","Tapa inferior","Superficie lateral"}[n]);
+    }).show();return;}
+  final String[] faceNames={"Superior (+Z)","Inferior (-Z)","Derecha (+X)","Izquierda (-X)","Posterior (+Y)","Frontal (-Y)"};
+  new AlertDialog.Builder(this).setTitle("Caras del prisma "+(selected+1))
+   .setItems(faceNames,(d,n)->{
+    float area=n<2?p.w*p.d:n<4?p.d*p.h:p.w*p.h;
+    info.setText(String.format(java.util.Locale.US,"%s · área %.2f mm²",faceNames[n],area));
+    new AlertDialog.Builder(this).setTitle(faceNames[n])
+     .setMessage(String.format(java.util.Locale.US,"Área nominal: %.2f mm²\\nSelección informativa. No se modifica la geometría.",area))
+     .setPositiveButton("Aceptar",null).show();
+   }).setNegativeButton("Cancelar",null).show();
  }
  void bodyTree(){if(parts.isEmpty()){toast("Todavía no hay cuerpos");return;}String[] names=new String[parts.size()];for(int i=0;i<parts.size();i++){Part p=parts.get(i);names[i]=(i==selected?"● ":"○ ")+"Cuerpo "+(i+1)+" · "+(p.circle?"Cilindro":"Prisma")+(p.sourceSketchId.isEmpty()?"":" · Vinculado")+" · "+Math.round(p.w)+"×"+Math.round(p.d)+"×"+Math.round(p.h)+" mm";}new AlertDialog.Builder(this).setTitle("Árbol de cuerpos").setSingleChoiceItems(names,selected,(d,i)->{selected=i;selectedSketch=-1;scene.invalidate();d.dismiss();}).setPositiveButton("Cerrar",null).show();}
  void chooseInteractionMode(){new AlertDialog.Builder(this).setTitle("Modo de interacción").setSingleChoiceItems(new String[]{"NAVEGAR · Girar cámara con un dedo","MOVER · Arrastrar pieza seleccionada","EDITAR · Arrastrar controladores"},interactionMode,(d,n)->{setInteractionMode(n);d.dismiss();}).setNegativeButton("Cancelar",null).show();}
