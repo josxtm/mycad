@@ -586,10 +586,14 @@ public class MainActivity extends Activity {
    actions.add(step.face.name()+" · "+step.distance+" mm · editar");
   actions.add("Eliminar última extrusión");
   actions.add("Ver unión de toda la cadena");
+  actions.add("Cortar cadena con prisma seleccionado");
+  actions.add("Intersección con prisma seleccionado");
   new AlertDialog.Builder(this).setTitle("Cadena "+(index+1))
    .setItems(actions.toArray(new String[0]),(dialog,choice)->{
-    if(choice==actions.size()-1){showChainUnion(chain);return;}
-    if(choice==actions.size()-2){
+    if(choice==actions.size()-1){previewChainBoolean(chain,MultiBoxUnion.Operation.INTERSECTION);return;}
+    if(choice==actions.size()-2){previewChainBoolean(chain,MultiBoxUnion.Operation.DIFFERENCE);return;}
+    if(choice==actions.size()-3){showChainUnion(chain);return;}
+    if(choice==actions.size()-4){
      if(chain.size()==0){toast("No hay extrusiones");return;}
      checkpoint();chain.removeLast();save();refreshChainScene();
     }else{
@@ -601,6 +605,28 @@ public class MainActivity extends Activity {
      }else chainDistanceDialog(chain,index,stepIndex,chain.history().get(stepIndex).face);
     }
    }).setNegativeButton("Cerrar",null).show();
+ }
+ void previewChainBoolean(es.josxtm.mycad.cad.FaceExtrusionChain chain,MultiBoxUnion.Operation operation){
+  if(selected<0||selected>=parts.size()){toast("Selecciona antes el prisma que servirá como cortador");return;}
+  Part cutter=parts.get(selected);
+  if(cutter.circle||cutter.rotationX!=0||cutter.rotationY!=0||cutter.rotationZ!=0){toast("Cortador: prisma rectangular sin rotación");return;}
+  try{
+   java.util.ArrayList<BoxBoolean.Box> operands=new java.util.ArrayList<>();
+   for(es.josxtm.mycad.cad.FaceExtrusionChain.Solid solid:chain.regenerate())
+    operands.add(new BoxBoolean.Box(solid.x,solid.y,solid.z,solid.w,solid.d,solid.h));
+   // Convert the editable chain to its cells, then apply the cutter to each;
+   // the preview is a mesh result, not a destructive feature.
+   java.util.ArrayList<Float> triangles=new java.util.ArrayList<>();
+   BoxBoolean.Box b=new BoxBoolean.Box(cutter.x,cutter.y,cutter.z,cutter.w,cutter.d,cutter.h);
+   for(BoxBoolean.Box a:operands){
+    float[] surface=MultiBoxUnion.build(java.util.Arrays.asList(a,b),operation);
+    for(float value:surface)triangles.add(value);
+   }
+   if(triangles.isEmpty()){toast("El resultado es vacío");return;}
+   float[] mesh=new float[triangles.size()];for(int i=0;i<mesh.length;i++)mesh[i]=triangles.get(i);
+   showMeshOnly(new MeshEngine.Mesh(mesh));
+   info.setText(operation==MultiBoxUnion.Operation.DIFFERENCE?"Vista de corte rectangular":"Vista de intersección rectangular");
+  }catch(Exception error){toast("No se pudo calcular la operación booleana");}
  }
  void showChainUnion(es.josxtm.mycad.cad.FaceExtrusionChain chain){
   try{
