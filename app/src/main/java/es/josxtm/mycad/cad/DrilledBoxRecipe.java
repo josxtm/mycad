@@ -5,6 +5,8 @@ public final class DrilledBoxRecipe {
  public final double x,y,z,width,depth,height,holeX,holeY,diameter;
  public final OrientedThroughHole.Axis axis;
  public final double rotationX,rotationY,rotationZ;
+ /** 0 = through-hole, otherwise blind depth in millimetres from the positive local-axis face. */
+ public final double drillDepth;
  public DrilledBoxRecipe(double x,double y,double z,double width,double depth,double height,
                          double holeX,double holeY,double diameter){
   this(x,y,z,width,depth,height,holeX,holeY,diameter,OrientedThroughHole.Axis.Z,0,0,0);
@@ -12,24 +14,34 @@ public final class DrilledBoxRecipe {
  public DrilledBoxRecipe(double x,double y,double z,double width,double depth,double height,
                          double holeX,double holeY,double diameter,
                          OrientedThroughHole.Axis axis,double rotationX,double rotationY,double rotationZ){
+  this(x,y,z,width,depth,height,holeX,holeY,diameter,axis,rotationX,rotationY,rotationZ,0);
+ }
+ public DrilledBoxRecipe(double x,double y,double z,double width,double depth,double height,
+                         double holeX,double holeY,double diameter,
+                         OrientedThroughHole.Axis axis,double rotationX,double rotationY,double rotationZ,
+                         double drillDepth){
   this.x=x;this.y=y;this.z=z;this.width=width;this.depth=depth;this.height=height;
   this.holeX=holeX;this.holeY=holeY;this.diameter=diameter;
-  this.axis=axis;this.rotationX=rotationX;this.rotationY=rotationY;this.rotationZ=rotationZ;
+  this.axis=axis;this.rotationX=rotationX;this.rotationY=rotationY;this.rotationZ=rotationZ;this.drillDepth=drillDepth;
   regenerate(); // Validate before exposing or saving recipe.
  }
  public DrilledBoxRecipe withHole(double offsetX,double offsetY,double diameter){
-  return new DrilledBoxRecipe(x,y,z,width,depth,height,offsetX,offsetY,diameter,axis,rotationX,rotationY,rotationZ);
+  return new DrilledBoxRecipe(x,y,z,width,depth,height,offsetX,offsetY,diameter,axis,rotationX,rotationY,rotationZ,drillDepth);
  }
  public DrilledBoxRecipe withAxis(OrientedThroughHole.Axis next){
-  return new DrilledBoxRecipe(x,y,z,width,depth,height,holeX,holeY,diameter,next,rotationX,rotationY,rotationZ);
+  return new DrilledBoxRecipe(x,y,z,width,depth,height,holeX,holeY,diameter,next,rotationX,rotationY,rotationZ,drillDepth);
+ }
+ public DrilledBoxRecipe withDepth(double newDepth){
+  return new DrilledBoxRecipe(x,y,z,width,depth,height,holeX,holeY,diameter,axis,
+                              rotationX,rotationY,rotationZ,newDepth);
  }
  public float[] regenerate(){
   return OrientedThroughHole.triangles(width,depth,height,holeX,holeY,diameter,axis,
-    new RigidTransform(x,y,z,rotationX,rotationY,rotationZ));
+    new RigidTransform(x,y,z,rotationX,rotationY,rotationZ),drillDepth);
  }
  public double nominalVolume(){
   double length=axis==OrientedThroughHole.Axis.X?width:
                 axis==OrientedThroughHole.Axis.Y?depth:height;
-  return width*depth*height-Math.PI*diameter*diameter/4*length;
+  return width*depth*height-Math.PI*diameter*diameter/4*(drillDepth==0?length:drillDepth);
  }
 }
