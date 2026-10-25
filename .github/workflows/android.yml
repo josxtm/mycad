@@ -2,11 +2,13 @@ name: APK Android
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,20 +23,24 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - run: gradle :app:assembleDebug :app:lintDebug --no-daemon
-      - name: Detectar versión y comprobar APK
+      - name: Comprobar integridad del proyecto
+        run: bash scripts/verify-project.sh
+      - name: Compilar, ejecutar pruebas y comprobar Lint
+        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
+      - name: Verificar APK y nombre de versión
         id: apk
         shell: bash
         run: |
           set -euo pipefail
-          APK=$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name 'myCad*.apk' -print -quit)
-          test -n "$APK"
           VERSION=$(sed -nE "s/.*versionName[[:space:]]+['\"]([^'\"]+)['\"].*/\1/p" app/build.gradle | head -n 1)
           test -n "$VERSION"
-          test "$(basename "$APK")" = "myCad${VERSION}.apk"
+          APK="app/build/outputs/apk/debug/myCad${VERSION}.apk"
+          test -s "$APK"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "apk=$APK" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - name: Publicar APK solo tras superar verificaciones
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
         with:
           name: myCad${{ steps.apk.outputs.version }}
           path: ${{ steps.apk.outputs.apk }}
