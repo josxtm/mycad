@@ -145,3 +145,7 @@ La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneEx
 ## Validación de edición de altura en Android
 
 `MainActivity.editExtrusionHeight` comprueba ahora, para prismas rectangulares vinculados a un boceto existente, la extrusión con `PlaneExtrusion` y `PrimitiveKernel` antes de guardar la modificación. No altera el tratamiento actual de cilindros ni los archivos anteriores. La validación no equivale aún a sincronizar el historial de la UI con el documento paramétrico ni a B-Rep.
+
+## Lote integrado de edición de bocetos Android (2026-10-25)
+
+`SketchEditValidator` efectúa validación previa conjunta de un rectángulo modificado y de todas sus extrusiones vinculadas, en planos XY/XZ/YZ. Se conecta a **Acotar perfil** y **Editar boceto** antes de registrar el checkpoint, evitando guardar dimensiones degeneradas en esos flujos. Incluye pruebas Java de varios dependientes, extrusión de sentido negativo, alturas cero, planos inválidos y NaN. Se mantiene el guardado JSON v1, visor y geometría circular sin cambios. La UI no está todavía migrada al grafo paramétrico persistente; el avance no se debe interpretar como B-Rep.
