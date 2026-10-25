@@ -1,0 +1,37 @@
+# Estado de fases de MyCAD 0.6.0
+
+Revisión: 2026-10-25. **Progreso global estimado: 42 % antes de este lote**. Es juicio de ingeniería sobre el objetivo CAD completo, no dato calculado por GitHub ni equivalencia a madurez comercial. El porcentaje no implica certificación funcional en teléfono.
+
+| Fase | Estado | Alcance / limitación |
+|---|---|---|
+| Primitivas prismáticas y cilíndricas | Base implementada | Mallas trianguladas y transformaciones XYZ |
+| Navegación, zoom, ViewCube | Parcial | ViewCube y selección avanzada precisan más trabajo |
+| Bocetos en XY/XZ/YZ y cotas | Parcial | Falta solver de restricciones generales |
+| Extrusión 2D→3D | Básica | Parte de los vínculos son prototipos |
+| Guardado, apertura, deshacer/rehacer | Base implementada | JSON v1 y migración pendiente |
+| Intercambio STL/OBJ | Básico | No son formatos sólidos paramétricos |
+| Booleanas entre prismas rectangulares | Limitadas | Cajas sin giros en operaciones principales |
+| Historial encadenado y recetas booleanas | Parcial | No existe árbol de features general |
+| Cilindros, taladros XYZ ciegos/pasantes | Base implementada | Triangulación poligonal, no B-Rep |
+| Selección de caras/aristas | Parcial | Sin IDs topológicos persistentes |
+| CI + regresiones geométricas | Activo | Compilar no equivale a validar en Nothing Phone 2a |
+
+## Fases principales pendientes
+
+1. **Booleanas curvas generales**: unión, corte e intersección para sólidos de geometría arbitraria. Este lote añade un **subconjunto delimitado** entre caja y cilindro, cuando el cutter está alineado con uno de los ejes locales, cabe en la sección y entra por la cara positiva. Corte y previsualización de intersección; no sustituye un motor general.
+2. **Topología B-Rep** con caras, aristas, vértices y referencias estables.
+3. **Historial paramétrico completo**: dependencias, inserción y reconstrucción ante cambios topológicos.
+4. **Sketch solver**: restricciones geométricas, perfiles complejos, snapping robusto.
+5. **Redondeos y chaflanes** verdaderos, shell, patrones, loft y operaciones avanzadas.
+6. **Selección y edición 3D táctil**: ray casting profundo, aristas, ViewCube completo, manipulación con gestos.
+7. **Persistencia versionada del motor nuevo** e interoperabilidad CAD sólida además de STL/OBJ.
+8. **Calidad y rendimiento** en geometría compleja; pruebas en Nothing Phone 2a y cierre de errores.
+
+## Nueva etapa en este lote: prismas y cilindros
+
+- `RigidTransform.inversePoint` permite analizar un cortador en coordenadas locales del prisma, incluso si los dos cuerpos están girados en mundo.
+- `CylinderBoxBoolean.calculate` identifica si un cilindro ocupa un eje local X/Y/Z del prisma, cabe completamente en su cara transversal y atraviesa la cara **positiva**. La operación devuelve una receta editable `DrilledBoxRecipe` para la diferencia y una malla cerrada de intersección.
+- Menú Android `Proyecto → Booleanas prisma + cilindro`: seleccionar prisma, elegir cilindro, previsualizar corte/intersección y guardar. Guardar consume los dos cuerpos originales, con deshacer. Los cortes se conservan como recetas editables; las intersecciones guardadas son mallas sin historial de cilindro.
+- Se corrige la posición espacial de taladros X/Y, cuyo mapeo local anteriormente desplazaba el centro en Z media altura.
+- Las pruebas abarcan volumen, manifold, transformación inversa, taladros espaciales y rechazos de casos fuera del subconjunto. **No se admiten** cilindros inclinados respecto de los ejes del prisma, cilindros que cruzan un lateral, unión general ni diferencias con entradas por la cara negativa.
+- Es un incremento de alcance restringido y no cambia la estimación global de 42 % sin validación del teléfono y criterios más amplios de aceptación.
