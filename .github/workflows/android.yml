@@ -60,6 +60,8 @@ jobs:
           java -cp build/geometry-tests CadRayPickerTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/BoxFaceSelection.java tests/BoxFaceSelectionTest.java
           java -cp build/geometry-tests BoxFaceSelectionTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadSceneFaceMap.java tests/CadSceneFaceMapTest.java
+          java -cp build/geometry-tests CadSceneFaceMapTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadIntegrationProbe.java tests/CadIntegrationProbeTest.java
           java -cp build/geometry-tests CadIntegrationProbeTest
           } 2>&1 | tee reports/geometria.log
