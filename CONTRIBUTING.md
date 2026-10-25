@@ -32,4 +32,6 @@ La plantilla y esta política **no impiden técnicamente** que alguien con permi
 
 ## Limpieza de ramas
 
+La rama temporal específica `development/box-brep-check` (commit WIP `c6255b2`) puede eliminarse por la rutina de mantenimiento cuando se fusione la PR correspondiente: solo se retira si conserva exactamente ese SHA. Si no llega a retirarse, eliminarla manualmente en **Code → Branches**.
+
 Antes de borrar una rama, comparar `main...<rama>` y asegurarse de que no hay trabajo útil exclusivo. Las ramas de experimentación divergentes pueden conservar commits preliminares (incluso defectuosos) que hayan sido sustituidos por commits validados en `main`: registrar este hecho y borrar la rama desde **Code → Branches**. Nunca borrar `main` ni reescribir su historial para limpiar una rama experimental.
