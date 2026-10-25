@@ -40,6 +40,10 @@ for marker in ('.put("axis",drill.axis.name())', 'Axis.valueOf(v.optString("axis
 for marker in ('.put("drillDepth",drill.drillDepth)', 'v.optDouble("drillDepth",0)', 'previous.rotationZ,vals[3]', 'axis,parent.rotationX,parent.rotationY,parent.rotationZ,vals[3]', "drill.drillDepth==0"):
     if marker not in source:
         raise SystemExit("ERROR: profundidad de perforación no persistente: "+marker)
+for marker in ("void cylinderBoxBooleanMenu()","CylinderBoxBoolean.calculate(","result.cut.regenerate()",
+               "result.intersection","holeRecipes.add(option==2?result.cut:null)"):
+    if marker not in source:
+        raise SystemExit("ERROR: operaciones curvas no integradas: "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
