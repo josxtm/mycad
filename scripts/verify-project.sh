@@ -35,7 +35,7 @@ apk_step=normal_step[1].split("- name: Verificar APK y nombre de versión",1)
 require(len(apk_step)==2, "falta verificación del paquete")
 require("github.event_name == 'workflow_dispatch'" in apk_step[0] and
         "inputs.generar_apk == true" in apk_step[0] and
-        "contains(github.event.head_commit.message, '[apk]')" in apk_step[0],
+        "startsWith(github.event.head_commit.message, 'release: MyCAD ')" in apk_step[0],
         "no existe condición exclusiva de hito o ejecución manual")
 require("gradle :app:assembleDebug --no-daemon" in apk_step[0],
         "falta comando de empaquetado por hito")
