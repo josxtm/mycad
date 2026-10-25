@@ -5,8 +5,9 @@ import java.util.*;
 /** Pure Java XY rectangular sketch-to-box feature graph with atomic revisions. */
 public final class ParametricSketchDocument {
  public static final class Rectangle {
-  public final String id; public final double x,y,width,depth;
-  Rectangle(String id,double x,double y,double width,double depth){this.id=id;this.x=x;this.y=y;this.width=width;this.depth=depth;}
+  public final String id; public final double x,y,width,depth; public final PlaneExtrusion.Plane plane;
+  Rectangle(String id,double x,double y,double width,double depth){this.id=id;this.x=x;this.y=y;this.width=width;this.depth=depth;this.plane=PlaneExtrusion.Plane.XY;}
+  Rectangle(String id,double x,double y,double width,double depth,PlaneExtrusion.Plane plane){this.id=id;this.x=x;this.y=y;this.width=width;this.depth=depth;this.plane=plane;}
  }
  public static final class Extrusion {
   public final String id,sketchId,bodyId; public final double baseZ,height;
@@ -44,7 +45,7 @@ public final class ParametricSketchDocument {
   for(Extrusion feature:extrusions.values()){
    Rectangle sketch=sketches.get(feature.sketchId);
    if(sketch==null)return CadKernel.Result.invalid("Perfil dependiente inexistente");
-   CadKernel.Result<CadKernel.Box> result=kernel.createBox(sketch.x,sketch.y,feature.baseZ,sketch.width,sketch.depth,feature.height);
+   CadKernel.Result<CadKernel.Box> result=PlaneExtrusion.extrude(kernel,sketch.plane,sketch.x,sketch.y,feature.baseZ,sketch.width,sketch.depth,feature.height);
    if(!result.isSuccess())return result;
    CadKernel.Box raw=result.value;
    CadKernel.Box box=new CadKernel.Box(feature.bodyId,raw.x,raw.y,raw.z,raw.width,raw.depth,raw.height);
@@ -54,11 +55,12 @@ public final class ParametricSketchDocument {
   commit(new State(sketches,extrusions,built));
   return CadKernel.Result.success(selected);
  }
- public String addRectangle(double x,double y,double width,double depth){
-  if(!validRectangle(x,y,width,depth))return null;
+ public String addRectangle(double x,double y,double width,double depth){return addRectangleOnPlane(PlaneExtrusion.Plane.XY,x,y,width,depth);}
+ public String addRectangleOnPlane(PlaneExtrusion.Plane plane,double x,double y,double width,double depth){
+  if(plane==null||!validRectangle(x,y,width,depth))return null;
   String id=UUID.randomUUID().toString();
   Map<String,Rectangle> next=new LinkedHashMap<>(sketches());
-  next.put(id,new Rectangle(id,x,y,width,depth));
+  next.put(id,new Rectangle(id,x,y,width,depth,plane));
   commit(new State(next,extrusions(),bodies()));return id;
  }
  public CadKernel.Result<CadKernel.Box> extrude(String sketchId,double baseZ,double height){
@@ -88,7 +90,7 @@ public final class ParametricSketchDocument {
  public boolean updateRectangle(String sketchId,double x,double y,double width,double depth){
   if(!sketches().containsKey(sketchId)||!validRectangle(x,y,width,depth))return false;
   Map<String,Rectangle> next=new LinkedHashMap<>(sketches());
-  next.put(sketchId,new Rectangle(sketchId,x,y,width,depth));
+  next.put(sketchId,new Rectangle(sketchId,x,y,width,depth,sketches().get(sketchId).plane));
   CadKernel.Result<CadKernel.Box> result=rebuild(next,extrusions(),null);
   return result.isSuccess();
  }
@@ -104,7 +106,7 @@ public final class ParametricSketchDocument {
   StringBuilder result=new StringBuilder("MYCAD-PARAMETRIC|1\n");
   for(Rectangle shape:sketches().values())
    result.append("R|").append(shape.id).append('|').append(shape.x).append('|')
-    .append(shape.y).append('|').append(shape.width).append('|').append(shape.depth).append('\n');
+    .append(shape.y).append('|').append(shape.width).append('|').append(shape.depth).append('|').append(shape.plane.name()).append('\n');
   for(Extrusion feature:extrusions().values())
    result.append("E|").append(feature.id).append('|').append(feature.sketchId).append('|')
     .append(feature.bodyId).append('|').append(feature.baseZ).append('|')
@@ -127,11 +129,12 @@ public final class ParametricSketchDocument {
    if(line.isEmpty()){if(i!=lines.length-1)throw new IllegalArgumentException("Línea vacía");continue;}
    String[] cells=line.split("\\|",-1);
    try{
-    if(cells.length==6&&"R".equals(cells[0])){
+    if((cells.length==6||cells.length==7)&&"R".equals(cells[0])){
      String id=uuid(cells[1]);
      double x=Double.parseDouble(cells[2]),y=Double.parseDouble(cells[3]);
      double w=Double.parseDouble(cells[4]),d=Double.parseDouble(cells[5]);
-     if(!validRectangle(x,y,w,d)||sketches.putIfAbsent(id,new Rectangle(id,x,y,w,d))!=null)
+     PlaneExtrusion.Plane plane=cells.length==7?PlaneExtrusion.Plane.valueOf(cells[6]):PlaneExtrusion.Plane.XY;
+     if(!validRectangle(x,y,w,d)||sketches.putIfAbsent(id,new Rectangle(id,x,y,w,d,plane))!=null)
       throw new IllegalArgumentException("Rectángulo no válido o duplicado");
     }else if(cells.length==6&&"E".equals(cells[0])){
      String id=uuid(cells[1]),sketchId=uuid(cells[2]),bodyId=uuid(cells[3]);
