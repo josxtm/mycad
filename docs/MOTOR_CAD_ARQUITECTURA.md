@@ -201,3 +201,7 @@ El menú de proyecto ofrece `Alternar visor CAD experimental`, desactivado inici
 ## Referencia de cara seleccionada (2026-10-25)
 
 `CadFaceReference` captura el índice de pieza y la cara lógica (X/Y/Z mínima o máxima) dentro de la sesión; permite comprobar si el índice sigue dentro del rango y localizar sus dos triángulos. En el visor experimental `MainActivity.activeCadFace` recibe la referencia cuando se toca una cara y se limpia al salir del modo o tocar mallas no asociadas. La referencia **no es todavía un identificador persistente**: un cambio de orden, eliminación o carga del proyecto puede invalidarla. No se utiliza para modificar geometría en esta fase. Las pruebas Java cubren igualdad, límites y entrada inválida.
+
+## Primera edición desde cara seleccionada (2026-10-25)
+
+Menú `Proyecto MyCAD` → `Editar cara seleccionada`: con un prisma seleccionado desde el visor GPU experimental, la cara lógica `Z_MAX` abre el editor de altura de extrusión existente. Reutiliza validación de extrusiones, `checkpoint` (deshacer), guardado y actualización de la malla GPU. La edición es una operación **sobre la altura del prisma**, no un offset topológico de caras; las demás caras todavía muestran una restricción explícita. Al deshacer, crear o cargar un proyecto, o alternar el visor, se limpia la referencia temporal de cara para evitar selecciones obsoletas.
