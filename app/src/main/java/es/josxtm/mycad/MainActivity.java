@@ -36,7 +36,25 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;}}).show();}
+ void cadEngineDiagnostic(){
+  try{
+   java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.SketchData> ss=new java.util.ArrayList<>();
+   java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.PartData> pp=new java.util.ArrayList<>();
+   for(Sketch sketch:sketches)
+    ss.add(new es.josxtm.mycad.cad.CadIntegrationProbe.SketchData(sketch.id,sketch.type,sketch.plane,sketch.x1,sketch.y1,sketch.x2,sketch.y2));
+   for(Part part:parts)
+    pp.add(new es.josxtm.mycad.cad.CadIntegrationProbe.PartData(part.sourceSketchId,part.h));
+   es.josxtm.mycad.cad.CadIntegrationProbe.Report result=es.josxtm.mycad.cad.CadIntegrationProbe.inspect(ss,pp);
+   String summary="Bocetos rectangulares compatibles: "+result.compatibleSketches
+    +"\\nExtrusiones interpretadas: "+result.compatibleExtrusions
+    +"\\nBocetos no compatibles: "+result.unsupportedSketches
+    +"\\nPiezas sin vínculo: "+result.unlinkedParts
+    +"\\nExtrusiones inválidas o sin boceto: "+result.invalidExtrusions
+    +"\\n\\nSolo diagnóstico: no modifica el diseño ni sustituye al motor actual.";
+   new AlertDialog.Builder(this).setTitle("Diagnóstico del motor CAD").setMessage(summary).setPositiveButton("Cerrar",null).show();
+  }catch(Exception error){toast("No se pudo analizar el diseño");}
+ }
  void chooseSketchPlane(){new AlertDialog.Builder(this).setTitle("Plano de boceto").setSingleChoiceItems(new String[]{"XY · planta","XZ · alzado","YZ · lateral"},sketchPlane,(d,n)->{sketchPlane=n;flat=true;sketchTool=0;scene.invalidate();info.setText("Plano "+new String[]{"XY","XZ","YZ"}[n]+" seleccionado · Elige herramienta de boceto");d.dismiss();sketchMenu();}).setNegativeButton("Cancelar",null).show();}
  void sketchMenu(){String[] items={"Salir de boceto","Línea","Rectángulo","Círculo","Acotar seleccionado","Extruir seleccionado","Eliminar último boceto"};new AlertDialog.Builder(this).setTitle("Boceto táctil · plano "+new String[]{"XY","XZ","YZ"}[sketchPlane]).setItems(items,(d,n)->{if(n==4){dimensionSketch();return;}if(n==5){extrudeSketch();return;}if(n==6){if(!sketches.isEmpty()){checkpoint();Sketch removed=sketches.remove(sketches.size()-1);for(Part part:parts)if(removed.id.equals(part.sourceSketchId))part.sourceSketchId="";selectedSketch=-1;save();scene.invalidate();}return;}sketchTool=n;if(n>0){flat=true;info.setText("BOCETO · Arrastra con el dedo · Pellizca para zoom");}else info.setText("Toca para seleccionar · Mantén pulsado para mover");scene.invalidate();}).show();}
  Part makeExtrudedPart(Sketch q,float height){
