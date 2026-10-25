@@ -33,6 +33,26 @@ public final class ParametricSketchDocument {
  public Map<String,Rectangle> sketches(){return state().sketches;}
  public Map<String,Extrusion> extrusions(){return state().extrusions;}
  public Map<String,CadKernel.Box> bodies(){return state().bodies;}
+ /** Validate the feature graph and regenerated solid geometry without changing revision history. */
+ public List<String> validateIntegrity(){
+  List<String> errors=new ArrayList<>();
+  Set<String> bodyIds=new HashSet<>();
+  for(Extrusion feature:extrusions().values()){
+   Rectangle sketch=sketches().get(feature.sketchId);
+   if(sketch==null){errors.add("Missing sketch: "+feature.id);continue;}
+   if(!bodyIds.add(feature.bodyId))errors.add("Duplicate body: "+feature.bodyId);
+   CadKernel.Result<CadKernel.Box> result=PlaneExtrusion.extrude(kernel,sketch.plane,
+    sketch.x,sketch.y,feature.baseZ,sketch.width,sketch.depth,feature.height);
+   if(!result.isSuccess()){errors.add("Invalid extrusion: "+feature.id);continue;}
+   CadKernel.Box actual=bodies().get(feature.bodyId), expected=result.value;
+   if(actual==null||Double.compare(actual.x,expected.x)!=0||Double.compare(actual.y,expected.y)!=0
+    ||Double.compare(actual.z,expected.z)!=0||Double.compare(actual.width,expected.width)!=0
+    ||Double.compare(actual.depth,expected.depth)!=0||Double.compare(actual.height,expected.height)!=0)
+    errors.add("Mismatched body: "+feature.bodyId);
+  }
+  for(String bodyId:bodies().keySet())if(!bodyIds.contains(bodyId))errors.add("Orphan body: "+bodyId);
+  return Collections.unmodifiableList(errors);
+ }
  /** Features that depend on a sketch, in creation order. */
  public List<Extrusion> dependentsOf(String sketchId){
   List<Extrusion> found=new ArrayList<>();
