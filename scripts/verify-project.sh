@@ -128,4 +128,16 @@ for marker in ("void rebuildSavedChainBooleans()", "ChainBooleanRebuildCache.reb
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
+# B-Rep analytico: validar topologia cerrada en Java puro, sin APK.
+mkdir -p build/box-brep-tests
+javac -d build/box-brep-tests \
+  app/src/main/java/es/josxtm/mycad/cad/CadKernel.java \
+  app/src/main/java/es/josxtm/mycad/cad/RigidTransform.java \
+  app/src/main/java/es/josxtm/mycad/cad/TransformedBody.java \
+  app/src/main/java/es/josxtm/mycad/cad/BoxSurface.java \
+  app/src/main/java/es/josxtm/mycad/cad/BoxFaceSelection.java \
+  app/src/main/java/es/josxtm/mycad/cad/BoxBRep.java \
+  tests/BoxBRepTest.java
+java -cp build/box-brep-tests BoxBRepTest
+
 echo "Comprobaciones básicas del proyecto: OK"
