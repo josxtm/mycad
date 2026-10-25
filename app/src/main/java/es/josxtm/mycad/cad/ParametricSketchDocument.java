@@ -88,6 +88,22 @@ public final class ParametricSketchDocument {
   next.put(featureId,new Extrusion(previous.id,previous.sketchId,previous.bodyId,previous.baseZ,newHeight));
   return rebuild(sketches(),next,previous.bodyId).isSuccess();
  }
+ /** Move a feature along its sketch plane normal without changing its identity. */
+ public boolean setExtrusionOffset(String featureId,double newOffset){
+  Extrusion previous=extrusions().get(featureId);
+  if(previous==null||!Double.isFinite(newOffset))return false;
+  Map<String,Extrusion> next=new LinkedHashMap<>(extrusions());
+  next.put(featureId,new Extrusion(previous.id,previous.sketchId,previous.bodyId,newOffset,previous.height));
+  return rebuild(sketches(),next,previous.bodyId).isSuccess();
+ }
+ /** Move an existing sketch between principal planes, rebuilding all dependent bodies atomically. */
+ public boolean setSketchPlane(String sketchId,PlaneExtrusion.Plane newPlane){
+  Rectangle previous=sketches().get(sketchId);
+  if(previous==null||newPlane==null)return false;
+  Map<String,Rectangle> next=new LinkedHashMap<>(sketches());
+  next.put(sketchId,new Rectangle(previous.id,previous.x,previous.y,previous.width,previous.depth,newPlane));
+  return rebuild(next,extrusions(),null).isSuccess();
+ }
  /** Remove one extrusion and its generated body, leaving the source sketch intact. */
  public boolean removeExtrusion(String featureId){
   if(!extrusions().containsKey(featureId))return false;
