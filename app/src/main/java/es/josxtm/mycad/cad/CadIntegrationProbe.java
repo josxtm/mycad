@@ -45,15 +45,15 @@ public final class CadIntegrationProbe {
    if(part==null||part.sourceSketchId==null||part.sourceSketchId.isEmpty()){unlinked++;continue;}
    String source=linked.get(part.sourceSketchId);
    if(source==null){invalid++;continue;}
-   CadKernel.Result<CadKernel.Box> result=model.extrude(source,0,part.height);
-   if(!result.isSuccess())invalid++;
-   else{
-    try{
-     double[] world=new TransformedBody(result.value,new RigidTransform(part.tx,part.ty,part.tz,part.rx,part.ry,part.rz)).worldBounds();
-     for(double number:world)if(!Double.isFinite(number))throw new IllegalArgumentException("Invalid bound");
-     extrusions++;partIndices.add(index);bodyIds.add(result.value.id);bounds.add(world);
-    }catch(IllegalArgumentException error){invalid++;}
-   }
+   try{
+    RigidTransform transform=new RigidTransform(part.tx,part.ty,part.tz,part.rx,part.ry,part.rz);
+    if(!Double.isFinite(part.height)){invalid++;continue;}
+    CadKernel.Result<CadKernel.Box> result=model.extrude(source,0,part.height);
+    if(!result.isSuccess()){invalid++;continue;}
+    double[] world=new TransformedBody(result.value,transform).worldBounds();
+    for(double number:world)if(!Double.isFinite(number))throw new IllegalStateException("Invalid transformed bound");
+    extrusions++;partIndices.add(index);bodyIds.add(result.value.id);bounds.add(world);
+   }catch(IllegalArgumentException error){invalid++;}
   }
   if(!model.validateIntegrity().isEmpty())throw new IllegalStateException("Probe generated invalid geometry");
   String snapshot=model.exportSnapshot();
