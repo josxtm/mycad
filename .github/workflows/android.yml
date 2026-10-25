@@ -54,6 +54,8 @@ jobs:
           java -cp build/geometry-tests RigidTransformTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/TransformedBody.java tests/TransformedBodyTest.java
           java -cp build/geometry-tests TransformedBodyTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/BoxSurface.java tests/BoxSurfaceTest.java
+          java -cp build/geometry-tests BoxSurfaceTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadIntegrationProbe.java tests/CadIntegrationProbeTest.java
           java -cp build/geometry-tests CadIntegrationProbeTest
           } 2>&1 | tee reports/geometria.log
