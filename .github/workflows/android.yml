@@ -44,10 +44,10 @@ jobs:
           java -cp build/geometry-tests CadKernelTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadDocument.java tests/CadDocumentTest.java
           java -cp build/geometry-tests CadDocumentTest
-          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ParametricSketchDocument.java tests/ParametricSketchDocumentTest.java
-          java -cp build/geometry-tests ParametricSketchDocumentTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/PlaneExtrusion.java tests/PlaneExtrusionTest.java
           java -cp build/geometry-tests PlaneExtrusionTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ParametricSketchDocument.java tests/ParametricSketchDocumentTest.java
+          java -cp build/geometry-tests ParametricSketchDocumentTest
           } 2>&1 | tee reports/geometria.log
       - name: Compilar, ejecutar pruebas y comprobar Lint
         id: build
