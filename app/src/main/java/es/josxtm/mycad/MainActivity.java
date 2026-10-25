@@ -39,7 +39,91 @@ public class MainActivity extends Activity {
  void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;}}).show();}
  void chooseSketchPlane(){new AlertDialog.Builder(this).setTitle("Plano de boceto").setSingleChoiceItems(new String[]{"XY · planta","XZ · alzado","YZ · lateral"},sketchPlane,(d,n)->{sketchPlane=n;flat=true;sketchTool=0;scene.invalidate();info.setText("Plano "+new String[]{"XY","XZ","YZ"}[n]+" seleccionado · Elige herramienta de boceto");d.dismiss();sketchMenu();}).setNegativeButton("Cancelar",null).show();}
  void sketchMenu(){String[] items={"Salir de boceto","Línea","Rectángulo","Círculo","Acotar seleccionado","Extruir seleccionado","Eliminar último boceto"};new AlertDialog.Builder(this).setTitle("Boceto táctil · plano "+new String[]{"XY","XZ","YZ"}[sketchPlane]).setItems(items,(d,n)->{if(n==4){dimensionSketch();return;}if(n==5){extrudeSketch();return;}if(n==6){if(!sketches.isEmpty()){checkpoint();sketches.remove(sketches.size()-1);selectedSketch=-1;save();scene.invalidate();}return;}sketchTool=n;if(n>0){flat=true;info.setText("BOCETO · Arrastra con el dedo · Pellizca para zoom");}else info.setText("Toca para seleccionar · Mantén pulsado para mover");scene.invalidate();}).show();}
- void extrudeSketch(){if(selectedSketch<0||selectedSketch>=sketches.size()){toast("Selecciona un rectángulo o círculo del boceto");return;}Sketch q=sketches.get(selectedSketch);if(q.type==1){toast("Una línea abierta no se puede extruir");return;}float w=Math.abs(q.x2-q.x1),d=q.type==3?w:Math.abs(q.y2-q.y1);if(q.type==3){w=(float)Math.hypot(q.x2-q.x1,q.y2-q.y1)*2;d=w;}if(w<.1f||d<.1f){toast("El perfil no tiene área suficiente");return;}final float profileWidth=w,profileDepth=d;EditText input=new EditText(this);input.setInputType(8194|4096);input.setText("20");new AlertDialog.Builder(this).setTitle("Extruir perfil · altura en mm").setMessage("Se creará un cuerpo desde el perfil seleccionado. Cancelar conserva el boceto.").setView(input).setNegativeButton("Cancelar",null).setPositiveButton("Extruir",(dialog,which)->{try{float height=Float.parseFloat(input.getText().toString().replace(',','.'));if(!Float.isFinite(height)||height<=0||height>10000||parts.size()>=500)throw new Exception();Part p=new Part(q.type==3,profileWidth,profileDepth,height,(q.x1+q.x2)/2);p.y=(q.y1+q.y2)/2;if(q.type==3){p.x=q.x1;p.y=q.y1;}if(q.plane==1){p.x=q.type==3?q.x1:(q.x1+q.x2)/2;p.y=height/2;p.z=(q.type==3?q.y1:(q.y1+q.y2)/2)-height/2;p.rotationX=-90;}else if(q.plane==2){p.x=height/2;p.y=q.type==3?q.x1:(q.x1+q.x2)/2;p.z=(q.type==3?q.y1:(q.y1+q.y2)/2)-height/2;p.rotationX=90;p.rotationZ=90;}checkpoint();parts.add(p);selected=parts.size()-1;selectedSketch=-1;sketchTool=0;flat=false;save();scene.invalidate();double volume=q.type==3?GeometryMath.cylinderVolume(profileWidth,height):GeometryMath.rectangleVolume(profileWidth,profileDepth,height);info.setText(String.format(java.util.Locale.US,"Sólido extruido · %.1f mm · %.1f mm³",height,volume));}catch(Exception ex){toast("Altura positiva hasta 10000 mm");}}).show();}
+ Part makeExtrudedPart(Sketch q,float height){
+  float width=q.type==3?(float)Math.hypot(q.x2-q.x1,q.y2-q.y1)*2:Math.abs(q.x2-q.x1);
+  float depth=q.type==3?width:Math.abs(q.y2-q.y1);
+  Part p=new Part(q.type==3,width,depth,height,(q.x1+q.x2)/2);
+  p.y=(q.y1+q.y2)/2;
+  if(q.type==3){p.x=q.x1;p.y=q.y1;}
+  if(q.plane==1){
+   p.x=q.type==3?q.x1:(q.x1+q.x2)/2;p.y=height/2;
+   p.z=(q.type==3?q.y1:(q.y1+q.y2)/2)-height/2;p.rotationX=-90;
+  }else if(q.plane==2){
+   p.x=height/2;p.y=q.type==3?q.x1:(q.x1+q.x2)/2;
+   p.z=(q.type==3?q.y1:(q.y1+q.y2)/2)-height/2;p.rotationX=90;p.rotationZ=90;
+  }
+  return p;
+ }
+ void extrudeSketch(){
+  if(selectedSketch<0||selectedSketch>=sketches.size()){toast("Selecciona un perfil de boceto");return;}
+  Sketch q=sketches.get(selectedSketch);
+  if(q.type==1){toast("Una línea abierta no se puede extruir");return;}
+  float w=q.type==3?(float)Math.hypot(q.x2-q.x1,q.y2-q.y1)*2:Math.abs(q.x2-q.x1);
+  float d=q.type==3?w:Math.abs(q.y2-q.y1);
+  if(w<.1f||d<.1f||parts.size()>=500){toast("Perfil inválido o límite de piezas alcanzado");return;}
+  final int previousSelection=selected;final boolean previousFlat=flat;
+  final Part draft=makeExtrudedPart(q,20f);
+  parts.add(draft);selected=parts.size()-1;flat=false;scene.invalidate();
+  LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);
+  panel.setPadding(dp(18),dp(8),dp(18),dp(8));
+  TextView caption=new TextView(this);caption.setText("Altura positiva en mm (1–10000)");panel.addView(caption);
+  EditText input=new EditText(this);input.setInputType(8194|4096);input.setText("20");
+  panel.addView(input);
+  SeekBar slider=new SeekBar(this);slider.setMax(199);slider.setProgress(19);panel.addView(slider);
+  final boolean[] changing={false},accepted={false};
+  slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+   public void onStartTrackingTouch(SeekBar bar){}
+   public void onStopTrackingTouch(SeekBar bar){}
+   public void onProgressChanged(SeekBar bar,int value,boolean fromUser){
+    if(!fromUser||changing[0])return;
+    changing[0]=true;input.setText(String.valueOf(value+1));changing[0]=false;
+    Part p=makeExtrudedPart(q,value+1);
+    updateDraft(draft,p);selected=parts.size()-1;scene.invalidate();
+   }
+  });
+  input.addTextChangedListener(new android.text.TextWatcher(){
+   public void beforeTextChanged(CharSequence a,int b,int c,int d){}
+   public void onTextChanged(CharSequence a,int b,int before,int count){
+    if(changing[0])return;
+    try{
+     float h=Float.parseFloat(a.toString().replace(',','.'));
+     if(!Float.isFinite(h)||h<=0||h>10000)return;
+     changing[0]=true;slider.setProgress(Math.max(0,Math.min(199,Math.round(h)-1)));changing[0]=false;
+     updateDraft(draft,makeExtrudedPart(q,h));scene.invalidate();
+    }catch(Exception ignored){}
+   }
+   public void afterTextChanged(android.text.Editable editable){}
+  });
+  AlertDialog dialog=new AlertDialog.Builder(this)
+   .setTitle("Extrusión · vista previa 3D")
+   .setView(panel)
+   .setNegativeButton("Cancelar",null)
+   .setPositiveButton("Crear sólido",null).create();
+  dialog.setOnDismissListener(dismissed->{
+   if(!accepted[0]){
+    parts.remove(draftIndex(parts,draft));selected=previousSelection;flat=previousFlat;scene.invalidate();
+   }
+  });
+  dialog.setOnShowListener(shown->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+   try{
+    float h=Float.parseFloat(input.getText().toString().replace(',','.'));
+    GeometryMath.requirePositive(h);
+    Part result=makeExtrudedPart(q,h);
+    // Remove transient preview before taking the undo snapshot.
+    int index=draftIndex(parts,draft);parts.remove(index);
+    selected=previousSelection;flat=previousFlat;checkpoint();
+    parts.add(result);selected=parts.size()-1;selectedSketch=-1;sketchTool=0;flat=false;
+    accepted[0]=true;save();scene.invalidate();
+    double volume=q.type==3?GeometryMath.cylinderVolume(w,h):GeometryMath.rectangleVolume(w,d,h);
+    info.setText(String.format(java.util.Locale.US,"Extrusión %.1f mm · volumen %.1f mm³",h,volume));
+    dialog.dismiss();
+   }catch(Exception ex){toast("Altura válida: mayor que 0 y hasta 10000 mm");}
+  }));
+  dialog.show();
+ }
+ void updateDraft(Part into,Part from){into.w=from.w;into.d=from.d;into.h=from.h;into.x=from.x;into.y=from.y;into.z=from.z;into.rotationX=from.rotationX;into.rotationY=from.rotationY;into.rotationZ=from.rotationZ;}\n int draftIndex(ArrayList<Part> all,Part draft){
+  int direct=all.indexOf(draft);return direct>=0?direct:all.size()-1;
+ }
  void dimensionSketch(){if(selectedSketch<0||selectedSketch>=sketches.size()){toast("Selecciona primero un boceto");return;}Sketch q=sketches.get(selectedSketch);if(q.type==1){EditText lengthInput=new EditText(this);lengthInput.setInputType(8194|4096);lengthInput.setText(String.format(java.util.Locale.US,"%.2f",Math.hypot(q.x2-q.x1,q.y2-q.y1)));new AlertDialog.Builder(this).setTitle("Longitud de línea · mm").setView(lengthInput).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,which)->{try{float length=Float.parseFloat(lengthInput.getText().toString().replace(',','.'));if(!Float.isFinite(length)||length<=0||length>10000)throw new Exception();float dx=q.x2-q.x1,dy=q.y2-q.y1;float oldLength=(float)Math.hypot(dx,dy);if(oldLength<.0001f)throw new Exception();checkpoint();q.x2=q.x1+dx*length/oldLength;q.y2=q.y1+dy*length/oldLength;save();scene.invalidate();info.setText("Línea acotada · "+length+" mm");}catch(Exception ex){toast("Longitud inválida (0–10000 mm)");}}).show();return;}LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(8),dp(20),dp(8));EditText[] e=new EditText[2];String[] labels=q.type==3?new String[]{"Diámetro (mm)"}:new String[]{"Ancho (mm)","Fondo (mm)"};for(int i=0;i<labels.length;i++){TextView label=new TextView(this);label.setText(labels[i]);box.addView(label);e[i]=new EditText(this);e[i].setInputType(8194|4096);e[i].setText(""+(q.type==3?2*Math.hypot(q.x2-q.x1,q.y2-q.y1):i==0?Math.abs(q.x2-q.x1):Math.abs(q.y2-q.y1)));box.addView(e[i]);}new AlertDialog.Builder(this).setTitle("Acotar perfil").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,w)->{try{float a=Float.parseFloat(e[0].getText().toString().replace(',','.'));float b=e[1]==null?a:Float.parseFloat(e[1].getText().toString().replace(',','.'));if(!Float.isFinite(a+b)||a<=0||b<=0||a>10000||b>10000)throw new Exception();checkpoint();if(q.type==3){q.x2=q.x1+a/2;q.y2=q.y1;}else{q.x2=q.x1+(q.x2>=q.x1?a:-a);q.y2=q.y1+(q.y2>=q.y1?b:-b);}save();scene.invalidate();}catch(Exception ex){toast("Cota inválida");}}).show();}
  void loadSettings(){android.content.SharedPreferences p=getPreferences(MODE_PRIVATE);darkMode=p.getBoolean("dark",true);rotateSensitivity=p.getFloat("rot",1f);zoomSensitivity=p.getFloat("zoom",1f);dragSensitivity=p.getFloat("drag",1f);gridVisible=p.getBoolean("gridVisible",true);snapEnabled=p.getBoolean("snap",false);gridStep=p.getFloat("gridStep",5);gridPlane=p.getInt("gridPlane",0);axesVisible=p.getBoolean("axes",true);cameraLock=p.getBoolean("cameraLock",true);moveMode=p.getInt("moveMode",0);moveAxis=p.getInt("moveAxis",0);}
  void applyTheme(){int bg=darkMode?Color.rgb(18,25,36):Color.rgb(235,241,247),fg=darkMode?Color.WHITE:Color.rgb(25,38,55),bar=darkMode?Color.rgb(34,47,64):Color.rgb(211,222,233);rootLayout.setBackgroundColor(bg);titleView.setTextColor(fg);info.setTextColor(fg);for(LinearLayout group:new LinearLayout[]{topBar,leftBar,rightBar})for(int i=0;i<group.getChildCount();i++){View v=group.getChildAt(i);if(v instanceof TextView){((TextView)v).setTextColor(fg);v.setBackgroundColor(bar);}}scene.invalidate();}
