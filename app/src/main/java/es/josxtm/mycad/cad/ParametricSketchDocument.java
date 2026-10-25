@@ -33,6 +33,14 @@ public final class ParametricSketchDocument {
  public Map<String,Rectangle> sketches(){return state().sketches;}
  public Map<String,Extrusion> extrusions(){return state().extrusions;}
  public Map<String,CadKernel.Box> bodies(){return state().bodies;}
+ /** Features that depend on a sketch, in creation order. */
+ public List<Extrusion> dependentsOf(String sketchId){
+  List<Extrusion> found=new ArrayList<>();
+  if(sketchId==null)return Collections.unmodifiableList(found);
+  for(Extrusion feature:extrusions().values())
+   if(sketchId.equals(feature.sketchId))found.add(feature);
+  return Collections.unmodifiableList(found);
+ }
  public boolean undo(){if(cursor==0)return false;cursor--;return true;}
  public boolean redo(){if(cursor+1==history.size())return false;cursor++;return true;}
  private void commit(State s){while(history.size()>cursor+1)history.remove(history.size()-1);history.add(s);cursor++;}
