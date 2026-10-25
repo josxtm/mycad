@@ -149,3 +149,7 @@ La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneEx
 ## Lote integrado de edición de bocetos Android (2026-10-25)
 
 `SketchEditValidator` efectúa validación previa conjunta de un rectángulo modificado y de todas sus extrusiones vinculadas, en planos XY/XZ/YZ. Se conecta a **Acotar perfil** y **Editar boceto** antes de registrar el checkpoint, evitando guardar dimensiones degeneradas en esos flujos. Incluye pruebas Java de varios dependientes, extrusión de sentido negativo, alturas cero, planos inválidos y NaN. Se mantiene el guardado JSON v1, visor y geometría circular sin cambios. La UI no está todavía migrada al grafo paramétrico persistente; el avance no se debe interpretar como B-Rep.
+
+## Vista previa de migración paramétrica (fase Android)
+
+`CadIntegrationProbe.inspect` genera ahora un `parametricSnapshot` de los perfiles rectangulares y sus extrusiones compatibles, lo vuelve a importar y verifica integridad y número de cuerpos antes de devolver el informe. El formato es MYCAD-PARAMETRIC|1. En proyectos mixtos es una **vista previa parcial**: círculos, piezas libres y mallas no se trasladan, por lo que nunca debe sustituir automáticamente el JSON v1. La aplicación no cambia aún el formato de guardado. Pruebas de ida/vuelta sobre documentos completos y mixtos.
