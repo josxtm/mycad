@@ -477,8 +477,8 @@ public class MainActivity extends Activity {
   if(!part.sourceSketchId.isEmpty()){
    Sketch source=null;
    for(Sketch q:sketches)if(q.id.equals(part.sourceSketchId)){source=q;break;}
-   if(source==null||source.type!=2||source.plane!=0){
-    toast("Edición vinculada disponible para rectángulos del plano XY");return;
+   if(source==null||source.type!=2||source.plane<0||source.plane>2){
+    toast("Edición vinculada solo para rectángulos XY/XZ/YZ");return;
    }
    final Sketch linked=source;
    final es.josxtm.mycad.cad.BoxFaceSelection.Face linkedFace=activeCadFace.face;
@@ -494,21 +494,8 @@ public class MainActivity extends Activity {
      try{
       if(partIndex>=parts.size()||parts.get(partIndex)!=original)throw new IllegalArgumentException();
       double delta=Double.parseDouble(input.getText().toString().replace(',','.'));
-      es.josxtm.mycad.cad.FaceResize.Dimensions resized=
-       es.josxtm.mycad.cad.FaceResize.move(part.w,part.d,part.h,part.x,part.y,part.z,linkedFace,delta);
-      float x1=linked.x1,y1=linked.y1,x2=linked.x2,y2=linked.y2;
-      float nextWidth=(float)resized.w,nextDepth=(float)resized.d;
-      float minX=Math.min(x1,x2),maxX=Math.max(x1,x2);
-      float minY=Math.min(y1,y2),maxY=Math.max(y1,y2);
-      switch(linkedFace){
-       case X_MIN:minX=maxX-nextWidth;break;
-       case X_MAX:maxX=minX+nextWidth;break;
-       case Y_MIN:minY=maxY-nextDepth;break;
-       case Y_MAX:maxY=minY+nextDepth;break;
-       default:throw new IllegalArgumentException();
-      }
-      float newX1=x2>=x1?minX:maxX,newX2=x2>=x1?maxX:minX;
-      float newY1=y2>=y1?minY:maxY,newY2=y2>=y1?maxY:minY;
+      double[] endpoints=es.josxtm.mycad.cad.LinkedFaceResize.resize(linked.plane,linked.x1,linked.y1,linked.x2,linked.y2,linkedFace,delta);
+      float newX1=(float)endpoints[0],newY1=(float)endpoints[1],newX2=(float)endpoints[2],newY2=(float)endpoints[3];
       if(!validateLinkedSketchEdit(linked,newX1,newY1,newX2,newY2))
        throw new IllegalArgumentException();
       checkpoint();linked.x1=newX1;linked.y1=newY1;linked.x2=newX2;linked.y2=newY2;
