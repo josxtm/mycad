@@ -511,6 +511,34 @@ public class MainActivity extends Activity {
 
  void addTri(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r){for(float v:p)a.add(v);for(float v:q)a.add(v);for(float v:r)a.add(v);}
  void quad(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r,float[] t){addTri(a,p,q,r);addTri(a,p,r,t);}
+ void selectChainTriangle(int triangle){
+  if(!cadGpuMesh||triangle<0)return;
+  int offset=importedMesh==null?0:importedMesh.triangles();
+  for(MeshEngine.Mesh m:booleanMeshes)offset+=m.triangles();
+  for(Part p:parts){
+   if(p.circle)return;
+   if(p.w>0&&p.d>0&&p.h>0)offset+=12;
+  }
+  for(int ci=0;ci<extrusionChains.size();ci++){
+   es.josxtm.mycad.cad.FaceExtrusionChain chain=extrusionChains.get(ci);
+   int count=chain.size()*12;
+   if(triangle>=offset&&triangle<offset+count){
+    int step=(triangle-offset)/12;
+    activeCadFace=null;
+    if(meshView!=null)meshView.highlightFace(-1);
+    info.setText("Cadena "+(ci+1)+" · extrusión "+(step+1)+" seleccionada");
+    final int chainIndex=ci,stepIndex=step;
+    new AlertDialog.Builder(this).setTitle("Extrusión "+(step+1)+" · cadena "+(ci+1))
+     .setItems(new String[]{"Editar distancia","Abrir historial"},(d,n)->{
+      if(chainIndex>=extrusionChains.size()||extrusionChains.get(chainIndex)!=chain)return;
+      if(n==0)chainDistanceDialog(chain,chainIndex,stepIndex,chain.history().get(stepIndex).face);
+      else editExtrusionChain(chainIndex);
+     }).show();
+    return;
+   }
+   offset+=count;
+  }
+ }
  void showGpuSurfaceSelection(int triangle,double x,double y,double z){
   String label="Triángulo "+(triangle+1);
   if(cadGpuMesh){
@@ -537,6 +565,7 @@ public class MainActivity extends Activity {
   if(!label.startsWith("Cuerpo "))activeCadFace=null;
   if(meshView!=null&&!label.startsWith("Cuerpo "))meshView.highlightFace(-1);
   info.setText(String.format(java.util.Locale.US,"%s · X %.1f · Y %.1f · Z %.1f mm",label,x,y,z));
+  if(!label.startsWith("Cuerpo "))selectChainTriangle(triangle);
  }
  void manageExtrusionChains(){
   java.util.ArrayList<String> choices=new java.util.ArrayList<>();
