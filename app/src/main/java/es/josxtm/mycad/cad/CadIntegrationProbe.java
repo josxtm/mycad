@@ -18,7 +18,9 @@ public final class CadIntegrationProbe {
  public static final class Report {
   public final int compatibleSketches,compatibleExtrusions,unsupportedSketches,unlinkedParts,invalidExtrusions;
   public final String parametricSnapshot;
-  Report(int s,int e,int u,int p,int i,String snapshot){compatibleSketches=s;compatibleExtrusions=e;unsupportedSketches=u;unlinkedParts=p;invalidExtrusions=i;parametricSnapshot=snapshot;}
+  public final List<Integer> compatiblePartIndices;
+  public final List<String> generatedBodyIds;
+  Report(int s,int e,int u,int p,int i,String snapshot,List<Integer> indices,List<String> bodyIds){compatibleSketches=s;compatibleExtrusions=e;unsupportedSketches=u;unlinkedParts=p;invalidExtrusions=i;parametricSnapshot=snapshot;compatiblePartIndices=Collections.unmodifiableList(new ArrayList<>(indices));generatedBodyIds=Collections.unmodifiableList(new ArrayList<>(bodyIds));}
   public boolean readyForMigration(){return unsupportedSketches==0&&unlinkedParts==0&&invalidExtrusions==0;}
  }
  public static Report inspect(List<SketchData> sketches,List<PartData> parts){
@@ -26,6 +28,7 @@ public final class CadIntegrationProbe {
   ParametricSketchDocument model=new ParametricSketchDocument(new PrimitiveKernel());
   Map<String,String> linked=new HashMap<>();
   int unsupported=0,invalid=0,unlinked=0,extrusions=0;
+  List<Integer> partIndices=new ArrayList<>();List<String> bodyIds=new ArrayList<>();
   for(SketchData sketch:sketches){
    if(sketch==null||sketch.id==null||sketch.type!=2||sketch.plane<0||sketch.plane>2){unsupported++;continue;}
    PlaneExtrusion.Plane plane=PlaneExtrusion.Plane.values()[sketch.plane];
@@ -33,18 +36,20 @@ public final class CadIntegrationProbe {
     Math.abs(sketch.x2-sketch.x1),Math.abs(sketch.y2-sketch.y1));
    if(id==null||linked.putIfAbsent(sketch.id,id)!=null)unsupported++;
   }
-  for(PartData part:parts){
+  for(int index=0;index<parts.size();index++){
+   PartData part=parts.get(index);
    if(part==null||part.sourceSketchId==null||part.sourceSketchId.isEmpty()){unlinked++;continue;}
    String source=linked.get(part.sourceSketchId);
    if(source==null){invalid++;continue;}
-   if(!model.extrude(source,0,part.height).isSuccess())invalid++;
-   else extrusions++;
+   CadKernel.Result<CadKernel.Box> result=model.extrude(source,0,part.height);
+   if(!result.isSuccess())invalid++;
+   else{extrusions++;partIndices.add(index);bodyIds.add(result.value.id);}
   }
   if(!model.validateIntegrity().isEmpty())throw new IllegalStateException("Probe generated invalid geometry");
   String snapshot=model.exportSnapshot();
   ParametricSketchDocument restored=ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),snapshot);
   if(!restored.validateIntegrity().isEmpty()||restored.bodies().size()!=extrusions)
    throw new IllegalStateException("Failed roundtrip of parametric preview");
-  return new Report(linked.size(),extrusions,unsupported,unlinked,invalid,snapshot);
+  return new Report(linked.size(),extrusions,unsupported,unlinked,invalid,snapshot,partIndices,bodyIds);
  }
 }
