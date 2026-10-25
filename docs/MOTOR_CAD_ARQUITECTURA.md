@@ -263,3 +263,11 @@ Desde `Historial de extrusiones → Cadena` hay vistas **no destructivas** de co
 ## Booleanas vinculadas al historial (lote)
 
 `ChainBooleanFeature` conserva índice de cadena, tipo de operación (corte o intersección) y geometría rectangular del cortador como instantánea. Regenera la malla al consultar el resultado leyendo los pasos actuales de `FaceExtrusionChain`; los cambios de extrusión se reflejan en la próxima regeneración. El JSON v1 añade la propiedad opcional `chainBooleanFeatures`; se recupera al abrir el archivo y en deshacer/rehacer. Menús: `Historial de extrusiones → Cadena → Guardar corte/intersección paramétrica` y `Proyecto → Booleanas guardadas`. Las operaciones pueden eliminarse, sin alterar la cadena. Limitaciones: el cortador es una instantánea, no cambia automáticamente si se edita su pieza de origen; la salida es una malla regenerable, no topología B-Rep ni un cuerpo editable por caras.
+
+## Lote: edición de booleanas guardadas y persistencia segura (2026-10-25)
+
+- `ChainBooleanFeature.withCutter` genera una nueva receta con seis parámetros modificados (posición XYZ y ancho, fondo, altura del cortador); `withOperation` cambia entre diferencia e intersección sin mutar el paso original.
+- `Proyecto → Booleanas guardadas` incluye ahora **Editar cortador XYZ y medidas** y **Cambiar corte / intersección**. Antes de reemplazar una receta se valida la regeneración geométrica; las modificaciones admiten deshacer/rehacer y se serializan con el JSON v1 existente.
+- Reparada la recuperación automática del borrador: `load()` restaura `extrusionChains` y `chainFeatures`, como ya hacían la apertura explícita y deshacer/rehacer. La verificación de integridad incorpora un guardarraíl para esta regresión.
+- `showMeshOnly()` marca la malla como previsualización aislada. Sus toques ya no se interpretan como selección de cuerpos reales, evitando aplicar modificaciones a piezas ajenas. Al restablecer el visor del diseño se limpia la bandera de previsualización.
+- Limitaciones vigentes: el cortador es una instantánea de prisma alineado a ejes; editar la pieza original que lo creó **no** cambia la receta. El resultado es una malla reconstruible, no una topología B-Rep; sigue faltando la verificación de gestos en dispositivo.

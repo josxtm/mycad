@@ -13,6 +13,14 @@ public final class ChainBooleanFeature {
     w<=0||d<=0||h<=0||w>10000||d>10000||h>10000)throw new IllegalArgumentException("Invalid cutter");
   chainIndex=index;this.operation=operation;this.x=x;this.y=y;this.z=z;this.w=w;this.d=d;this.h=h;
  }
+ /** Replace cutter dimensions and position while keeping its linked history. */
+ public ChainBooleanFeature withCutter(double newX,double newY,double newZ,double newW,double newD,double newH){
+  return new ChainBooleanFeature(chainIndex,operation,newX,newY,newZ,newW,newD,newH);
+ }
+ /** Switch between a saved cut and intersection without losing its parameters. */
+ public ChainBooleanFeature withOperation(MultiBoxUnion.Operation next){
+  return new ChainBooleanFeature(chainIndex,next,x,y,z,w,d,h);
+ }
  public float[] regenerate(List<FaceExtrusionChain> chains){
   if(chains==null||chainIndex>=chains.size())throw new IllegalArgumentException("Missing linked chain");
   ArrayList<BoxBoolean.Box> boxes=new ArrayList<>();
