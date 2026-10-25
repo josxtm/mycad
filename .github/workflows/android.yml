@@ -113,6 +113,8 @@ jobs:
           java -cp build/geometry-tests ChainBooleanFeatureTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ChainDependencyReport.java tests/StableFeatureDependenciesTest.java
           java -cp build/geometry-tests StableFeatureDependenciesTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ParametricFeatureGraph.java tests/ParametricFeatureGraphTest.java
+          java -cp build/geometry-tests ParametricFeatureGraphTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ChainTriangleMap.java tests/ChainTriangleMapTest.java
           java -cp build/geometry-tests ChainTriangleMapTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadIntegrationProbe.java tests/CadIntegrationProbeTest.java
@@ -125,12 +127,12 @@ jobs:
         run: |
           set -o pipefail
           gradle :app:testDebugUnitTest :app:lintDebug --no-daemon --stacktrace 2>&1 | tee reports/gradle.log
-      # Solo en hitos: commit de merge con [apk] o ejecución manual con generar_apk=true.
+      # Solo en hitos: commit con prefijo exacto release: MyCAD o ejecución manual con generar_apk=true.
       - name: Generar APK únicamente en un hito
         id: assemble
         if: >-
           (github.event_name == 'workflow_dispatch' && inputs.generar_apk == true) ||
-          (github.event_name == 'push' && contains(github.event.head_commit.message, '[apk]'))
+          (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release: MyCAD '))
         shell: bash
         run: |
           set -o pipefail

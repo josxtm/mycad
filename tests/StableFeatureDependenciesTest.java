@@ -31,9 +31,12 @@ public final class StableFeatureDependenciesTest {
   List<FaceExtrusionChain> reordered=Arrays.asList(unrelated,source);
   assertTrue(linked.resolvedChainIndex(reordered)==1,"Wrong dependent chain on reorder");
   assertTrue(Arrays.equals(before,linked.regenerate(reordered)),"Reordered chains changed dependent geometry");
+  String featureUuid=linked.id;
   ChainBooleanFeature edited=linked.withCutter(1,2,0,5,5,10)
    .withOperation(MultiBoxUnion.Operation.CHAIN_INTERSECTION);
   assertTrue(edited.chainId.equals(source.id),"Editing Boolean severed source dependency");
+  assertTrue(edited.id.equals(featureUuid),"Editing Boolean changed its persistent feature UUID");
+
   assertTrue(edited.regenerate(reordered).length>0,"Linked intersection missing");
   illegal(()->linked.regenerate(Collections.singletonList(unrelated)),"Deleted chain silently redirected");
   ChainBooleanFeature legacy=new ChainBooleanFeature(0,MultiBoxUnion.Operation.CHAIN_DIFFERENCE,0,0,0,7,7,10);
@@ -41,6 +44,8 @@ public final class StableFeatureDependenciesTest {
   ChainBooleanFeature migrated=legacy.linkedTo(source.id);
   assertTrue(migrated.resolvedChainIndex(reordered)==1,"Legacy migration not bound to source");
   assertTrue(ChainDependencyReport.inspect(normal,Collections.singletonList(linked)).isValid(),"Valid graph");
+  assertTrue(!ChainDependencyReport.inspect(normal,Arrays.asList(linked,linked)).isValid(),
+    "Duplicate Boolean feature UUID must be rejected");
   assertTrue(!ChainDependencyReport.inspect(Collections.singletonList(unrelated),
     Collections.singletonList(linked)).isValid(),"Missing chain not caught");
   FaceExtrusionChain duplicate=new FaceExtrusionChain(source.id,20,20,10,100,0,0);

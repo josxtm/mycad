@@ -36,7 +36,60 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;}}).show();}
+ es.josxtm.mycad.cad.ParametricFeatureGraph buildParametricFeatureGraph(){
+  es.josxtm.mycad.cad.ParametricFeatureGraph.Builder builder=
+   new es.josxtm.mycad.cad.ParametricFeatureGraph.Builder();
+  for(int i=0;i<sketches.size();i++)
+   builder.add(sketches.get(i).id,es.josxtm.mycad.cad.ParametricFeatureGraph.Kind.SKETCH,"Boceto "+(i+1));
+  for(int i=0;i<parts.size();i++)
+   builder.add(parts.get(i).id,es.josxtm.mycad.cad.ParametricFeatureGraph.Kind.BODY,
+     "Cuerpo "+(i+1)+(parts.get(i).circle?" · cilindro":" · prisma"));
+  for(int i=0;i<extrusionChains.size();i++)
+   builder.add(extrusionChains.get(i).id,es.josxtm.mycad.cad.ParametricFeatureGraph.Kind.CHAIN,
+     "Cadena "+(i+1));
+  for(int i=0;i<chainFeatures.size();i++)
+   builder.add(chainFeatures.get(i).id,es.josxtm.mycad.cad.ParametricFeatureGraph.Kind.BOOLEAN,
+     "Booleana "+(i+1));
+  for(Part p:parts)if(!p.sourceSketchId.isEmpty())
+   builder.dependsOn(p.id,p.sourceSketchId);
+  for(es.josxtm.mycad.cad.ChainBooleanFeature f:chainFeatures)
+   builder.dependsOn(f.id,extrusionChains.get(f.resolvedChainIndex(extrusionChains)).id);
+  return builder.build();
+ }
+ void showParametricFeatureTree(){
+  final es.josxtm.mycad.cad.ParametricFeatureGraph graph;
+  try{graph=buildParametricFeatureGraph();}
+  catch(Exception error){
+   new AlertDialog.Builder(this).setTitle("Vínculos paramétricos incorrectos")
+    .setMessage("Hay referencias a objetos que ya no existen, identificadores duplicados "+
+     "o dependencias inconsistentes. Revisa las auditorías de bocetos e historial.")
+    .setPositiveButton("Cerrar",null).show();
+   return;
+  }
+  java.util.List<es.josxtm.mycad.cad.ParametricFeatureGraph.Node> order=graph.executionOrder();
+  if(order.isEmpty()){toast("El diseño no tiene operaciones paramétricas");return;}
+  String[] names=new String[order.size()];
+  for(int i=0;i<order.size();i++){
+   es.josxtm.mycad.cad.ParametricFeatureGraph.Node node=order.get(i);
+   names[i]=node.label+" · depende de "+node.parentIds().size();
+  }
+  new AlertDialog.Builder(this).setTitle("Árbol paramétrico · "+order.size()+" elementos")
+   .setItems(names,(dialog,index)->{
+    es.josxtm.mycad.cad.ParametricFeatureGraph.Node node=order.get(index);
+    java.util.List<es.josxtm.mycad.cad.ParametricFeatureGraph.Node> impacted=
+     graph.affectedBy(node.id);
+    StringBuilder body=new StringBuilder("ID: "+node.id+"\\nTipo: "+node.kind.name()+
+     "\\nDependencias: "+node.parentIds().size()+
+     "\\nElementos afectados al modificar: "+impacted.size());
+    for(int i=0;i<impacted.size()&&i<15;i++)body.append("\\n  • ").append(impacted.get(i).label);
+    if(impacted.size()>15)body.append("\\n…");
+    body.append("\\n\\nDiagnóstico: las dependencias son informativas; la regeneración "+
+     "geométrica sigue limitada a las operaciones actualmente soportadas.");
+    new AlertDialog.Builder(this).setTitle(node.label)
+     .setMessage(body.toString()).setPositiveButton("Cerrar",null).show();
+   }).setNegativeButton("Cerrar",null).show();
+ }
  void showChainDependencyReport(){
   es.josxtm.mycad.cad.ChainDependencyReport.Result graph=
    es.josxtm.mycad.cad.ChainDependencyReport.inspect(extrusionChains,chainFeatures);
@@ -738,7 +791,7 @@ public class MainActivity extends Activity {
  file.put("extrusionChains",chains);
  JSONArray storedFeatures=new JSONArray();
  for(es.josxtm.mycad.cad.ChainBooleanFeature f:chainFeatures)
-  storedFeatures.put(new JSONObject().put("chain",f.chainIndex).put("chainId",f.chainId==null?"":f.chainId).put("operation",f.operation.name())
+  storedFeatures.put(new JSONObject().put("id",f.id).put("chain",f.chainIndex).put("chainId",f.chainId==null?"":f.chainId).put("operation",f.operation.name())
    .put("x",f.x).put("y",f.y).put("z",f.z).put("w",f.w).put("d",f.d).put("h",f.h));
  file.put("chainBooleanFeatures",storedFeatures);
  try{
@@ -818,7 +871,7 @@ public class MainActivity extends Activity {
      stableId=parsedChains.get(legacyIndex).id;
     }
     es.josxtm.mycad.cad.ChainBooleanFeature feature=new es.josxtm.mycad.cad.ChainBooleanFeature(
-     legacyIndex,stableId,MultiBoxUnion.Operation.valueOf(f.getString("operation")),
+     f.optString("id",java.util.UUID.randomUUID().toString()),legacyIndex,stableId,MultiBoxUnion.Operation.valueOf(f.getString("operation")),
      f.getDouble("x"),f.getDouble("y"),f.getDouble("z"),f.getDouble("w"),f.getDouble("d"),f.getDouble("h"));
     feature.regenerate(parsedChains);
     parsedFeatures.add(feature);

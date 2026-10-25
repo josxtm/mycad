@@ -14,7 +14,7 @@ public final class ChainDependencyReport {
  }
  public static Result inspect(List<FaceExtrusionChain> chains,List<ChainBooleanFeature> features){
   if(chains==null||features==null)throw new IllegalArgumentException("Missing CAD history");
-  HashSet<String> chainIds=new HashSet<>(),stepIds=new HashSet<>();
+  HashSet<String> chainIds=new HashSet<>(),stepIds=new HashSet<>(),booleanIds=new HashSet<>();
   ArrayList<String> errors=new ArrayList<>();
   int steps=0;
   for(int i=0;i<chains.size();i++){
@@ -31,6 +31,7 @@ public final class ChainDependencyReport {
   for(int i=0;i<features.size();i++){
    ChainBooleanFeature f=features.get(i);
    if(f==null){errors.add("Booleana nula: "+i);continue;}
+   if(!booleanIds.add(f.id))errors.add("UUID de booleana duplicado: "+f.id);
    try{f.resolvedChainIndex(chains);}catch(RuntimeException e){
     errors.add("Booleana sin cadena origen: "+i);
    }

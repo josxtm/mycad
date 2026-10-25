@@ -35,7 +35,7 @@ apk_step=normal_step[1].split("- name: Verificar APK y nombre de versión",1)
 require(len(apk_step)==2, "falta verificación del paquete")
 require("github.event_name == 'workflow_dispatch'" in apk_step[0] and
         "inputs.generar_apk == true" in apk_step[0] and
-        "contains(github.event.head_commit.message, '[apk]')" in apk_step[0],
+        "startsWith(github.event.head_commit.message, 'release: MyCAD ')" in apk_step[0],
         "no existe condición exclusiva de hito o ejecución manual")
 require("gradle :app:assembleDebug --no-daemon" in apk_step[0],
         "falta comando de empaquetado por hito")
@@ -108,6 +108,15 @@ for marker in ("requestSketchDeletion(false)", "requestSketchDeletion(true)",
                "src.pop();dst.push(prior);"):
     if marker not in source:
         raise SystemExit("ERROR: borrado seguro o historial no integrado: "+marker)
+for marker in ('storedFeatures.put(new JSONObject().put("id",f.id)',
+               'f.optString("id",java.util.UUID.randomUUID().toString())',
+               'ParametricFeatureGraph buildParametricFeatureGraph()',
+               'void showParametricFeatureTree()',
+               'builder.dependsOn(p.id,p.sourceSketchId)',
+               'builder.dependsOn(f.id,extrusionChains.get(f.resolvedChainIndex(extrusionChains)).id)',
+               "graph.affectedBy(node.id)"):
+    if marker not in source:
+        raise SystemExit("ERROR: grafo de dependencias sin integrar: "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
