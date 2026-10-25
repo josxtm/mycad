@@ -98,6 +98,12 @@ public final class ParametricSketchDocumentTest {
   check(transforms.redo()&&transforms.bodies().get(movingId).x==11,"Redo sketch plane change");
   ParametricSketchDocument reopenedTransforms=ParametricSketchDocument.importSnapshot(new PrimitiveKernel(),transforms.exportSnapshot());
   check(reopenedTransforms.bodies().get(movingId).x==11,"Persist moved sketch plane");
+  check(transforms.validateIntegrity().isEmpty(),"Edited parametric model integrity");
+  check(graph.validateIntegrity().isEmpty(),"Shared sketch graph integrity");
+  check(reopenedTransforms.validateIntegrity().isEmpty(),"Imported document integrity");
+  boolean integrityImmutable=false;
+  try{transforms.validateIntegrity().add("corrupted");}catch(UnsupportedOperationException expected){integrityImmutable=true;}
+  check(integrityImmutable,"Integrity result immutable");
   System.out.println("ParametricSketchDocumentTest: OK");
  }
 }
