@@ -316,6 +316,19 @@ public class MainActivity extends Activity {
    .setPositiveButton("Aplicar",(d,n)->{try{
     float height=Float.parseFloat(input.getText().toString().replace(',','.'));
     GeometryMath.requirePositive(height);
+    if(!p.sourceSketchId.isEmpty()&&!p.circle){
+     Sketch source=null;
+     for(Sketch q:sketches)if(q.id.equals(p.sourceSketchId)){source=q;break;}
+     if(source!=null){
+      es.josxtm.mycad.cad.CadKernel.Result<es.josxtm.mycad.cad.CadKernel.Box> validation=
+       es.josxtm.mycad.cad.PlaneExtrusion.extrude(
+        new es.josxtm.mycad.cad.PrimitiveKernel(),
+        es.josxtm.mycad.cad.PlaneExtrusion.Plane.values()[source.plane],
+        Math.min(source.x1,source.x2),Math.min(source.y1,source.y2),0,
+        Math.abs(source.x2-source.x1),Math.abs(source.y2-source.y1),height);
+      if(!validation.isSuccess()){toast("Motor CAD: extrusión inválida");return;}
+     }
+    }
     checkpoint();
     if(!p.sourceSketchId.isEmpty()){
      Sketch source=null;for(Sketch q:sketches)if(q.id.equals(p.sourceSketchId)){source=q;break;}
