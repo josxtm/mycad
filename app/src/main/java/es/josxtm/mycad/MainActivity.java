@@ -562,9 +562,11 @@ public class MainActivity extends Activity {
   for(es.josxtm.mycad.cad.FaceExtrusionChain.Step step:chain.history())
    actions.add(step.face.name()+" · "+step.distance+" mm · editar");
   actions.add("Eliminar última extrusión");
+  actions.add("Ver unión de toda la cadena");
   new AlertDialog.Builder(this).setTitle("Cadena "+(index+1))
    .setItems(actions.toArray(new String[0]),(dialog,choice)->{
-    if(choice==actions.size()-1){
+    if(choice==actions.size()-1){showChainUnion(chain);return;}
+    if(choice==actions.size()-2){
      if(chain.size()==0){toast("No hay extrusiones");return;}
      checkpoint();chain.removeLast();save();refreshChainScene();
     }else{
@@ -576,6 +578,17 @@ public class MainActivity extends Activity {
      }else chainDistanceDialog(chain,index,stepIndex,chain.history().get(stepIndex).face);
     }
    }).setNegativeButton("Cerrar",null).show();
+ }
+ void showChainUnion(es.josxtm.mycad.cad.FaceExtrusionChain chain){
+  try{
+   java.util.ArrayList<BoxBoolean.Box> boxes=new java.util.ArrayList<>();
+   for(es.josxtm.mycad.cad.FaceExtrusionChain.Solid solid:chain.regenerate())
+    boxes.add(new BoxBoolean.Box(solid.x,solid.y,solid.z,solid.w,solid.d,solid.h));
+   float[] union=MultiBoxUnion.build(boxes);
+   if(union.length==0)throw new IllegalArgumentException();
+   showMeshOnly(new MeshEngine.Mesh(union));
+   info.setText("Vista unión de cadena · "+(union.length/9)+" triángulos · sin caras internas");
+  }catch(Exception ex){toast("No se pudo crear la vista de unión");}
  }
  void chainDistanceDialog(es.josxtm.mycad.cad.FaceExtrusionChain chain,int index,int step,es.josxtm.mycad.cad.BoxFaceSelection.Face face){
   EditText amount=new EditText(this);amount.setInputType(8194|4096);
