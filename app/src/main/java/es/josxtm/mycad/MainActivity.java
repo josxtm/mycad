@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;}}).show();}
  void cadEngineDiagnostic(){
   try{
    java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.SketchData> ss=new java.util.ArrayList<>();
@@ -241,10 +241,11 @@ public class MainActivity extends Activity {
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
     new AlertDialog.Builder(this).setTitle(names[index])
-     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada"},(d,choice)->{
+     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular"},(d,choice)->{
       if(choice==0){showMeshOnly(mesh);}
       else if(choice==1){exportMeshMenuFor(mesh);}
       else if(choice==3){editFaceUnionRecipe(index);}
+      else if(choice==4){editHoleRecipe(index);}
       else new AlertDialog.Builder(this).setTitle("Eliminar resultado")
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
@@ -255,6 +256,75 @@ public class MainActivity extends Activity {
        }).show();
      }).show();
    }).setNegativeButton("Cerrar",null).show();
+ }
+ void drillSelectedBox(){
+  if(selected<0||selected>=parts.size()){toast("Selecciona primero un prisma");return;}
+  final Part parent=parts.get(selected);final int index=selected;
+  if(parent.circle||parent.rotationX!=0||parent.rotationY!=0||parent.rotationZ!=0||
+   !parent.sourceSketchId.isEmpty()){toast("Perforación disponible en prismas sin giro ni boceto vinculado");return;}
+  if(booleanMeshes.size()>=100){toast("Máximo 100 mallas booleanas");return;}
+  LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
+  final EditText[] inputs=new EditText[3];
+  final String[] labels={"Desplazamiento X del agujero (mm)","Desplazamiento Y del agujero (mm)","Diámetro (mm)"};
+  double[] defaults={0,0,Math.min(parent.w,parent.d)/4};
+  for(int i=0;i<inputs.length;i++){
+   TextView label=new TextView(this);label.setText(labels[i]);fields.addView(label);
+   EditText input=new EditText(this);input.setInputType(8194|4096);
+   input.setText(String.valueOf(defaults[i]));inputs[i]=input;fields.addView(input);
+  }
+  android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.addView(fields);
+  new AlertDialog.Builder(this).setTitle("Perforación circular pasante")
+   .setMessage("El agujero atraviesa todo el alto Z. Guardar convierte este prisma en una malla regenerable.")
+   .setView(scroll).setNegativeButton("Cancelar",null)
+   .setNeutralButton("Previsualizar",(dialog,which)->{
+    try{
+     double[] vals=new double[3];for(int i=0;i<3;i++)vals[i]=Double.parseDouble(inputs[i].getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.DrilledBoxRecipe drill=new es.josxtm.mycad.cad.DrilledBoxRecipe(
+      parent.x,parent.y,parent.z,parent.w,parent.d,parent.h,vals[0],vals[1],vals[2]);
+     showMeshOnly(new MeshEngine.Mesh(drill.regenerate()));
+    }catch(Exception e){toast("Perforación inválida: el agujero debe caber en el prisma");}
+   })
+   .setPositiveButton("Guardar perforación",(dialog,which)->{
+    try{
+     if(index>=parts.size()||parts.get(index)!=parent||booleanMeshes.size()>=100)throw new IllegalArgumentException();
+     double[] vals=new double[3];for(int i=0;i<3;i++)vals[i]=Double.parseDouble(inputs[i].getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.DrilledBoxRecipe recipe=new es.josxtm.mycad.cad.DrilledBoxRecipe(
+      parent.x,parent.y,parent.z,parent.w,parent.d,parent.h,vals[0],vals[1],vals[2]);
+     float[] geometry=recipe.regenerate();
+     if(geometry.length==0||geometry.length>18000)throw new IllegalArgumentException();
+     checkpoint();parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(geometry));
+     unionRecipes.add(null);holeRecipes.add(recipe);
+     selected=-1;selectedSketch=-1;activeCadFace=null;save();scene.invalidate();
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     toast("Perforación guardada · editable en Resultados booleanos");
+    }catch(Exception e){toast("No se pudo guardar la perforación");}
+   }).show();
+ }
+ void editHoleRecipe(int index){
+  if(index<0||index>=holeRecipes.size()||holeRecipes.get(index)==null){toast("Esta malla no es una perforación editable");return;}
+  final es.josxtm.mycad.cad.DrilledBoxRecipe previous=holeRecipes.get(index);
+  final EditText[] inputs=new EditText[3];
+  LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
+  String[] labels={"Desplazamiento X (mm)","Desplazamiento Y (mm)","Diámetro (mm)"};
+  double[] initial={previous.holeX,previous.holeY,previous.diameter};
+  for(int i=0;i<3;i++){
+   TextView label=new TextView(this);label.setText(labels[i]);fields.addView(label);
+   inputs[i]=new EditText(this);inputs[i].setInputType(8194|4096);
+   inputs[i].setText(String.valueOf(initial[i]));fields.addView(inputs[i]);
+  }
+  new AlertDialog.Builder(this).setTitle("Editar perforación circular")
+   .setView(fields).setNegativeButton("Cancelar",null).setPositiveButton("Regenerar",(dialog,which)->{
+    try{
+     if(index>=holeRecipes.size()||holeRecipes.get(index)!=previous)throw new IllegalArgumentException();
+     double[] vals=new double[3];for(int i=0;i<3;i++)vals[i]=Double.parseDouble(inputs[i].getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.DrilledBoxRecipe next=previous.withHole(vals[0],vals[1],vals[2]);
+     float[] mesh=next.regenerate();
+     if(mesh.length==0||mesh.length>18000)throw new IllegalArgumentException();
+     checkpoint();holeRecipes.set(index,next);booleanMeshes.set(index,new MeshEngine.Mesh(mesh));
+     save();scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     toast("Perforación regenerada");
+    }catch(Exception error){toast("Diámetro o posición inválidos");}
+   }).show();
  }
  void editFaceUnionRecipe(int meshIndex){
   if(meshIndex<0||meshIndex>=unionRecipes.size()||unionRecipes.get(meshIndex)==null){
