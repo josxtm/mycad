@@ -17,6 +17,34 @@ if grep -R -F -l '\\n int ' app/src/main/java --include='*.java'; then
   exit 1
 fi
 
+# Protección CI: el flujo cotidiano nunca invoca el ensamblado de APK.
+python3 - <<'PY'
+from pathlib import Path
+config=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+def require(flag, why):
+    if not flag:
+        raise SystemExit("ERROR: política de APK por hitos: "+why)
+normal=config.split("- name: Compilar código y comprobar pruebas y Lint (sin APK)",1)
+require(len(normal)==2, "falta validación Android habitual sin APK")
+normal_step=normal[1].split("- name: Generar APK únicamente en un hito",1)
+require(len(normal_step)==2, "falta compuerta de APK por hito")
+require("gradle :app:testDebugUnitTest :app:lintDebug --no-daemon" in normal_step[0],
+        "no se comprueban tests y Lint")
+require(":app:assembleDebug" not in normal_step[0], "ensamblado en CI cotidiana")
+apk_step=normal_step[1].split("- name: Verificar APK y nombre de versión",1)
+require(len(apk_step)==2, "falta verificación del paquete")
+require("github.event_name == 'workflow_dispatch'" in apk_step[0] and
+        "inputs.generar_apk == true" in apk_step[0] and
+        "contains(github.event.head_commit.message, '[apk]')" in apk_step[0],
+        "no existe condición exclusiva de hito o ejecución manual")
+require("gradle :app:assembleDebug --no-daemon" in apk_step[0],
+        "falta comando de empaquetado por hito")
+require("if: steps.assemble.outcome == 'success'" in config and
+        "if: steps.apk.outcome == 'success'" in config,
+        "se puede publicar una APK sin verificación exitosa")
+print("Política CI: tests y Lint normales; APK solo por hito: OK")
+PY
+
 # Regresión de integración: un borrador recuperado debe restaurar también el historial
 # paramétrico y la selección de una vista previa no puede editar el modelo.
 python3 - <<'PY'
