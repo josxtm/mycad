@@ -88,7 +88,82 @@ public class MainActivity extends Activity {
   }catch(Exception error){toast("No se pudo analizar el diseño");}
  }
  void chooseSketchPlane(){new AlertDialog.Builder(this).setTitle("Plano de boceto").setSingleChoiceItems(new String[]{"XY · planta","XZ · alzado","YZ · lateral"},sketchPlane,(d,n)->{sketchPlane=n;flat=true;sketchTool=0;scene.invalidate();info.setText("Plano "+new String[]{"XY","XZ","YZ"}[n]+" seleccionado · Elige herramienta de boceto");d.dismiss();sketchMenu();}).setNegativeButton("Cancelar",null).show();}
- void sketchMenu(){String[] items={"Salir de boceto","Línea","Rectángulo","Círculo","Acotar seleccionado","Extruir seleccionado","Eliminar último boceto"};new AlertDialog.Builder(this).setTitle("Boceto táctil · plano "+new String[]{"XY","XZ","YZ"}[sketchPlane]).setItems(items,(d,n)->{if(n==4){dimensionSketch();return;}if(n==5){extrudeSketch();return;}if(n==6){if(!sketches.isEmpty()){checkpoint();Sketch removed=sketches.remove(sketches.size()-1);for(Part part:parts)if(removed.id.equals(part.sourceSketchId))part.sourceSketchId="";selectedSketch=-1;save();scene.invalidate();}return;}sketchTool=n;if(n>0){flat=true;info.setText("BOCETO · Arrastra con el dedo · Pellizca para zoom");}else info.setText("Toca para seleccionar · Mantén pulsado para mover");scene.invalidate();}).show();}
+ void sketchMenu(){
+  String[] items={"Salir de boceto","Línea","Rectángulo","Círculo","Acotar seleccionado",
+   "Extruir seleccionado","Eliminar último boceto","Eliminar boceto seleccionado"};
+  new AlertDialog.Builder(this).setTitle("Boceto táctil · plano "+new String[]{"XY","XZ","YZ"}[sketchPlane])
+   .setItems(items,(dialog,choice)->{
+    if(choice==4){dimensionSketch();return;}
+    if(choice==5){extrudeSketch();return;}
+    if(choice==6){requestSketchDeletion(false);return;}
+    if(choice==7){requestSketchDeletion(true);return;}
+    sketchTool=choice;
+    if(choice>0){
+     flat=true;info.setText("BOCETO · Arrastra con el dedo · Pellizca para zoom");
+    }else info.setText("Toca para seleccionar · Mantén pulsado para mover");
+    scene.invalidate();
+   }).show();
+ }
+ java.util.ArrayList<es.josxtm.mycad.cad.SketchDeletionPlan.BodyLink> sketchBodyLinks(){
+  java.util.ArrayList<es.josxtm.mycad.cad.SketchDeletionPlan.BodyLink> bodyLinks=
+   new java.util.ArrayList<>();
+  for(Part body:parts)bodyLinks.add(new es.josxtm.mycad.cad.SketchDeletionPlan.BodyLink(
+   body.id,body.sourceSketchId));
+  return bodyLinks;
+ }
+ void requestSketchDeletion(boolean selectedOnly){
+  if(sketches.isEmpty()){toast("No hay bocetos para eliminar");return;}
+  int index=selectedOnly?selectedSketch:sketches.size()-1;
+  if(index<0||index>=sketches.size()){
+   toast("Selecciona primero un boceto");return;
+  }
+  final Sketch target=sketches.get(index);
+  final es.josxtm.mycad.cad.SketchDeletionPlan.Plan plan;
+  try{
+   plan=es.josxtm.mycad.cad.SketchDeletionPlan.inspect(target.id,sketchBodyLinks());
+  }catch(Exception error){toast("Hay identificadores de cuerpos duplicados");return;}
+  int count=plan.dependentBodyIds.size();
+  String detail="Boceto "+(index+1)+" · "+count+" pieza(s) vinculada(s). "+
+   "Puedes conservar los cuerpos como independientes o eliminarlos junto al boceto. "+
+   "Ambas operaciones se pueden deshacer.";
+  new AlertDialog.Builder(this).setTitle("Eliminar boceto y dependencias")
+   .setMessage(detail)
+   .setNegativeButton("Cancelar",null)
+   .setNeutralButton("Conservar cuerpos",(dialog,which)->
+    applySketchDeletion(target,plan,es.josxtm.mycad.cad.SketchDeletionPlan.Mode.KEEP_SOLIDS))
+   .setPositiveButton("Eliminar también cuerpos",(dialog,which)->
+    applySketchDeletion(target,plan,es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE))
+   .show();
+ }
+ void applySketchDeletion(Sketch target,es.josxtm.mycad.cad.SketchDeletionPlan.Plan plan,
+                          es.josxtm.mycad.cad.SketchDeletionPlan.Mode mode){
+  int index=sketches.indexOf(target);
+  if(index<0||!plan.stillMatches(sketchBodyLinks())){
+   toast("El diseño ha cambiado; vuelve a seleccionar el boceto");return;
+  }
+  // The plan's result must be complete before changing any UI or body.
+  final java.util.List<es.josxtm.mycad.cad.SketchDeletionPlan.BodyLink> updated=plan.after(mode);
+  final java.util.HashSet<String> retained=new java.util.HashSet<>();
+  for(es.josxtm.mycad.cad.SketchDeletionPlan.BodyLink b:updated)retained.add(b.bodyId);
+  final String selectedId=selected>=0&&selected<parts.size()?parts.get(selected).id:null;
+  checkpoint();
+  sketches.remove(index);
+  if(mode==es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE){
+   parts.removeIf(body->!retained.contains(body.id));
+  }else{
+   for(Part body:parts)if(target.id.equals(body.sourceSketchId))body.sourceSketchId="";
+  }
+  if(selectedSketch==index)selectedSketch=-1;
+  else if(selectedSketch>index)selectedSketch--;
+  selected=-1;
+  if(selectedId!=null)for(int i=0;i<parts.size();i++)
+   if(selectedId.equals(parts.get(i).id)){selected=i;break;}
+  activeCadFace=null;
+  save();scene.invalidate();
+  if(meshMode&&meshView!=null)renderCurrentCadMesh();
+  toast(mode==es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE?
+   "Boceto y extrusiones vinculadas eliminados":"Boceto eliminado · cuerpos independientes conservados");
+ }
  Part makeExtrudedPart(Sketch q,float height){
   es.josxtm.mycad.cad.LinkedSketchSolidPlan.Body result=
    es.josxtm.mycad.cad.LinkedSketchSolidPlan.build(q.type,q.plane,q.x1,q.y1,q.x2,q.y2,height);
@@ -794,7 +869,23 @@ public class MainActivity extends Activity {
  }
  boolean validBodyId(String id){try{return java.util.UUID.fromString(id).toString().equals(id);}catch(Exception e){return false;}}
  void checkpoint(){try{undo.push(encode());if(undo.size()>50)undo.removeLast();redo.clear();}catch(Exception e){}}
- void history(boolean back){activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);ArrayDeque<String> src=back?undo:redo,dst=back?redo:undo;if(src.isEmpty()){toast("Sin cambios");return;}try{dst.push(encode());ParsedDesign restored=decode(src.pop());parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();}catch(Exception e){toast("Error al recuperar cambio");}}
+ void history(boolean back){
+  ArrayDeque<String> src=back?undo:redo,dst=back?redo:undo;
+  if(src.isEmpty()){toast("Sin cambios");return;}
+  try{
+   // Decode the target revision BEFORE modifying either stack or the live project.
+   String prior=encode();
+   ParsedDesign restored=decode(src.peek());
+   src.pop();dst.push(prior);
+   activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);
+   parts=restored.parts;sketches=restored.sketches;
+   booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;
+   extrusionChains=restored.chains;chainFeatures=restored.features;
+   selected=parts.isEmpty()?-1:0;selectedSketch=-1;
+   save();scene.invalidate();
+   if(meshMode&&meshView!=null)renderCurrentCadMesh();
+  }catch(Exception error){toast("No se pudo recuperar la revisión; historial conservado");}
+ }
  void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
  void save(){try{getPreferences(MODE_PRIVATE).edit().putString("design",encode()).apply();updateStep();}catch(Exception e){toast("No se pudo guardar el borrador interno");}}
  void load(){activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
