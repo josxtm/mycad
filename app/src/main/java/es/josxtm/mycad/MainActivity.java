@@ -475,23 +475,42 @@ public class MainActivity extends Activity {
   final es.josxtm.mycad.cad.BoxFaceSelection.Face face=activeCadFace.face;
   EditText input=new EditText(this);input.setInputType(8194|4096);input.setText("10");
   new AlertDialog.Builder(this).setTitle("Extruir cara "+face.name()+" · mm")
-   .setMessage("Crea un prisma adyacente independiente. No fusiona sólidos.")
-   .setView(input).setNegativeButton("Cancelar",null).setPositiveButton("Extruir",(dialog,which)->{
-    try{
-     if(index>=parts.size()||parts.get(index)!=parent||parts.size()>=500)throw new IllegalArgumentException();
-     double amount=Double.parseDouble(input.getText().toString().replace(',','.'));
-     es.josxtm.mycad.cad.FacePrismExtrusion.Result result=
-      es.josxtm.mycad.cad.FacePrismExtrusion.create(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,
-       parent.rotationX,parent.rotationY,parent.rotationZ,face,amount);
-     Part child=new Part(false,(float)result.w,(float)result.d,(float)result.h,(float)result.x);
-     child.y=(float)result.y;child.z=(float)result.z;
-     child.rotationX=parent.rotationX;child.rotationY=parent.rotationY;child.rotationZ=parent.rotationZ;
-     checkpoint();parts.add(child);selected=parts.size()-1;selectedSketch=-1;activeCadFace=null;
-     save();scene.invalidate();
-     if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
-     info.setText("Nuevo prisma adyacente · "+amount+" mm");
-    }catch(Exception error){toast("Extrusión inválida o fuera de límites");}
-   }).show();
+   .setMessage("Extruir crea un prisma independiente. Fusionar crea una malla booleana y sustituye el prisma original; puedes deshacer.")
+   .setView(input).setNegativeButton("Cancelar",null)
+   .setNeutralButton("Fusionar malla",(dialog,which)->commitFaceExtrusion(index,parent,face,input,true))
+   .setPositiveButton("Extruir",(dialog,which)->commitFaceExtrusion(index,parent,face,input,false))
+   .show();
+ }
+ void commitFaceExtrusion(int index,Part parent,es.josxtm.mycad.cad.BoxFaceSelection.Face face,EditText input,boolean fuse){
+  try{
+   if(index<0||index>=parts.size()||parts.get(index)!=parent||parts.size()>=500)
+    throw new IllegalArgumentException("Selection changed");
+   if(fuse&&(parent.rotationX!=0||parent.rotationY!=0||parent.rotationZ!=0||!parent.sourceSketchId.isEmpty())){
+    toast("La fusión requiere un prisma sin rotación ni boceto vinculado");return;
+   }
+   double amount=Double.parseDouble(input.getText().toString().replace(',','.'));
+   es.josxtm.mycad.cad.FacePrismExtrusion.Result result=
+    es.josxtm.mycad.cad.FacePrismExtrusion.create(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,
+     parent.rotationX,parent.rotationY,parent.rotationZ,face,amount);
+   if(fuse){
+    BoxBoolean.Box a=new BoxBoolean.Box(parent.x-parent.w/2,parent.y-parent.d/2,parent.z,parent.w,parent.d,parent.h);
+    BoxBoolean.Box b=new BoxBoolean.Box(result.x-result.w/2,result.y-result.d/2,result.z,result.w,result.d,result.h);
+    float[] united=BoxBooleanMesh.build(a,b,BoxBooleanMesh.Operation.UNION);
+    if(united.length==0)throw new IllegalArgumentException("Empty union");
+    checkpoint();
+    parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(united));
+    selected=parts.isEmpty()?-1:Math.min(index,parts.size()-1);
+    info.setText("Extrusión fusionada como malla · "+amount+" mm");
+   }else{
+    Part child=new Part(false,(float)result.w,(float)result.d,(float)result.h,(float)result.x);
+    child.y=(float)result.y;child.z=(float)result.z;
+    child.rotationX=parent.rotationX;child.rotationY=parent.rotationY;child.rotationZ=parent.rotationZ;
+    checkpoint();parts.add(child);selected=parts.size()-1;
+    info.setText("Nuevo prisma adyacente · "+amount+" mm");
+   }
+   selectedSketch=-1;activeCadFace=null;save();scene.invalidate();
+   if(meshMode&&meshView!=null)meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+  }catch(Exception error){toast("Extrusión inválida o fuera de límites");}
  }
  void editSelectedCadFace(){
   if(activeCadFace==null||!cadGpuMesh||!activeCadFace.isValidFor(parts.size())){
