@@ -82,3 +82,12 @@ Si el motor actual no admite una operación fiable, registrar la limitación y d
 - `encode/decode` conserva los campos opcionales sin cambiar el formato JSON v1; los archivos anteriores siguen admitidos.
 - Falta validar en móvil y comprobar el último workflow. No confundir esta implementación con un kernel B-Rep: booleanas y edición de caras siguen pendientes.
 - Prueba recomendada: croquis rectángulo 20×10, extruir 5; modificar a 30×10; comprobar dimensiones 30×10×5; modificar altura a 8; guardar, reabrir y repetir; deshacer y eliminar perfil.
+
+## Fase de persistencia de mallas booleanas — 2026-10-25
+
+- Se incorpora el botón **Guardar malla** tras la previsualización de unión/intersección/resta de dos prismas sin rotación.
+- Las mallas guardadas se almacenan como triángulos en el campo opcional `booleanMeshes` de JSON v1, compatible con documentos antiguos.
+- Los resultados se recuperan al abrir archivos y borradores, se incluyen en deshacer/rehacer y se borran al crear un diseño nuevo.
+- `currentMesh()` incorpora las mallas guardadas a la exportación STL/OBJ, además de los sólidos de origen.
+- **Limitación importante:** el resultado se añade como malla independiente; los operandos originales no se ocultan ni eliminan y la malla no es un sólido B-Rep editable. Al exportar toda la escena pueden existir superficies solapadas. No usar sin revisar para fabricación/impresión 3D.
+- Estado: código subido, sin verificación de ejecución nueva ni prueba en móvil para esta fase.
