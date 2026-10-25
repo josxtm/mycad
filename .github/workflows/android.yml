@@ -239,6 +239,7 @@ jobs:
           SOURCE_RUN_ID: ${{ github.run_id }}
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAINTENANCE_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           set -euo pipefail
           STATUS="$BUILD_RESULT"
@@ -277,3 +278,25 @@ jobs:
             git push -q origin HEAD:refs/heads/ci-status
           fi
           echo "Estado publicado en rama ci-status" >> "$GITHUB_STEP_SUMMARY"
+          # Retirar solo una rama experimental identificada y SOLO tras el squash
+          # del PR de mantenimiento. Si se ha movido, nunca borrar trabajo nuevo.
+          case "${MAINTENANCE_MESSAGE:-}" in
+            "chore(maintenance): MyCAD 0.6.0 actualizar documentación y retirar rama experimental"*)
+              obsolete="development/box-brep-check"
+              expected="c6255b2e4083e1e57676373d293f63d807ea9941"
+              found="$(git ls-remote origin "refs/heads/$obsolete" | cut -f1)"
+              if test "$found" = "$expected"; then
+                if git push -q origin --delete "$obsolete"; then
+                  echo "Rama temporal \`$obsolete\` eliminada tras verificar SHA." >> "$GITHUB_STEP_SUMMARY"
+                else
+                  echo "::warning::No se pudo eliminar la rama temporal: faltan permisos."
+                  echo "Eliminar rama temporal manualmente desde Code → Branches." >> "$GITHUB_STEP_SUMMARY"
+                fi
+              elif test -z "$found"; then
+                echo "Rama temporal ya eliminada." >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "::warning::Se conserva $obsolete: ha cambiado su SHA, no es seguro eliminarla."
+              fi
+              ;;
+          esac
+

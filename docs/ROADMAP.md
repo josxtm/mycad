@@ -2,6 +2,26 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+## Estado vigente — 0.6.0 (26 de octubre de 2026)
+
+**Código en desarrollo; NO se ha publicado APK 0.6.0 ni validado completamente en Nothing Phone 2a.**
+
+| Bloque | Estado del código | Próxima puerta |
+|---|---|---|
+| Bocetos y extrusiones | Implementación inicial y vínculos paramétricos parciales | Pruebas táctiles + integración completa |
+| Primitivas 3D | Prismas y cilindros con transformación rígida XYZ | Validar casos extremos |
+| Identidad y dependencias | UUID estables, DAG y regeneración incremental parcial | Reconstrucción consistente del proyecto completo |
+| B-Rep analítica | 8 vértices/12 aristas/6 caras de prismas; 3 caras y 2 circunferencias de cilindros | Edición topológica general |
+| Edición de caras | Cambios geométricos de caras en visor experimental | Verificar undo/redo, guardar/reabrir y rendimiento en teléfono |
+| Booleanas | Operaciones específicas y mallas; NO kernel B-Rep general | Generalización geométrica y control topológico |
+| CI | [#320](https://github.com/josxtm/mycad/actions/runs/40244844784), [#321](https://github.com/josxtm/mycad/actions/runs/40245317064) y [#322](https://github.com/josxtm/mycad/actions/runs/40245497754) correctas | PR obligatoria mediante protección de `main` |
+| APK 0.6.0 | No generada | Hito funcional validado y decisión explícita |
+
+**Norma de desarrollo:** rama → Pull Request → job `verify` correcto → revisión → merge a `main`. Las APK se generan solo en hitos. Las reglas de protección de `main` deben activarse por separado en los ajustes de GitHub; [CONTRIBUTING.md](../CONTRIBUTING.md) indica cómo.
+
+**Nota histórica:** las notas y tablas posteriores conservan el contexto de fases previas y pueden contener estados ya superados; no deben interpretarse como la situación actual del motor.
+
+
 | Fase | Alcance | Entregable | Estado |
 |---|---|---|---|
 | 0.4.8 | Creación de primitivas, movimiento y rotación XYZ | APK experimental | Validado en móvil por el usuario |
@@ -11,7 +31,7 @@
 | 0.5.0-D | Detección de perfiles y cotas | Selección de regiones | Parcial: cotas de rectángulo/círculo y perfiles básicos |
 | 0.5.0-E | Extrusión táctil y numérica | Sólido desde boceto | Parcial: extrusión numérica XY; arrastre y preview pendientes |
 | 0.5.0-F | Persistencia, migración y pruebas | APK candidata 0.5.0 | Pendiente |
-| 0.6.x | Booleanas, selección de caras/aristas | Modelado avanzado | Propuesto |
+| 0.6.x | Booleanas, B-Rep de primitivas y selección/edición de caras | Motor CAD experimental | Parcialmente implementado; CI correcta, móvil pendiente |
 | 0.7.x | Fillets, chamfers, shell, patrones, historial | Herramientas avanzadas | Propuesto |
 
 ## Puertas de calidad
