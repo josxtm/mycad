@@ -189,3 +189,7 @@ El menú de proyecto ofrece `Alternar visor CAD experimental`, desactivado inici
 ## Selección de caras lógicas de prismas (2026-10-25)
 
 `BoxFaceSelection` relaciona dos triángulos consecutivos con cada una de las seis caras etiquetadas Z_MIN, Z_MAX, Y_MIN, Y_MAX, X_MIN, X_MAX y permite extraer los triángulos de una cara. Las pruebas verifican los 12 triángulos. `MainActivity` muestra la cara identificada al tocar el visor GPU experimental **solo cuando hay un único prisma y ninguna malla adicional**; en escenas complejas mantiene la identificación del triángulo hasta implementar el mapa de índices por cuerpo. Aún no hay resaltado visual ni edición directa de caras.
+
+## Selección GPU multicuerpo (2026-10-25)
+
+`CadSceneFaceMap` convierte el índice global de triángulo en índice de pieza y cara lógica del prisma. La pantalla experimental calcula el desplazamiento de triángulos de las mallas importadas/booleanas y agrupa 12 triángulos por prisma válido. Al tocar una cara muestra cuerpo, cara y coordenadas y selecciona la pieza correspondiente en el editor. Si hay cilindros se conserva el modo clásico y la identificación básica de triángulos. La malla GPU aún no resalta gráficamente la cara ni permite extruir desde ella. Las pruebas Java verifican escenas con varias piezas y desplazamiento inicial.
