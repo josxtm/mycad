@@ -249,3 +249,9 @@ Menú `Proyecto → Historial de extrusiones`: permite crear una cadena desde un
 ## Selección táctil de pasos de una cadena (2026-10-25)
 
 En el visor CAD experimental, los triángulos añadidos al final de la malla por las cadenas se relacionan con su índice de cadena y operación (12 triángulos por extrusión rectangular). Al tocar un paso se presenta un diálogo para editar su distancia o abrir el historial; la edición utiliza la regeneración existente. Esta asociación depende del orden de los triángulos, por lo que no debe considerarse identificación topológica persistente y no se aplica a vistas de mallas aisladas.
+
+## Lote de trabajo 0.6.0 — rama y pruebas agrupadas
+
+Se incorpora `MultiBoxUnion.Operation` con `UNION`, `DIFFERENCE` e `INTERSECTION` sobre cajas alineadas a los ejes. La diferencia conserva la primera caja y sustrae las posteriores; la intersección usa todas. `MultiBoxOperationsTest` valida volúmenes de malla para un corte pasante rectangular, intersección y cuerpos separados.
+
+Desde `Historial de extrusiones → Cadena` hay vistas **no destructivas** de corte e intersección contra un prisma rectangular seleccionado, sin rotaciones. Son vistas previas de las piezas encadenadas y no operaciones persistentes del historial; con varios prismas, pueden conservar superficies internas y no constituyen un B-Rep. La rama `dev/cad-060-geometry-batch` agrupa el desarrollo; la integración a `main` dispara la compilación principal del lote.
