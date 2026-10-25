@@ -70,6 +70,21 @@ public final class ParametricSketchDocument {
   next.put(featureId,new Extrusion(featureId,sketchId,bodyId,baseZ,height));
   return rebuild(sketches(),next,bodyId);
  }
+ /** Edit an existing extrusion without replacing its feature or body identity. */
+ public boolean setExtrusionHeight(String featureId,double newHeight){
+  Extrusion previous=extrusions().get(featureId);
+  if(previous==null)return false;
+  Map<String,Extrusion> next=new LinkedHashMap<>(extrusions());
+  next.put(featureId,new Extrusion(previous.id,previous.sketchId,previous.bodyId,previous.baseZ,newHeight));
+  return rebuild(sketches(),next,previous.bodyId).isSuccess();
+ }
+ /** Remove one extrusion and its generated body, leaving the source sketch intact. */
+ public boolean removeExtrusion(String featureId){
+  if(!extrusions().containsKey(featureId))return false;
+  Map<String,Extrusion> next=new LinkedHashMap<>(extrusions());
+  next.remove(featureId);
+  return rebuild(sketches(),next,null).isSuccess();
+ }
  public boolean updateRectangle(String sketchId,double x,double y,double width,double depth){
   if(!sketches().containsKey(sketchId)||!validRectangle(x,y,width,depth))return false;
   Map<String,Rectangle> next=new LinkedHashMap<>(sketches());
