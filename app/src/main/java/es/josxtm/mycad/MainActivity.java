@@ -159,9 +159,27 @@ public class MainActivity extends Activity {
      String values=String.format(java.util.Locale.US,
       "Intersección: %.2f mm³\nUnión: %.2f mm³\nA menos B: %.2f mm³\n\nSolo análisis de volúmenes. No se ha creado ni modificado ningún sólido.",
       BoxBoolean.overlap(a,b),BoxBoolean.unionVolume(a,b),BoxBoolean.differenceVolume(a,b));
-     new AlertDialog.Builder(this).setTitle("Operaciones booleanas · análisis")
-       .setMessage(values).setPositiveButton("Cerrar",null).show();
+     new AlertDialog.Builder(this).setTitle("Operaciones booleanas")
+       .setMessage(values+"\\n\\nPuedes visualizar la malla resultante en el visor GPU.")
+       .setPositiveButton("Ver malla", (dd,which)->chooseBooleanPreview(a,b))
+       .setNegativeButton("Cerrar",null).show();
     }catch(Exception ex){toast("No se pudo calcular la geometría");}
+   }).setNegativeButton("Cancelar",null).show();
+ }
+ void chooseBooleanPreview(BoxBoolean.Box a,BoxBoolean.Box b){
+  String[] modes={"Unir (A ∪ B)","Intersección (A ∩ B)","Restar (A − B)"};
+  new AlertDialog.Builder(this).setTitle("Previsualizar resultado booleano")
+   .setItems(modes,(d,choice)->{
+    BoxBooleanMesh.Operation operation=choice==0?BoxBooleanMesh.Operation.UNION:choice==1?BoxBooleanMesh.Operation.INTERSECTION:BoxBooleanMesh.Operation.DIFFERENCE;
+    float[] triangles=BoxBooleanMesh.build(a,b,operation);
+    if(triangles.length==0){toast("El resultado es vacío");return;}
+    if(meshView==null){
+     meshView=new MeshEngine(this);
+     rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));
+    }
+    meshMode=true;meshView.setVisibility(View.VISIBLE);
+    meshView.setMeshes(java.util.Collections.singletonList(new MeshEngine.Mesh(triangles)));
+    info.setText("Malla booleana temporal · "+(triangles.length/9)+" triángulos · no guardada");
    }).setNegativeButton("Cancelar",null).show();
  }
  void bodyTree(){if(parts.isEmpty()){toast("Todavía no hay cuerpos");return;}String[] names=new String[parts.size()];for(int i=0;i<parts.size();i++){Part p=parts.get(i);names[i]=(i==selected?"● ":"○ ")+"Cuerpo "+(i+1)+" · "+(p.circle?"Cilindro":"Prisma")+(p.sourceSketchId.isEmpty()?"":" · Vinculado")+" · "+Math.round(p.w)+"×"+Math.round(p.d)+"×"+Math.round(p.h)+" mm";}new AlertDialog.Builder(this).setTitle("Árbol de cuerpos").setSingleChoiceItems(names,selected,(d,i)->{selected=i;selectedSketch=-1;scene.invalidate();d.dismiss();}).setPositiveButton("Cerrar",null).show();}
