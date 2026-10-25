@@ -869,7 +869,23 @@ public class MainActivity extends Activity {
  }
  boolean validBodyId(String id){try{return java.util.UUID.fromString(id).toString().equals(id);}catch(Exception e){return false;}}
  void checkpoint(){try{undo.push(encode());if(undo.size()>50)undo.removeLast();redo.clear();}catch(Exception e){}}
- void history(boolean back){activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);ArrayDeque<String> src=back?undo:redo,dst=back?redo:undo;if(src.isEmpty()){toast("Sin cambios");return;}try{dst.push(encode());ParsedDesign restored=decode(src.pop());parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();}catch(Exception e){toast("Error al recuperar cambio");}}
+ void history(boolean back){
+  ArrayDeque<String> src=back?undo:redo,dst=back?redo:undo;
+  if(src.isEmpty()){toast("Sin cambios");return;}
+  try{
+   // Decode the target revision BEFORE modifying either stack or the live project.
+   String prior=encode();
+   ParsedDesign restored=decode(src.peek());
+   src.pop();dst.push(prior);
+   activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);
+   parts=restored.parts;sketches=restored.sketches;
+   booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;
+   extrusionChains=restored.chains;chainFeatures=restored.features;
+   selected=parts.isEmpty()?-1:0;selectedSketch=-1;
+   save();scene.invalidate();
+   if(meshMode&&meshView!=null)renderCurrentCadMesh();
+  }catch(Exception error){toast("No se pudo recuperar la revisión; historial conservado");}
+ }
  void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
  void save(){try{getPreferences(MODE_PRIVATE).edit().putString("design",encode()).apply();updateStep();}catch(Exception e){toast("No se pudo guardar el borrador interno");}}
  void load(){activeCadFace=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
