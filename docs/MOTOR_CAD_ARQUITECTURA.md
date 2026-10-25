@@ -213,3 +213,7 @@ La nueva clase `FaceResize` calcula desplazamientos de las seis caras de un pris
 ## Caras de prismas rotados (2026-10-25)
 
 `RotatedFaceResize` aplica un desplazamiento local a una cara, transforma el cambio de origen mediante los giros X/Y/Z y lo suma a la posición global; conserva las dimensiones y orientación actuales salvo la dimensión editada. Las pruebas cubren Z 90°, X 90°, geometría sin giro y rechazo de colapso. Android lo utiliza al editar caras de prismas independientes, ahora también rotados. Los bocetos vinculados siguen excluidos hasta integrar su historial de dependencias; la cara Z_MAX aún usa el editor existente de altura.
+
+## Edición vinculada inicial desde caras XY
+
+En prismas procedentes de bocetos rectangulares del plano XY, `Editar cara seleccionada` permite mover X_MIN/X_MAX/Y_MIN/Y_MAX. Mantiene fija la cara opuesta del rectángulo, valida las dimensiones de todas las extrusiones enlazadas, actualiza los extremos del boceto conservando su orientación y regenera los cuerpos dependientes. Integra deshacer, guardado y refresco GPU. Mantiene la base Z_MIN fija y Z_MAX continúa utilizando la modificación de altura. Los perfiles circulares y planos XZ/YZ quedan explícitamente fuera de este primer paso.
