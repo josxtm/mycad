@@ -141,3 +141,7 @@ Nuevas operaciones `setExtrusionOffset(featureId, newOffset)` y `setSketchPlane(
 ## Primer uso del motor en Android — 2026-10-25
 
 La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneExtrusion.extrude(PrimitiveKernel, plano, dimensiones, altura)` antes de confirmar el guardado. Si el motor rechaza la geometría, no se confirma el borrador; si la acepta, el mensaje de volumen procede del motor. La geometría visual y el formato de archivo actuales siguen utilizándose para preservar compatibilidad; los cilindros mantienen el camino previo. **Esta es una integración incremental de validación, no una sustitución del renderizador ni un motor B-Rep.**
+
+## Validación de edición de altura en Android
+
+`MainActivity.editExtrusionHeight` comprueba ahora, para prismas rectangulares vinculados a un boceto existente, la extrusión con `PlaneExtrusion` y `PrimitiveKernel` antes de guardar la modificación. No altera el tratamiento actual de cilindros ni los archivos anteriores. La validación no equivale aún a sincronizar el historial de la UI con el documento paramétrico ni a B-Rep.
