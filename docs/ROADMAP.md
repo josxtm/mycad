@@ -116,3 +116,11 @@ Si el motor actual no admite una operación fiable, registrar la limitación y d
 - La selección de arista es por lista; aún no dispone de picking táctil directo ni resaltado 3D de aristas.
 - Los cilindros no se incluyen en esta etapa. La inspección no modifica la geometría.
 - Estado: código incorporado; pendiente de comprobar el workflow y pruebas en teléfono.
+
+## Selección táctil de caras planas — 2026-10-25
+
+- En modo **NAVEGAR** (visor 3D Canvas), tocar una cara de un prisma la selecciona y resalta con contorno amarillo.
+- Picking por proyección de polígonos y profundidad media; se elige la cara proyectada más cercana. Compatible con la rotación de primitivas.
+- La selección es informativa y no cambia la geometría; los cilindros, mallas importadas y mallas booleanas no admiten todavía picking facial.
+- En 2D y modos de movimiento/edición se mantiene el funcionamiento existente. Queda pendiente selección precisa por ray casting para modelos complejos y detección de aristas.
+- Compilación de este incremento aún por verificar en la rama `ci-status`.
