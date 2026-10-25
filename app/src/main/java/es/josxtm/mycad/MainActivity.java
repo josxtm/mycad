@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
  icon(left,"✎","Boceto 2D",()->chooseSketchPlane());icon(left,"↥","Extruir boceto",()->extrudeSketch());icon(left,"□","Crear rectángulo",()->edit(false,false));icon(left,"◯","Crear círculo",()->edit(true,false));icon(left,"✎","Editar pieza",()->{if(selected>=0)editLinkedOrPart();else toast("Selecciona una pieza");});icon(left,"☞","Modo navegar / mover / editar",()->chooseInteractionMode());icon(left,"✥","Mover / restricciones",()->moveOptions());icon(left,"⌫","Eliminar pieza",()->{if(selected>=0){checkpoint();parts.remove(selected);selected=-1;save();scene.invalidate();}else toast("Selecciona una pieza");});
  scene=new Scene();workspace.addView(scene,new LinearLayout.LayoutParams(0,-1,1));
  LinearLayout right=new LinearLayout(this);right.setOrientation(LinearLayout.VERTICAL);workspace.addView(right);rightBar=right;
- icon(right,"☷","Árbol de cuerpos",()->bodyTree());icon(right,"◇","Alternar vista 2D / 3D",()->{flat=!flat;scene.invalidate();});icon(right,"⊡","Centrar vista",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});icon(right,"▱","Visor 3D GPU",()->toggleMeshView());icon(right,"?","Guía",()->guide());
+ icon(right,"☷","Árbol de cuerpos",()->bodyTree());icon(right,"∩","Analizar booleanas",()->booleanAnalysis());icon(right,"◇","Alternar vista 2D / 3D",()->{flat=!flat;scene.invalidate();});icon(right,"⊡","Centrar vista",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});icon(right,"▱","Visor 3D GPU",()->toggleMeshView());icon(right,"?","Guía",()->guide());
  LinearLayout modes=new LinearLayout(this);modes.setGravity(Gravity.CENTER);root.addView(modes);button(modes,"NAVEGAR",()->setInteractionMode(0));button(modes,"MOVER",()->setInteractionMode(1));button(modes,"EDITAR",()->setInteractionMode(2));button(modes,"GIRAR 3D",()->{rotationMode=true;setInteractionMode(0);scene.invalidate();rotateSelected3D();});button(modes,"XYZ mm",()->positionSelected());
  nextStep=new TextView(this);nextStep.setTextColor(Color.rgb(112,220,229));nextStep.setTextSize(11);root.addView(nextStep);
  root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(16+insets.getSystemWindowInsetLeft(),16+insets.getSystemWindowInsetTop(),16+insets.getSystemWindowInsetRight(),16+insets.getSystemWindowInsetBottom());return insets;});setContentView(root);root.requestApplyInsets();loadSettings();applyTheme();load();if(b!=null)pendingExport=b.getString("pendingExport");updateStep();
@@ -135,6 +135,35 @@ public class MainActivity extends Activity {
  void setInteractionMode(int n){interactionMode=n;scene.movingEntity=n==1;info.setText(new String[]{"NAVEGAR · Arrastra para girar · Pellizca para zoom","MOVER · Usa flechas XYZ o arrastra el cuerpo","EDITAR · Arrastra los controladores"}[n]);scene.invalidate();}
  void rotateSelectedZ(){if(selected<0){toast("Selecciona un cuerpo");return;}Part p=parts.get(selected);EditText e=new EditText(this);e.setInputType(8194|4096);e.setText(""+p.rotationZ);new AlertDialog.Builder(this).setTitle("Rotación Z (grados)").setView(e).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float a=Float.parseFloat(e.getText().toString().replace(',','.'));if(!Float.isFinite(a))throw new Exception();checkpoint();p.rotationZ=a;save();scene.invalidate();}catch(Exception ex){toast("Ángulo inválido");}}).show();}
  void rotateSelected3D(){if(selected<0){toast("Selecciona un cuerpo");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(18),dp(8),dp(18),dp(8));EditText[] fields=new EditText[3];float[] vals={p.rotationX,p.rotationY,p.rotationZ};String[] labels={"X rojo · grados","Y verde · grados","Z azul · grados"};for(int k=0;k<3;k++){TextView t=new TextView(this);t.setText(labels[k]);box.addView(t);fields[k]=new EditText(this);fields[k].setInputType(8194|4096);fields[k].setText(""+vals[k]);box.addView(fields[k]);}new AlertDialog.Builder(this).setTitle("GIRAR 3D · XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] a=new float[3];for(int k=0;k<3;k++){a[k]=Float.parseFloat(fields[k].getText().toString().replace(',','.'));if(!Float.isFinite(a[k])||Math.abs(a[k])>36000)throw new Exception();}checkpoint();p.rotationX=a[0];p.rotationY=a[1];p.rotationZ=a[2];save();scene.invalidate();}catch(Exception ex){toast("Introduce ángulos válidos");}}).show();}
+ void booleanAnalysis(){
+  if(selected<0||selected>=parts.size()||parts.size()<2){toast("Selecciona un prisma y crea otro para comparar");return;}
+  final Part primary=parts.get(selected);
+  if(primary.circle||primary.rotationX!=0||primary.rotationY!=0||primary.rotationZ!=0){
+   toast("Por ahora solo prismas sin rotación");return;
+  }
+  ArrayList<Integer> candidates=new ArrayList<>();
+  ArrayList<String> labels=new ArrayList<>();
+  for(int i=0;i<parts.size();i++){
+   if(i==selected)continue;
+   Part p=parts.get(i);
+   if(p.circle||p.rotationX!=0||p.rotationY!=0||p.rotationZ!=0)continue;
+   candidates.add(i);labels.add("Cuerpo "+(i+1));
+  }
+  if(candidates.isEmpty()){toast("Se necesita otro prisma rectangular sin rotación");return;}
+  new AlertDialog.Builder(this).setTitle("Análisis booleano · segundo prisma")
+   .setItems(labels.toArray(new String[0]),(dialog,n)->{
+    Part secondary=parts.get(candidates.get(n));
+    try{
+     BoxBoolean.Box a=new BoxBoolean.Box(primary.x,primary.y,primary.z,primary.w,primary.d,primary.h);
+     BoxBoolean.Box b=new BoxBoolean.Box(secondary.x,secondary.y,secondary.z,secondary.w,secondary.d,secondary.h);
+     String values=String.format(java.util.Locale.US,
+      "Intersección: %.2f mm³\nUnión: %.2f mm³\nA menos B: %.2f mm³\n\nSolo análisis de volúmenes. No se ha creado ni modificado ningún sólido.",
+      BoxBoolean.overlap(a,b),BoxBoolean.unionVolume(a,b),BoxBoolean.differenceVolume(a,b));
+     new AlertDialog.Builder(this).setTitle("Operaciones booleanas · análisis")
+       .setMessage(values).setPositiveButton("Cerrar",null).show();
+    }catch(Exception ex){toast("No se pudo calcular la geometría");}
+   }).setNegativeButton("Cancelar",null).show();
+ }
  void bodyTree(){if(parts.isEmpty()){toast("Todavía no hay cuerpos");return;}String[] names=new String[parts.size()];for(int i=0;i<parts.size();i++){Part p=parts.get(i);names[i]=(i==selected?"● ":"○ ")+"Cuerpo "+(i+1)+" · "+(p.circle?"Cilindro":"Prisma")+(p.sourceSketchId.isEmpty()?"":" · Vinculado")+" · "+Math.round(p.w)+"×"+Math.round(p.d)+"×"+Math.round(p.h)+" mm";}new AlertDialog.Builder(this).setTitle("Árbol de cuerpos").setSingleChoiceItems(names,selected,(d,i)->{selected=i;selectedSketch=-1;scene.invalidate();d.dismiss();}).setPositiveButton("Cerrar",null).show();}
  void chooseInteractionMode(){new AlertDialog.Builder(this).setTitle("Modo de interacción").setSingleChoiceItems(new String[]{"NAVEGAR · Girar cámara con un dedo","MOVER · Arrastrar pieza seleccionada","EDITAR · Arrastrar controladores"},interactionMode,(d,n)->{setInteractionMode(n);d.dismiss();}).setNegativeButton("Cancelar",null).show();}
  void moveOptions(){if(selected<0){toast("Selecciona una pieza primero");return;}String[] opts={"Libre (plano de trabajo)","Ortogonal (X o Y dominante)","Seguir eje X / Y / Z","Radial (distancia al origen fija)","Distancia exacta (XYZ)","Posición exacta XYZ"};new AlertDialog.Builder(this).setTitle("Mover pieza · Restricciones").setItems(opts,(d,n)->{if(n==5){positionSelected();return;}if(n==4){moveExact();return;}moveMode=n;if(n==2){new AlertDialog.Builder(this).setTitle("Elegir eje").setSingleChoiceItems(new String[]{"X","Y","Z"},moveAxis,(di,k)->{moveAxis=k;di.dismiss();storeSettings();setInteractionMode(1);toast("Arrastra la pieza sobre el eje "+new String[]{"X","Y","Z"}[k]);}).show();}else{storeSettings();interactionMode=1;scene.movingEntity=true;toast("Modo "+opts[n]+" · arrastra la pieza");}}).show();}
