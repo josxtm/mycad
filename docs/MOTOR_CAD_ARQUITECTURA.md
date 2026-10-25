@@ -271,3 +271,11 @@ Desde `Historial de extrusiones → Cadena` hay vistas **no destructivas** de co
 - Reparada la recuperación automática del borrador: `load()` restaura `extrusionChains` y `chainFeatures`, como ya hacían la apertura explícita y deshacer/rehacer. La verificación de integridad incorpora un guardarraíl para esta regresión.
 - `showMeshOnly()` marca la malla como previsualización aislada. Sus toques ya no se interpretan como selección de cuerpos reales, evitando aplicar modificaciones a piezas ajenas. Al restablecer el visor del diseño se limpia la bandera de previsualización.
 - Limitaciones vigentes: el cortador es una instantánea de prisma alineado a ejes; editar la pieza original que lo creó **no** cambia la receta. El resultado es una malla reconstruible, no una topología B-Rep; sigue faltando la verificación de gestos en dispositivo.
+
+## Curvas y perforaciones — bloque 0.6.0
+
+`CylinderSurface`: malla triangulada cerrada para cilindros, con transformaciones XYZ. El visor CAD experimental muestra cilindros y prismas simultáneamente; al tocar un cilindro se selecciona el cuerpo, sin identificación topológica de sus caras.
+
+`CircularThroughHole`: malla cerrada con perforación circular pasante en Z sobre una caja sin giro; 64 segmentos más rayos de las esquinas, tapas anulares, pared interior y exterior. `DrilledBoxRecipe` guarda posición, dimensiones de la caja y desplazamientos y diámetro del agujero, y permite regenerar la malla. `CurvedGeometryTest` comprueba volúmenes, rotación de cilindro y casos inválidos.
+
+Android: `Proyecto → Perforar prisma (circular)` permite previsualizar y guardar la conversión de un prisma sin giro ni boceto vinculado a malla regenerable. `Resultados booleanos → Editar perforación circular` modifica centro relativo X/Y y diámetro. Los datos se guardan como `throughHoleRecipes` opcional alineado con `booleanMeshes` dentro de JSON v1, y participan en deshacer/rehacer, apertura y borrador. La geometría es poligonal aproximada, no B-Rep ni NURBS; requiere prueba funcional en dispositivo.
