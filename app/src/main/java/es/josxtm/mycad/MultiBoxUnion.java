@@ -1,0 +1,31 @@
+package es.josxtm.mycad;
+/** Exact axis-aligned union boundary mesh of a bounded list of boxes. */
+public final class MultiBoxUnion {
+ private MultiBoxUnion(){}
+ public static float[] build(java.util.List<BoxBoolean.Box> boxes){
+  if(boxes==null||boxes.isEmpty())return new float[0];
+  if(boxes.size()>52)throw new IllegalArgumentException("Too many solids");
+  java.util.TreeSet<Double> xx=new java.util.TreeSet<>(),yy=new java.util.TreeSet<>(),zz=new java.util.TreeSet<>();
+  for(BoxBoolean.Box b:boxes){if(b==null)throw new IllegalArgumentException("Missing solid");xx.add(b.x0);xx.add(b.x1);yy.add(b.y0);yy.add(b.y1);zz.add(b.z0);zz.add(b.z1);}
+  double[] x=values(xx),y=values(yy),z=values(zz);
+  java.util.ArrayList<Float> mesh=new java.util.ArrayList<>();
+  for(int i=0;i<x.length-1;i++)for(int j=0;j<y.length-1;j++)for(int k=0;k<z.length-1;k++){
+   if(!contains(boxes,(x[i]+x[i+1])/2,(y[j]+y[j+1])/2,(z[k]+z[k+1])/2))continue;
+   double a=x[i],b=x[i+1],c=y[j],d=y[j+1],e=z[k],f=z[k+1];
+   if(i==0||!contains(boxes,(x[i-1]+x[i])/2,(c+d)/2,(e+f)/2))face(mesh,new double[]{a,c,e},new double[]{a,c,f},new double[]{a,d,f},new double[]{a,d,e});
+   if(i==x.length-2||!contains(boxes,(x[i+1]+x[i+2])/2,(c+d)/2,(e+f)/2))face(mesh,new double[]{b,c,e},new double[]{b,d,e},new double[]{b,d,f},new double[]{b,c,f});
+   if(j==0||!contains(boxes,(a+b)/2,(y[j-1]+y[j])/2,(e+f)/2))face(mesh,new double[]{a,c,e},new double[]{b,c,e},new double[]{b,c,f},new double[]{a,c,f});
+   if(j==y.length-2||!contains(boxes,(a+b)/2,(y[j+1]+y[j+2])/2,(e+f)/2))face(mesh,new double[]{a,d,e},new double[]{a,d,f},new double[]{b,d,f},new double[]{b,d,e});
+   if(k==0||!contains(boxes,(a+b)/2,(c+d)/2,(z[k-1]+z[k])/2))face(mesh,new double[]{a,c,e},new double[]{a,d,e},new double[]{b,d,e},new double[]{b,c,e});
+   if(k==z.length-2||!contains(boxes,(a+b)/2,(c+d)/2,(z[k+1]+z[k+2])/2))face(mesh,new double[]{a,c,f},new double[]{b,c,f},new double[]{b,d,f},new double[]{a,d,f});
+  }
+  float[] result=new float[mesh.size()];for(int i=0;i<result.length;i++)result[i]=mesh.get(i);return result;
+ }
+ private static double[] values(java.util.TreeSet<Double> set){double[] v=new double[set.size()];int i=0;for(double x:set)v[i++]=x;return v;}
+ private static boolean contains(java.util.List<BoxBoolean.Box> boxes,double x,double y,double z){
+  for(BoxBoolean.Box b:boxes)if(x>b.x0&&x<b.x1&&y>b.y0&&y<b.y1&&z>b.z0&&z<b.z1)return true;
+  return false;
+ }
+ private static void face(java.util.ArrayList<Float> output,double[] a,double[] b,double[] c,double[] d){tri(output,a,b,c);tri(output,a,c,d);}
+ private static void tri(java.util.ArrayList<Float> output,double[] a,double[] b,double[] c){for(double v:a)output.add((float)v);for(double v:b)output.add((float)v);for(double v:c)output.add((float)v);}
+}
