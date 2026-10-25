@@ -153,3 +153,7 @@ La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneEx
 ## Vista previa de migración paramétrica (fase Android)
 
 `CadIntegrationProbe.inspect` genera ahora un `parametricSnapshot` de los perfiles rectangulares y sus extrusiones compatibles, lo vuelve a importar y verifica integridad y número de cuerpos antes de devolver el informe. El formato es MYCAD-PARAMETRIC|1. En proyectos mixtos es una **vista previa parcial**: círculos, piezas libres y mallas no se trasladan, por lo que nunca debe sustituir automáticamente el JSON v1. La aplicación no cambia aún el formato de guardado. Pruebas de ida/vuelta sobre documentos completos y mixtos.
+
+## Archivo Android con vista previa paramétrica opcional (2026-10-25)
+
+`MainActivity.encode()` mantiene el contenedor JSON `format=mycad`, `version=1`, `units=mm` y los campos anteriores (`parts`, `sketches`, `booleanMeshes`). Añade `parametricPreview` con el snapshot generado y probado mediante `CadIntegrationProbe`, además del indicador `parametricPreviewComplete`. Los lectores existentes siguen pudiendo abrir la parte legacy. La vista previa es **no autoritativa** y puede ser parcial; la aplicación sigue reconstruyendo las piezas desde `parts`/`sketches` al cargar. Los errores de construcción de la vista previa no impiden guardar el modelo previo. Sigue pendiente la migración bidireccional, la asignación estable de ID entre modelos y un B-Rep general.
