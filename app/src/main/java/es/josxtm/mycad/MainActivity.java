@@ -260,13 +260,19 @@ public class MainActivity extends Activity {
  void drillSelectedBox(){
   if(selected<0||selected>=parts.size()){toast("Selecciona primero un prisma");return;}
   final Part parent=parts.get(selected);final int index=selected;
-  if(parent.circle||parent.rotationX!=0||parent.rotationY!=0||parent.rotationZ!=0||
-   !parent.sourceSketchId.isEmpty()){toast("Perforación disponible en prismas sin giro ni boceto vinculado");return;}
+  if(parent.circle||!parent.sourceSketchId.isEmpty()){
+   toast("Perforación disponible en prismas independientes, sin boceto vinculado");return;
+  }
   if(booleanMeshes.size()>=100){toast("Máximo 100 mallas booleanas");return;}
   LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
+  TextView axisTitle=new TextView(this);axisTitle.setText("Dirección del taladro respecto a la pieza");fields.addView(axisTitle);
+  final Spinner axisChoice=new Spinner(this);
+  axisChoice.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,
+   new String[]{"Z · sección X/Y","X · sección Y/Z","Y · sección Z/X"}));
+  fields.addView(axisChoice);
   final EditText[] inputs=new EditText[3];
-  final String[] labels={"Desplazamiento X del agujero (mm)","Desplazamiento Y del agujero (mm)","Diámetro (mm)"};
-  double[] defaults={0,0,Math.min(parent.w,parent.d)/4};
+  final String[] labels={"Desplazamiento U del centro (mm)","Desplazamiento V del centro (mm)","Diámetro del agujero (mm)"};
+  double[] defaults={0,0,Math.min(parent.w,Math.min(parent.d,parent.h))/4};
   for(int i=0;i<inputs.length;i++){
    TextView label=new TextView(this);label.setText(labels[i]);fields.addView(label);
    EditText input=new EditText(this);input.setInputType(8194|4096);
@@ -274,24 +280,31 @@ public class MainActivity extends Activity {
   }
   android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.addView(fields);
   new AlertDialog.Builder(this).setTitle("Perforación circular pasante")
-   .setMessage("El agujero atraviesa todo el alto Z. Guardar convierte este prisma en una malla regenerable.")
+   .setMessage("Elige el eje local X/Y/Z. La perforación gira con la pieza; guardar genera una malla regenerable.")
    .setView(scroll).setNegativeButton("Cancelar",null)
    .setNeutralButton("Previsualizar",(dialog,which)->{
     try{
      double[] vals=new double[3];for(int i=0;i<3;i++)vals[i]=Double.parseDouble(inputs[i].getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.OrientedThroughHole.Axis axis=drillAxisChoice(axisChoice.getSelectedItemPosition());
      es.josxtm.mycad.cad.DrilledBoxRecipe drill=new es.josxtm.mycad.cad.DrilledBoxRecipe(
-      parent.x,parent.y,parent.z,parent.w,parent.d,parent.h,vals[0],vals[1],vals[2]);
-     showMeshOnly(new MeshEngine.Mesh(drill.regenerate()));
-    }catch(Exception e){toast("Perforación inválida: el agujero debe caber en el prisma");}
+      parent.x,parent.y,parent.z,parent.w,parent.d,parent.h,vals[0],vals[1],vals[2],
+      axis,parent.rotationX,parent.rotationY,parent.rotationZ);
+     float[] preview=drill.regenerate();
+     if(!es.josxtm.mycad.cad.TriangleMeshHealth.inspect(preview).isWatertight())throw new IllegalArgumentException("Open mesh");
+     showMeshOnly(new MeshEngine.Mesh(preview));
+    }catch(Exception e){toast("Perforación inválida: el agujero debe caber en la sección");}
    })
    .setPositiveButton("Guardar perforación",(dialog,which)->{
     try{
      if(index>=parts.size()||parts.get(index)!=parent||booleanMeshes.size()>=100)throw new IllegalArgumentException();
      double[] vals=new double[3];for(int i=0;i<3;i++)vals[i]=Double.parseDouble(inputs[i].getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.OrientedThroughHole.Axis axis=drillAxisChoice(axisChoice.getSelectedItemPosition());
      es.josxtm.mycad.cad.DrilledBoxRecipe recipe=new es.josxtm.mycad.cad.DrilledBoxRecipe(
-      parent.x,parent.y,parent.z,parent.w,parent.d,parent.h,vals[0],vals[1],vals[2]);
+      parent.x,parent.y,parent.z,parent.w,parent.d,parent.h,vals[0],vals[1],vals[2],
+      axis,parent.rotationX,parent.rotationY,parent.rotationZ);
      float[] geometry=recipe.regenerate();
-     if(geometry.length==0||geometry.length>18000)throw new IllegalArgumentException();
+     if(geometry.length==0||geometry.length>18000||
+      !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(geometry).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
      checkpoint();parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(geometry));
      unionRecipes.add(null);holeRecipes.add(recipe);
      selected=-1;selectedSketch=-1;activeCadFace=null;save();scene.invalidate();
@@ -300,30 +313,49 @@ public class MainActivity extends Activity {
     }catch(Exception e){toast("No se pudo guardar la perforación");}
    }).show();
  }
+ es.josxtm.mycad.cad.OrientedThroughHole.Axis drillAxisChoice(int choice){
+  return choice==1?es.josxtm.mycad.cad.OrientedThroughHole.Axis.X:
+         choice==2?es.josxtm.mycad.cad.OrientedThroughHole.Axis.Y:
+                   es.josxtm.mycad.cad.OrientedThroughHole.Axis.Z;
+ }
+ int drillAxisPosition(es.josxtm.mycad.cad.OrientedThroughHole.Axis axis){
+  return axis==es.josxtm.mycad.cad.OrientedThroughHole.Axis.X?1:
+         axis==es.josxtm.mycad.cad.OrientedThroughHole.Axis.Y?2:0;
+ }
  void editHoleRecipe(int index){
   if(index<0||index>=holeRecipes.size()||holeRecipes.get(index)==null){toast("Esta malla no es una perforación editable");return;}
   final es.josxtm.mycad.cad.DrilledBoxRecipe previous=holeRecipes.get(index);
   final EditText[] inputs=new EditText[3];
   LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
-  String[] labels={"Desplazamiento X (mm)","Desplazamiento Y (mm)","Diámetro (mm)"};
+  TextView header=new TextView(this);header.setText("Eje de perforación (local)");fields.addView(header);
+  final Spinner axisChoice=new Spinner(this);
+  axisChoice.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,
+   new String[]{"Z · sección X/Y","X · sección Y/Z","Y · sección Z/X"}));
+  axisChoice.setSelection(drillAxisPosition(previous.axis));fields.addView(axisChoice);
+  String[] labels={"Desplazamiento U (mm)","Desplazamiento V (mm)","Diámetro (mm)"};
   double[] initial={previous.holeX,previous.holeY,previous.diameter};
   for(int i=0;i<3;i++){
    TextView label=new TextView(this);label.setText(labels[i]);fields.addView(label);
    inputs[i]=new EditText(this);inputs[i].setInputType(8194|4096);
    inputs[i].setText(String.valueOf(initial[i]));fields.addView(inputs[i]);
   }
+  android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.addView(fields);
   new AlertDialog.Builder(this).setTitle("Editar perforación circular")
-   .setView(fields).setNegativeButton("Cancelar",null).setPositiveButton("Regenerar",(dialog,which)->{
+   .setView(scroll).setNegativeButton("Cancelar",null).setPositiveButton("Regenerar",(dialog,which)->{
     try{
      if(index>=holeRecipes.size()||holeRecipes.get(index)!=previous)throw new IllegalArgumentException();
      double[] vals=new double[3];for(int i=0;i<3;i++)vals[i]=Double.parseDouble(inputs[i].getText().toString().replace(',','.'));
-     es.josxtm.mycad.cad.DrilledBoxRecipe next=previous.withHole(vals[0],vals[1],vals[2]);
+     es.josxtm.mycad.cad.DrilledBoxRecipe next=new es.josxtm.mycad.cad.DrilledBoxRecipe(
+      previous.x,previous.y,previous.z,previous.width,previous.depth,previous.height,
+      vals[0],vals[1],vals[2],drillAxisChoice(axisChoice.getSelectedItemPosition()),
+      previous.rotationX,previous.rotationY,previous.rotationZ);
      float[] mesh=next.regenerate();
-     if(mesh.length==0||mesh.length>18000)throw new IllegalArgumentException();
+     if(mesh.length==0||mesh.length>18000||
+      !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(mesh).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
      checkpoint();holeRecipes.set(index,next);booleanMeshes.set(index,new MeshEngine.Mesh(mesh));
      save();scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();
-     toast("Perforación regenerada");
-    }catch(Exception error){toast("Diámetro o posición inválidos");}
+     toast("Perforación regenerada en el nuevo eje");
+    }catch(Exception error){toast("Eje, diámetro o posición inválidos");}
    }).show();
  }
  void editFaceUnionRecipe(int meshIndex){
@@ -491,7 +523,9 @@ public class MainActivity extends Activity {
   if(drill==null){drills.put(JSONObject.NULL);continue;}
   drills.put(new JSONObject().put("x",drill.x).put("y",drill.y).put("z",drill.z)
    .put("w",drill.width).put("d",drill.depth).put("h",drill.height)
-   .put("offsetX",drill.holeX).put("offsetY",drill.holeY).put("diameter",drill.diameter));
+   .put("offsetX",drill.holeX).put("offsetY",drill.holeY).put("diameter",drill.diameter)
+   .put("axis",drill.axis.name()).put("rotationX",drill.rotationX)
+   .put("rotationY",drill.rotationY).put("rotationZ",drill.rotationZ));
  }
  file.put("throughHoleRecipes",drills);
 
@@ -597,7 +631,9 @@ public class MainActivity extends Activity {
     parsedDrills.add(new es.josxtm.mycad.cad.DrilledBoxRecipe(
      v.getDouble("x"),v.getDouble("y"),v.getDouble("z"),
      v.getDouble("w"),v.getDouble("d"),v.getDouble("h"),
-     v.getDouble("offsetX"),v.getDouble("offsetY"),v.getDouble("diameter")));
+     v.getDouble("offsetX"),v.getDouble("offsetY"),v.getDouble("diameter"),
+     es.josxtm.mycad.cad.OrientedThroughHole.Axis.valueOf(v.optString("axis","Z")),
+     v.optDouble("rotationX",0),v.optDouble("rotationY",0),v.optDouble("rotationZ",0)));
    }catch(IllegalArgumentException e){throw new IOException("Perforación inválida",e);}
   }
  }
