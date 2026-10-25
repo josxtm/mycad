@@ -30,7 +30,8 @@ public final class LinkedSketchSolidPlanTest {
    ok(batch.size()==3,"three dependent extrusions");
    eq(batch.get(0).w,batch.get(2).w,"same profile across dependents");
    eq(batch.get(1).h,11,"per body height");
-   bad(()->batch.clear(),"Mutable plan");
+   boolean immutable=false;try{batch.clear();}catch(UnsupportedOperationException expected){immutable=true;}
+   ok(immutable,"Mutable plan");
   }
   bad(()->LinkedSketchSolidPlan.build(2,0,1,1,1,5,10),"zero width rectangle");
   bad(()->LinkedSketchSolidPlan.build(3,0,1,1,1,1,10),"zero circle radius");
