@@ -185,3 +185,7 @@ El menú de proyecto ofrece `Alternar visor CAD experimental`, desactivado inici
 ## Interacción táctil con el visor GPU — 2026-10-25
 
 `MeshEngine` distingue una pulsación corta de los gestos de arrastre/órbita; proyecta un rayo desde la pantalla deshaciendo la matriz proyección×vista de la cámara y emplea `CadRayPicker` para localizar la intersección positiva más cercana. Entrega el índice global de triángulo y coordenadas XYZ mediante `SurfaceTapListener`, y `MainActivity` muestra el resultado en el rótulo de información. En esta fase identifica triángulos, no caras paramétricas persistentes, y aún no permite editar directamente la superficie seleccionada. Se conserva la navegación habitual del visor GPU.
+
+## Selección de caras lógicas de prismas (2026-10-25)
+
+`BoxFaceSelection` relaciona dos triángulos consecutivos con cada una de las seis caras etiquetadas Z_MIN, Z_MAX, Y_MIN, Y_MAX, X_MIN, X_MAX y permite extraer los triángulos de una cara. Las pruebas verifican los 12 triángulos. `MainActivity` muestra la cara identificada al tocar el visor GPU experimental **solo cuando hay un único prisma y ninguna malla adicional**; en escenas complejas mantiene la identificación del triángulo hasta implementar el mapa de índices por cuerpo. Aún no hay resaltado visual ni edición directa de caras.
