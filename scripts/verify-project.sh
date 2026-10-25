@@ -137,7 +137,11 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/BoxSurface.java \
   app/src/main/java/es/josxtm/mycad/cad/BoxFaceSelection.java \
   app/src/main/java/es/josxtm/mycad/cad/BoxBRep.java \
-  tests/BoxBRepTest.java
+  app/src/main/java/es/josxtm/mycad/cad/CylinderSurface.java \
+  app/src/main/java/es/josxtm/mycad/cad/CylinderBRep.java \
+  tests/BoxBRepTest.java \
+  tests/CylinderBRepTest.java
 java -cp build/box-brep-tests BoxBRepTest
+java -cp build/box-brep-tests CylinderBRepTest
 
 echo "Comprobaciones básicas del proyecto: OK"
