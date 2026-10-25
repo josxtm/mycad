@@ -255,3 +255,7 @@ En el visor CAD experimental, los triángulos añadidos al final de la malla por
 Se incorpora `MultiBoxUnion.Operation` con `UNION`, `DIFFERENCE` e `INTERSECTION` sobre cajas alineadas a los ejes. La diferencia conserva la primera caja y sustrae las posteriores; la intersección usa todas. `MultiBoxOperationsTest` valida volúmenes de malla para un corte pasante rectangular, intersección y cuerpos separados.
 
 Desde `Historial de extrusiones → Cadena` hay vistas **no destructivas** de corte e intersección contra un prisma rectangular seleccionado, sin rotaciones. Son vistas previas de las piezas encadenadas y no operaciones persistentes del historial; con varios prismas, pueden conservar superficies internas y no constituyen un B-Rep. La rama `dev/cad-060-geometry-batch` agrupa el desarrollo; la integración a `main` dispara la compilación principal del lote.
+
+## Lote booleano sobre cadena unificada
+
+`MultiBoxUnion` soporta `CHAIN_DIFFERENCE` y `CHAIN_INTERSECTION` interpretando todas las cajas salvo la última como unión de la cadena y la última como herramienta de corte. Produce una única malla exterior sin duplicar caras de los cuerpos encadenados. La vista Android de corte/intersección usa esta operación completa, no la concatenación de resultados parciales. `ChainBooleanTest` comprueba la resta y la intersección de un cortador que atraviesa dos extrusiones adyacentes. Las operaciones son todavía previsualizaciones no destructivas, no entradas persistentes en el historial.

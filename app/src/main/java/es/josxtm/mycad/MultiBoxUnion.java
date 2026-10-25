@@ -2,7 +2,7 @@ package es.josxtm.mycad;
 /** Exact axis-aligned union boundary mesh of a bounded list of boxes. */
 public final class MultiBoxUnion {
  private MultiBoxUnion(){}
- public enum Operation { UNION, DIFFERENCE, INTERSECTION }
+ public enum Operation { UNION, DIFFERENCE, INTERSECTION, CHAIN_DIFFERENCE, CHAIN_INTERSECTION }
  /** Use the first box as the main body, all others as cutters or operands. */
  public static float[] build(java.util.List<BoxBoolean.Box> boxes,Operation op){
   if(op==null)throw new IllegalArgumentException("Missing operation");
@@ -26,6 +26,17 @@ public final class MultiBoxUnion {
   float[] result=new float[mesh.size()];for(int i=0;i<result.length;i++)result[i]=mesh.get(i);return result;
  }
  private static boolean occupies(java.util.List<BoxBoolean.Box> boxes,Operation op,double x,double y,double z){
+  if(op==Operation.CHAIN_DIFFERENCE||op==Operation.CHAIN_INTERSECTION){
+   if(boxes.size()<2)throw new IllegalArgumentException("Need chain and tool");
+   boolean chain=false;
+   for(int n=0;n<boxes.size()-1;n++){
+    BoxBoolean.Box c=boxes.get(n);
+    if(x>c.x0&&x<c.x1&&y>c.y0&&y<c.y1&&z>c.z0&&z<c.z1){chain=true;break;}
+   }
+   BoxBoolean.Box tool=boxes.get(boxes.size()-1);
+   boolean insideTool=x>tool.x0&&x<tool.x1&&y>tool.y0&&y<tool.y1&&z>tool.z0&&z<tool.z1;
+   return chain&&(op==Operation.CHAIN_INTERSECTION?insideTool:!insideTool);
+  }
   BoxBoolean.Box root=boxes.get(0);
   boolean initial=x>root.x0&&x<root.x1&&y>root.y0&&y<root.y1&&z>root.z0&&z<root.z1;
   if(!initial)return false;
