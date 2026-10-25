@@ -169,3 +169,7 @@ La acción «Crear sólido» de una extrusión rectangular invoca ahora `PlaneEx
 ## Vista previa transformada de cuerpos — 2026-10-25
 
 `TransformedBody` combina `CadKernel.Box` con `RigidTransform`: proporciona ocho vértices en coordenadas globales, centro, AABB transformada y volumen conservado. `CadIntegrationProbe` recibe opcionalmente las transformaciones antiguas y genera cotas mundiales junto a `generatedBodyIds`; la exportación JSON mantiene dichos límites en `parametricBodyBindings[].worldBounds`. Incluye pruebas Java de rotación Z 90° y traslación. **Los límites AABB son metadatos de vista previa, no una representación topológica B-Rep, y el renderizador Android no se ha sustituido.**
+
+## Triangulación de prismas transformados
+
+`BoxSurface.triangles(TransformedBody)` devuelve 12 triángulos (36 vértices, coordenadas float XYZ) de la superficie del cuboide con transformaciones rígidas aplicadas. Las caras se ordenan con normales exteriores y las pruebas validan límites y orientación. Es una malla destinada a renderizado, no una topología B-Rep editable. Aún no está conectada al visor Android.
