@@ -84,4 +84,52 @@ public final class ParametricSketchDocument {
   for(Extrusion e:extrusions().values())if(!e.sketchId.equals(sketchId))dependents.put(e.id,e);
   return rebuild(next,dependents,null).isSuccess();
  }
+ /** Versioned, deterministic text snapshot; separate from legacy Android JSON v1. */
+ public String exportSnapshot(){
+  StringBuilder result=new StringBuilder("MYCAD-PARAMETRIC|1\\n");
+  for(Rectangle shape:sketches().values())
+   result.append("R|").append(shape.id).append('|').append(shape.x).append('|')
+    .append(shape.y).append('|').append(shape.width).append('|').append(shape.depth).append('\\n');
+  for(Extrusion feature:extrusions().values())
+   result.append("E|").append(feature.id).append('|').append(feature.sketchId).append('|')
+    .append(feature.bodyId).append('|').append(feature.baseZ).append('|')
+    .append(feature.height).append('\\n');
+  return result.toString();
+ }
+ private static String uuid(String token){
+  return UUID.fromString(token).toString();
+ }
+ /** Deserialize into a new document and validate every feature before committing. */
+ public static ParametricSketchDocument importSnapshot(CadKernel kernel,String encoded){
+  if(encoded==null||encoded.length()>2000000)throw new IllegalArgumentException("Documento excede límite");
+  String[] lines=encoded.split("\\n",-1);
+  if(lines.length==0||!"MYCAD-PARAMETRIC|1".equals(lines[0]))throw new IllegalArgumentException("Versión incorrecta");
+  ParametricSketchDocument document=new ParametricSketchDocument(kernel);
+  Map<String,Rectangle> sketches=new LinkedHashMap<>();
+  Map<String,Extrusion> features=new LinkedHashMap<>();
+  for(int i=1;i<lines.length;i++){
+   String line=lines[i];
+   if(line.isEmpty()){if(i!=lines.length-1)throw new IllegalArgumentException("Línea vacía");continue;}
+   String[] cells=line.split("\\|",-1);
+   try{
+    if(cells.length==6&&"R".equals(cells[0])){
+     String id=uuid(cells[1]);
+     double x=Double.parseDouble(cells[2]),y=Double.parseDouble(cells[3]);
+     double w=Double.parseDouble(cells[4]),d=Double.parseDouble(cells[5]);
+     if(!validRectangle(x,y,w,d)||sketches.putIfAbsent(id,new Rectangle(id,x,y,w,d))!=null)
+      throw new IllegalArgumentException("Rectángulo no válido o duplicado");
+    }else if(cells.length==6&&"E".equals(cells[0])){
+     String id=uuid(cells[1]),sketchId=uuid(cells[2]),bodyId=uuid(cells[3]);
+     double base=Double.parseDouble(cells[4]),height=Double.parseDouble(cells[5]);
+     if(features.putIfAbsent(id,new Extrusion(id,sketchId,bodyId,base,height))!=null)
+      throw new IllegalArgumentException("Extrusión duplicada");
+    }else throw new IllegalArgumentException("Registro no compatible");
+   }catch(NumberFormatException error){throw new IllegalArgumentException("Número no válido en línea "+(i+1),error);}
+   if(sketches.size()>2000||features.size()>500)throw new IllegalArgumentException("Demasiadas entidades");
+  }
+  if(!document.rebuild(sketches,features,null).isSuccess())
+   throw new IllegalArgumentException("Referencias o geometría incorrectas");
+  return document;
+ }
+
 }
