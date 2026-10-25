@@ -5,12 +5,12 @@ public final class BoxSurface {
  private BoxSurface(){}
  // Eight corners in TransformedBody.worldVertices order (x, y, z binary indices).
  private static final int[] TRIANGLES={
-  0,4,6, 0,6,2, // bottom X
-  1,3,7, 1,7,5, // top X
-  0,1,5, 0,5,4, // bottom Y
-  2,6,7, 2,7,3, // top Y
-  0,2,3, 0,3,1, // bottom Z
-  4,5,7, 4,7,6  // top Z
+  0,6,4, 0,2,6, // Z minimum
+  1,7,3, 1,5,7, // Z maximum
+  0,5,1, 0,4,5, // Y minimum
+  2,7,6, 2,3,7, // Y maximum
+  0,3,2, 0,1,3, // X minimum
+  4,7,5, 4,6,7  // X maximum
  };
  public static float[] triangles(TransformedBody body){
   if(body==null)throw new IllegalArgumentException("Body required");
