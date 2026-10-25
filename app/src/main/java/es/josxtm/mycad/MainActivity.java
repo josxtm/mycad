@@ -474,8 +474,8 @@ public class MainActivity extends Activity {
   if(activeCadFace.face==es.josxtm.mycad.cad.BoxFaceSelection.Face.Z_MAX){
    editExtrusionHeight(part);return;
   }
-  if(!part.sourceSketchId.isEmpty()||part.rotationX!=0||part.rotationY!=0||part.rotationZ!=0){
-   toast("Edición lateral disponible en prismas sin boceto vinculado ni rotación");return;
+  if(!part.sourceSketchId.isEmpty()){
+   toast("Edición lateral de bocetos vinculados todavía pendiente");return;
   }
   final es.josxtm.mycad.cad.BoxFaceSelection.Face face=activeCadFace.face;
   final int partIndex=activeCadFace.partIndex;
@@ -487,7 +487,7 @@ public class MainActivity extends Activity {
      if(partIndex<0||partIndex>=parts.size()||parts.get(partIndex)!=part)throw new IllegalArgumentException();
      double delta=Double.parseDouble(input.getText().toString().replace(',','.'));
      es.josxtm.mycad.cad.FaceResize.Dimensions updated=
-      es.josxtm.mycad.cad.FaceResize.move(part.w,part.d,part.h,part.x,part.y,part.z,face,delta);
+      es.josxtm.mycad.cad.RotatedFaceResize.move(part.w,part.d,part.h,part.x,part.y,part.z,part.rotationX,part.rotationY,part.rotationZ,face,delta);
      checkpoint();
      part.w=(float)updated.w;part.d=(float)updated.d;part.h=(float)updated.h;
      part.x=(float)updated.x;part.y=(float)updated.y;part.z=(float)updated.z;
