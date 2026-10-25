@@ -133,3 +133,7 @@ El prototipo `ParametricSketchDocument` incorpora `exportSnapshot()` e `importSn
 ## Edición de posicionamiento paramétrico — 2026-10-25
 
 Nuevas operaciones `setExtrusionOffset(featureId, newOffset)` y `setSketchPlane(sketchId, newPlane)`: regeneran cuerpos vinculados mediante el adaptador XY/XZ/YZ, conservan identificadores, registran revisiones para deshacer/rehacer y rechazan cambios inválidos sin comprometer el documento. Pruebas cubren traslado, cambio de plano, persistencia y deshacer/rehacer. Aún no conectadas a la interfaz de Android ni a B-Rep.
+
+## Hito de integridad interna — 2026-10-25
+
+`ParametricSketchDocument.validateIntegrity()` comprueba sin modificar el historial la existencia de bocetos referenciados, unicidad de ID de cuerpos, coherencia numérica de cada prisma regenerado y ausencia de cuerpos huérfanos. Devuelve una lista inmutable de diagnósticos. Las pruebas cubren documentos editados, con múltiples dependencias y restaurados. Este control no sustituye a un kernel B-Rep ni constituye integración con la interfaz Android.
