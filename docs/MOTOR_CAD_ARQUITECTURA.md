@@ -217,3 +217,7 @@ La nueva clase `FaceResize` calcula desplazamientos de las seis caras de un pris
 ## Edición vinculada inicial desde caras XY
 
 En prismas procedentes de bocetos rectangulares del plano XY, `Editar cara seleccionada` permite mover X_MIN/X_MAX/Y_MIN/Y_MAX. Mantiene fija la cara opuesta del rectángulo, valida las dimensiones de todas las extrusiones enlazadas, actualiza los extremos del boceto conservando su orientación y regenera los cuerpos dependientes. Integra deshacer, guardado y refresco GPU. Mantiene la base Z_MIN fija y Z_MAX continúa utilizando la modificación de altura. Los perfiles circulares y planos XZ/YZ quedan explícitamente fuera de este primer paso.
+
+## Edición vinculada en los tres planos (2026-10-25)
+
+`LinkedFaceResize` modifica los lados locales X_MIN/X_MAX/Y_MIN/Y_MAX de bocetos rectangulares XY, XZ e YZ, manteniendo fijo el lado opuesto, respetando extremos invertidos y validando medidas. `MainActivity` reutiliza el validador de dependencias, `checkpoint`, `rebuildLinkedParts`, guardado y refresco GPU. Z_MIN queda fijo y Z_MAX conserva el editor de extrusión. Pruebas para los tres planos incluidas en GitHub Actions. Pendiente: operaciones B-Rep y selección persistente de caras.
