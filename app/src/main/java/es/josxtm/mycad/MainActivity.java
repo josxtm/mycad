@@ -515,29 +515,23 @@ public class MainActivity extends Activity {
   if(!cadGpuMesh||triangle<0)return;
   int offset=importedMesh==null?0:importedMesh.triangles();
   for(MeshEngine.Mesh m:booleanMeshes)offset+=m.triangles();
-  for(Part p:parts){
-   if(p.circle)return;
-   if(p.w>0&&p.d>0&&p.h>0)offset+=12;
-  }
-  for(int ci=0;ci<extrusionChains.size();ci++){
-   es.josxtm.mycad.cad.FaceExtrusionChain chain=extrusionChains.get(ci);
-   int count=chain.size()*12;
-   if(triangle>=offset&&triangle<offset+count){
-    int step=(triangle-offset)/12;
-    activeCadFace=null;
-    if(meshView!=null)meshView.highlightFace(-1);
-    info.setText("Cadena "+(ci+1)+" · extrusión "+(step+1)+" seleccionada");
-    final int chainIndex=ci,stepIndex=step;
-    new AlertDialog.Builder(this).setTitle("Extrusión "+(step+1)+" · cadena "+(ci+1))
-     .setItems(new String[]{"Editar distancia","Abrir historial"},(d,n)->{
-      if(chainIndex>=extrusionChains.size()||extrusionChains.get(chainIndex)!=chain)return;
-      if(n==0)chainDistanceDialog(chain,chainIndex,stepIndex,chain.history().get(stepIndex).face);
-      else editExtrusionChain(chainIndex);
-     }).show();
-    return;
-   }
-   offset+=count;
-  }
+  for(Part p:parts){if(p.circle)return;offset+=12;}
+  int[] counts=new int[extrusionChains.size()];
+  for(int i=0;i<counts.length;i++)counts[i]=extrusionChains.get(i).size();
+  es.josxtm.mycad.cad.ChainTriangleMap.Hit hit=
+   es.josxtm.mycad.cad.ChainTriangleMap.resolve(triangle,offset,counts);
+  if(hit==null)return;
+  final int chainIndex=hit.chainIndex,stepIndex=hit.stepIndex;
+  final es.josxtm.mycad.cad.FaceExtrusionChain chain=extrusionChains.get(chainIndex);
+  activeCadFace=null;selected=-1;selectedSketch=-1;
+  if(meshView!=null)meshView.highlightFace(triangle-(hit.localTriangle%2));
+  info.setText("Cadena "+(chainIndex+1)+" · extrusión "+(stepIndex+1)+" seleccionada");
+  new AlertDialog.Builder(this).setTitle("Extrusión "+(stepIndex+1)+" · cadena "+(chainIndex+1))
+   .setItems(new String[]{"Editar distancia","Abrir historial"},(d,n)->{
+    if(chainIndex>=extrusionChains.size()||extrusionChains.get(chainIndex)!=chain||stepIndex>=chain.size())return;
+    if(n==0)chainDistanceDialog(chain,chainIndex,stepIndex,chain.history().get(stepIndex).face);
+    else editExtrusionChain(chainIndex);
+   }).show();
  }
  void showGpuSurfaceSelection(int triangle,double x,double y,double z){
   String label="Triángulo "+(triangle+1);
