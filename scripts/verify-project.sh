@@ -25,13 +25,16 @@ source=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(enc
 begin=source.index("void load(){")
 end=source.index("protected void onSaveInstanceState",begin)
 loader=source[begin:end]
-for marker in ("extrusionChains=restored.chains","chainFeatures=restored.features"):
+for marker in ("extrusionChains=restored.chains","chainFeatures=restored.features","holeRecipes=restored.drills"):
     if marker not in loader:
         raise SystemExit("ERROR: el borrador no restaura "+marker)
 for marker in ("void renderCurrentCadMesh()","isolatedMeshPreview=true","if(isolatedMeshPreview)"):
     if marker not in source:
         raise SystemExit("ERROR: falta protección de visor "+marker)
-print("Borrador y protección de vista previa: OK")
+for marker in ("throughHoleRecipes", "holeRecipes.add(recipe)", "holeRecipes.add(null)", "editHoleRecipe(int index)"):
+    if marker not in source:
+        raise SystemExit("ERROR: perforación no persistente "+marker)
+print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
