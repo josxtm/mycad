@@ -772,37 +772,45 @@ public class MainActivity extends Activity {
  }
  void showGpuSurfaceSelection(int triangle,double x,double y,double z){
   if(isolatedMeshPreview){activeCadFace=null;info.setText("Vista previa · sin selección de piezas");return;}
-  String label="Triángulo "+(triangle+1);
+  boolean handled=false;
   if(cadGpuMesh){
-   es.josxtm.mycad.cad.CadSceneFaceMap map=new es.josxtm.mycad.cad.CadSceneFaceMap();
+   es.josxtm.mycad.cad.PrimitiveTopologyMap map=new es.josxtm.mycad.cad.PrimitiveTopologyMap();
    int first=importedMesh==null?0:importedMesh.triangles();
    for(MeshEngine.Mesh m:booleanMeshes)first+=m.triangles();
-   int selectedCylinder=-1;
    for(int i=0;i<parts.size();i++){
     Part p=parts.get(i);
     if(p.circle){
-     int count=es.josxtm.mycad.cad.CylinderSurface.triangleCount(48);
-     if(triangle>=first&&triangle<first+count)selectedCylinder=i;
-     first+=count;
+     map.addCylinder(i,p.id,first,48);
+     first+=es.josxtm.mycad.cad.CylinderSurface.triangleCount(48);
     }else{
-     map.addBox(i,first);first+=12;
+     map.addBox(i,p.id,first);
+     first+=12;
     }
    }
-   es.josxtm.mycad.cad.CadSceneFaceMap.Selection found=map.resolve(triangle);
-   if(found!=null){
-    selected=found.partIndex;selectedSketch=-1;scene.invalidate();
-    activeCadFace=new es.josxtm.mycad.cad.CadFaceReference(found.partIndex,found.face);
-    label="Cuerpo "+(found.partIndex+1)+" · cara "+found.face.name().replace('_',' ');
-    if(meshView!=null)meshView.highlightFace(triangle-(found.triangleInPart%2));
-   }else if(selectedCylinder>=0){
-    selected=selectedCylinder;selectedSketch=-1;activeCadFace=null;scene.invalidate();
-    label="Cilindro "+(selectedCylinder+1)+" · cuerpo seleccionado";
+   es.josxtm.mycad.cad.PrimitiveTopologyMap.Hit hit=map.resolve(triangle);
+   if(hit!=null&&hit.partIndex<parts.size()&&parts.get(hit.partIndex).id.equals(hit.bodyId)){
+    selected=hit.partIndex;selectedSketch=-1;scene.invalidate();
+    String description;
+    if(hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.BOX){
+     activeCadFace=new es.josxtm.mycad.cad.CadFaceReference(hit.partIndex,hit.bodyId,hit.boxFace);
+     description="Prisma "+(hit.partIndex+1)+" · "+hit.boxFace.name().replace('_',' ');
+    }else{
+     activeCadFace=null;
+     description="Cilindro "+(hit.partIndex+1)+" · "+
+      (hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.CYLINDER_SIDE?"lateral":
+       hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.CYLINDER_BOTTOM?"base":"tapa");
+    }
+    if(meshView!=null)meshView.highlightFace(hit.highlightTriangle());
+    info.setText(String.format(java.util.Locale.US,"%s · X %.1f Y %.1f Z %.1f mm",description,x,y,z));
+    handled=true;
    }
   }
-  if(!label.startsWith("Cuerpo "))activeCadFace=null;
-  if(meshView!=null&&!label.startsWith("Cuerpo "))meshView.highlightFace(-1);
-  info.setText(String.format(java.util.Locale.US,"%s · X %.1f · Y %.1f · Z %.1f mm",label,x,y,z));
-  if(!label.startsWith("Cuerpo "))selectChainTriangle(triangle);
+  if(!handled){
+   activeCadFace=null;
+   if(meshView!=null)meshView.highlightFace(-1);
+   info.setText(String.format(java.util.Locale.US,"Triángulo %d · X %.1f Y %.1f Z %.1f mm",triangle+1,x,y,z));
+   selectChainTriangle(triangle);
+  }
  }
  void manageExtrusionChains(){
   java.util.ArrayList<String> choices=new java.util.ArrayList<>();
@@ -848,7 +856,7 @@ public class MainActivity extends Activity {
      final String[] faces={"X_MIN","X_MAX","Y_MIN","Y_MAX","Z_MIN","Z_MAX"};
      if(stepIndex<0){
       new AlertDialog.Builder(this).setTitle("Cara de la nueva extrusión")
-       .setItems(faces,(d,n)->chainDistanceDialog(chain,index,-1,es.josxtm.mycad.cad.BoxFaceSelection.Face.values()[n])).show();
+       .setItems(faces,(d,n)->chainDistanceDialog(chain,index,-1,es.josxtm.mycad.cad.BoxFaceSelection.Face.valueOf(faces[n]))).show();
      }else chainDistanceDialog(chain,index,stepIndex,chain.history().get(stepIndex).face);
     }
    }).setNegativeButton("Cerrar",null).show();
@@ -1002,7 +1010,7 @@ public class MainActivity extends Activity {
   }
  }
  void extrudeSelectedCadFace(){
-  if(!cadGpuMesh||activeCadFace==null||!activeCadFace.isValidFor(parts.size())){
+  if(!cadGpuMesh||activeCadFace==null||!(activeCadFace.isValidFor(parts.size())&&activeCadFace.isValidFor(parts.size(),parts.get(activeCadFace.partIndex).id))){
    toast("Selecciona una cara en el visor CAD experimental");return;
   }
   final int index=activeCadFace.partIndex;
@@ -1049,7 +1057,7 @@ public class MainActivity extends Activity {
   }catch(Exception error){toast("Extrusión inválida o fuera de límites");}
  }
  void editSelectedCadFace(){
-  if(activeCadFace==null||!cadGpuMesh||!activeCadFace.isValidFor(parts.size())){
+  if(activeCadFace==null||!cadGpuMesh||!(activeCadFace.isValidFor(parts.size())&&activeCadFace.isValidFor(parts.size(),parts.get(activeCadFace.partIndex).id))){
    toast("Toca primero una cara en el visor CAD experimental");return;
   }
   Part part=parts.get(activeCadFace.partIndex);
