@@ -241,7 +241,7 @@ public class MainActivity extends Activity {
     float area=n<2?p.w*p.d:n<4?p.d*p.h:p.w*p.h;
     info.setText(String.format(java.util.Locale.US,"%s · área %.2f mm²",faceNames[n],area));
     new AlertDialog.Builder(this).setTitle(faceNames[n])
-     .setMessage(String.format(java.util.Locale.US,"Área nominal: %.2f mm²\\nSelección informativa. No se modifica la geometría.",area))
+     .setMessage(String.format(java.util.Locale.US,"Área nominal: %.2f mm²\nSelección informativa. No se modifica la geometría.",area))
      .setPositiveButton("Aceptar",null).show();
    }).setNegativeButton("Cancelar",null).show();
  }
