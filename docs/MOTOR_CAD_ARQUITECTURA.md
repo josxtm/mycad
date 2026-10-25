@@ -129,3 +129,7 @@ El prototipo `ParametricSketchDocument` incorpora `exportSnapshot()` e `importSn
 ## Dependencias compartidas y compatibilidad documental
 
 `ParametricSketchDocument.dependentsOf(sketchId)` expone una lista inmutable de extrusiones dependientes. Un mismo boceto puede impulsar varios cuerpos, que se reconstruyen conjuntamente al editar el perfil, conservando los IDs propios. Se incluyen pruebas de eliminación selectiva de una extrusión, deshacer, carga de instantáneas antiguas sin campo de plano (XY por defecto), rechazo de referencias colgantes y duplicados. Estas son pruebas del núcleo Java; el editor Android sigue empleando su modelo previo y la topología B-Rep continúa pendiente.
+
+## Edición de posicionamiento paramétrico — 2026-10-25
+
+Nuevas operaciones `setExtrusionOffset(featureId, newOffset)` y `setSketchPlane(sketchId, newPlane)`: regeneran cuerpos vinculados mediante el adaptador XY/XZ/YZ, conservan identificadores, registran revisiones para deshacer/rehacer y rechazan cambios inválidos sin comprometer el documento. Pruebas cubren traslado, cambio de plano, persistencia y deshacer/rehacer. Aún no conectadas a la interfaz de Android ni a B-Rep.
