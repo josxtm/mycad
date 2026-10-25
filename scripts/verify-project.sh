@@ -34,6 +34,9 @@ for marker in ("void renderCurrentCadMesh()","isolatedMeshPreview=true","if(isol
 for marker in ("throughHoleRecipes", "holeRecipes.add(recipe)", "holeRecipes.add(null)", "editHoleRecipe(int index)", 'v.optString("axis","Z")', 'v.optDouble("rotationX",0)', "drillAxisChoice", "previous.rotationZ"):
     if marker not in source:
         raise SystemExit("ERROR: perforación no persistente "+marker)
+for marker in ('.put("axis",drill.axis.name())', 'Axis.valueOf(v.optString("axis","Z"))', 'TriangleMeshHealth.inspect(geometry)', 'TriangleMeshHealth.inspect(mesh)', "drillAxisChoice(int choice)"):
+    if marker not in source:
+        raise SystemExit("ERROR: soporte de perforaciones orientadas incompleto: "+marker)
 print("Borrador, perforación circular y protección de vista previa: OK")
 PY
 
