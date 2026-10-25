@@ -62,3 +62,12 @@ Si el motor actual no admite una operación fiable, registrar la limitación y d
 - CI ejecuta primero prueba Java independiente, luego `testDebugUnitTest`, `lintDebug`, `assembleDebug` y verifica el nombre del APK antes de publicarlo.
 - **No hay verificación confirmada del último run** en esta revisión; no declarar APK compilado ni versión final.
 - Próximo bloque: probar resultado de Actions, resolver sus fallos si aparecen, implementar sólidos paramétricos y previsualización de extrusión; conservar el JSON actual.
+
+## Incremento: extrusión interactiva (commit 74111394)
+
+- El cuadro de extrusión crea un **sólido temporal** que se representa en la escena durante la introducción de la altura.
+- Campo numérico hasta 10000 mm y deslizador de ajuste rápido entre 1 y 200 mm.
+- Cancelar descarta el sólido temporal, restaura la selección y la vista previa, **sin persistir ni registrar un cambio en el historial**.
+- Confirmar elimina la previsualización, registra el punto de deshacer y crea el sólido definitivo.
+- Extrusiones limitadas a perfiles rectangulares y circulares; sin motor B-Rep ni vínculo paramétrico persistente todavía.
+- **Estado: implementado en código; pendiente de confirmar compilación y validación táctil en Nothing Phone 2a.**
