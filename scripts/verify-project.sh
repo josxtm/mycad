@@ -147,6 +147,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveEdgeCurve.java \
   app/src/main/java/es/josxtm/mycad/cad/EdgeScreenTolerance.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveFaceHandle.java \
+  app/src/main/java/es/josxtm/mycad/cad/PrimitiveEdgeHandle.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -155,7 +156,8 @@ javac -d build/box-brep-tests \
   tests/PrimitiveMovePreviewTest.java \
   tests/PrimitiveEdgeCurveTest.java \
   tests/EdgeScreenToleranceTest.java \
-  tests/PrimitiveFaceHandleTest.java
+  tests/PrimitiveFaceHandleTest.java \
+  tests/PrimitiveEdgeHandleTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -165,6 +167,7 @@ java -cp build/box-brep-tests PrimitiveMovePreviewTest
 java -cp build/box-brep-tests PrimitiveEdgeCurveTest
 java -cp build/box-brep-tests EdgeScreenToleranceTest
 java -cp build/box-brep-tests PrimitiveFaceHandleTest
+java -cp build/box-brep-tests PrimitiveEdgeHandleTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -284,6 +287,29 @@ assert "public void setFaceDragHandle(float[] anchorNormal" in mesh
 assert "faceHandleCaptured=true" in mesh
 assert "GLES30.glDrawArrays(GLES30.GL_LINES,0,2)" in mesh
 print("Arrastre directo de cara B-Rep: vinculación y confirmación protegidas")
+PY
+
+# Check guarded on-model edge manipulator uses immutable preview and single commit.
+python3 - <<'PY'
+from pathlib import Path
+activity=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+block=activity[activity.index("void toggleEdgeDragOnModel(){"):
+               activity.index("void toggleFaceDragOnModel(){")]
+for marker in (
+ "case 25:toggleEdgeDragOnModel();break;",
+ "PrimitiveEdgeHandle.from(original,edgeId,axis)",
+ "session.propose(first,second)",
+ "meshView.previewMesh(experimentalCadMeshPreview(partIndex,proposed))",
+ "session.matches(analyticBody(part))",
+ "checkpoint();",
+ "part.w=width;part.d=depth;part.h=height;",
+ "save();scene.invalidate();",
+ "finishFaceDrag();",
+):
+    if marker not in (block if not marker.startswith("case") else activity):
+        raise SystemExit("ERROR: arrastre arista B-Rep incompleto: "+marker)
+assert block.index("checkpoint();")<block.index("save();scene.invalidate();")
+print("Arrastre tactil de aristas analiticas: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"

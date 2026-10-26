@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)","Arrastrar cara directamente en 3D"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;case 24:toggleFaceDragOnModel();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)","Arrastrar cara directamente en 3D","Arrastrar arista directamente en 3D"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;case 24:toggleFaceDragOnModel();break;case 25:toggleEdgeDragOnModel();break;}}).show();}
  es.josxtm.mycad.cad.ParametricFeatureGraph buildParametricFeatureGraph(){
   es.josxtm.mycad.cad.ParametricFeatureGraph.Builder builder=
    new es.josxtm.mycad.cad.ParametricFeatureGraph.Builder();
@@ -1436,6 +1436,122 @@ public class MainActivity extends Activity {
   * The GL preview never mutates Part/JSON/history; touch UP asks to confirm.
   * Tapping this menu item again cancels the active operation.
   */
+ /**
+  * Edge on-model manipulator: choose either incident surface normal.
+  * Each gesture moves only that constrained component of offsetEdge().
+  * The opposite coordinate stays fixed, and unrelated geometry is untouched.
+  */
+ void toggleEdgeDragOnModel(){
+  if(faceDragEnabled){finishFaceDrag();toast("Arrastre 3D cancelado");return;}
+  if(fileBusy||!cadGpuMesh||!meshMode||meshView==null||
+     isolatedMeshPreview||selected<0||selected>=parts.size()){
+   toast("Abre el visor CAD 3D y selecciona una arista");return;
+  }
+  final int partIndex=selected;
+  final Part part=parts.get(partIndex);
+  if(!part.sourceSketchId.isEmpty()){
+   toast("Pieza vinculada: edita su boceto antes de mover la arista");return;
+  }
+  final es.josxtm.mycad.cad.PrimitiveBRepBody original;
+  final es.josxtm.mycad.cad.PrimitiveBRepBody.Edge edge;
+  final String edgeId=activeAnalyticEdgeId;
+  try{
+   original=analyticBody(part);edge=original.findEdge(edgeId);
+   if(edge==null)throw new IllegalArgumentException("No edge selected");
+  }catch(Exception problem){
+   toast("Toca una arista en el visor o selecciónala en Inspeccionar B-Rep");return;
+  }
+  String[] choices=new String[2];
+  for(int i=0;i<2;i++){
+   String face=edge.adjacentFaceIds().get(i);
+   choices[i]="Desplazar "+face.substring(face.lastIndexOf('/')+1);
+  }
+  new AlertDialog.Builder(this).setTitle("Dirección de la arista")
+   .setItems(choices,(menu,axis)->{
+    try{
+     if(fileBusy||selected!=partIndex||parts.get(partIndex)!=part||
+        !part.id.equals(original.bodyId)||
+        !edgeId.equals(activeAnalyticEdgeId)||
+        !es.josxtm.mycad.cad.PrimitiveMovePreview.forEdge(original,edgeId)
+         .matches(analyticBody(part)))
+      throw new IllegalArgumentException("Edited since selected");
+     final es.josxtm.mycad.cad.PrimitiveMovePreview session=
+      es.josxtm.mycad.cad.PrimitiveMovePreview.forEdge(original,edgeId);
+     final es.josxtm.mycad.cad.PrimitiveEdgeHandle handle=
+      es.josxtm.mycad.cad.PrimitiveEdgeHandle.from(original,edgeId,axis);
+     final double maxMotion=Math.max(2,Math.min(100,
+       Math.min(original.width,Math.min(original.depth,original.height))*.8));
+     faceDragEnabled=true;
+     meshView.setFaceDragHandle(handle.gpu(),maxMotion,
+       (delta,finished,cancelled)->{
+        if(!faceDragEnabled)return;
+        if(cancelled){finishFaceDrag();return;}
+        try{
+         if(fileBusy||selected!=partIndex||partIndex>=parts.size()||
+            parts.get(partIndex)!=part||!part.sourceSketchId.isEmpty()||
+            !edgeId.equals(activeAnalyticEdgeId)||
+            !session.matches(analyticBody(part)))
+          throw new IllegalArgumentException("Stale selected edge");
+         if(delta==0){
+          meshView.previewMesh(experimentalCadMeshPreview(partIndex,original));
+          info.setText("Arista B-Rep · posición original");
+          if(finished)finishFaceDrag();
+          return;
+         }
+         final double first=axis==0?delta:0;
+         final double second=axis==1?delta:0;
+         final es.josxtm.mycad.cad.PrimitiveBRepBody proposed=
+          session.propose(first,second);
+         meshView.previewMesh(experimentalCadMeshPreview(partIndex,proposed));
+         info.setText(String.format(java.util.Locale.US,
+           "Arista B-Rep · dirección %d · Δ %.2f mm · V %.2f mm³",
+           axis+1,delta,proposed.volume()));
+         if(!finished)return;
+         new AlertDialog.Builder(this).setTitle("Confirmar desplazamiento de arista")
+          .setMessage(String.format(java.util.Locale.US,
+            "Desplazar %s %.2f mm. Confirmar una sola edición.",
+            choices[axis],delta))
+          .setCancelable(false)
+          .setNegativeButton("Cancelar",(dialog,w)->finishFaceDrag())
+          .setPositiveButton("Aplicar",(dialog,w)->{
+           try{
+            if(!faceDragEnabled||fileBusy||partIndex>=parts.size()||
+               parts.get(partIndex)!=part||selected!=partIndex||
+               !part.sourceSketchId.isEmpty()||
+               !edgeId.equals(activeAnalyticEdgeId)||
+               !session.matches(analyticBody(part)))
+             throw new IllegalArgumentException("State changed");
+            es.josxtm.mycad.cad.PrimitiveBRepBody result=session.propose(first,second);
+            float width=(float)result.width,depth=(float)result.depth,
+              height=(float)result.height,xx=(float)result.x,
+              yy=(float)result.y,zz=(float)result.z;
+            if(!Float.isFinite(width)||!Float.isFinite(depth)||
+               !Float.isFinite(height)||!Float.isFinite(xx)||
+               !Float.isFinite(yy)||!Float.isFinite(zz)||
+               width<=0||depth<=0||height<=0)
+             throw new IllegalArgumentException("Unrenderable solid");
+            checkpoint();
+            part.w=width;part.d=depth;part.h=height;
+            part.x=xx;part.y=yy;part.z=zz;
+            activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
+            save();scene.invalidate();
+            toast("Arista movida · deshacer disponible");
+           }catch(Exception problem){toast("Movimiento cancelado: medidas o selección inválidas");}
+           finally{finishFaceDrag();}
+          }).show();
+        }catch(Exception invalid){
+         if(finished)toast("No se puede mover esa arista con esa distancia");
+         else info.setText("Arista B-Rep · desplazamiento fuera de límites");
+         if(finished)finishFaceDrag();
+         else meshView.previewMesh(experimentalCadMeshPreview(partIndex,original));
+        }
+       });
+     info.setText("Arrastre de arista activo · mueve el control amarillo · menú para cancelar");
+    }catch(Exception invalid){
+     toast("La pieza o la arista cambiaron; selecciona de nuevo");
+    }
+   }).setNegativeButton("Cancelar",null).show();
+ }
  void toggleFaceDragOnModel(){
   if(faceDragEnabled){
    finishFaceDrag();toast("Arrastre cancelado sin modificar la pieza");return;

@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Prototipo de arrastre de aristas:** elegir borde B-Rep y una de sus dos normales incidentes para moverlo directamente en el visor con vista previa, confirmación y deshacer; la otra dirección permanece fija. No equivale a filetes ni deformación libre.
+
 **Prototipo de arrastre sobre sólido (sin APK):** cara B-Rep seleccionada con punto/asa proyectada al visor GPU, arrastre táctil restringido a su normal mundial, vista previa reversible, confirmación con undo/persistencia solo al aceptar. Requiere calibración táctil y visual en Nothing Phone 2a.
 
 **Picking sensible al zoom:** la distancia de selección de aristas ahora deriva de 12dp de tolerancia visual y del tamaño/proyección de cada cuerpo, acotada para evitar selecciones lejanas. Mejora la interacción al variar el zoom; validación táctil en Nothing Phone 2a pendiente.
