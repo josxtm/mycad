@@ -11,7 +11,7 @@ Revisión: 2026-10-26. **Progreso global estimado: 42 % antes de este lote**. Es
 | Guardado, apertura, deshacer/rehacer | Base implementada | JSON v1 y migración pendiente |
 | Intercambio STL/OBJ | Básico | No son formatos sólidos paramétricos |
 | DXF de bocetos 2D | Subconjunto XY integrado | LINE, CIRCLE y rectángulos ortogonales; no DXF 3D ni splines/arcos |
-| Booleanas entre sólidos B-Rep | Intersección convexa inicial | Dos extrusiones poligonales del mismo plano y sentido; sólidos originales intactos, resultado B-Rep analítico exportado como malla independiente; unión/diferencia pendientes |
+| Booleanas entre sólidos B-Rep | Intersección convexa paramétrica vinculada | Dos extrusiones del mismo plano/sentido; actualiza la malla de intersección al editar fuentes, guarda receta UUID y undo; unión/diferencia pendientes |
 | Historial encadenado y recetas booleanas | Parcial | No existe árbol de features general |
 | Cilindros, taladros XYZ ciegos/pasantes | Base implementada | Triangulación poligonal, no B-Rep |
 | Selección de caras/aristas | Edición analítica parcial de caras B-Rep | El visor resuelve caras estables; tapas editan altura, laterales permiten offset en UV con regeneración atómica; operaciones generales pendientes |
