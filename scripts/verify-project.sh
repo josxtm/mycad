@@ -816,3 +816,36 @@ assert "Booleanas B-Rep: solo perfiles convexos" in core
 assert "linked.asBRep(lines)" in core
 print("Intersección B-Rep convexa: validación, integración UI y transacción: OK")
 PY
+
+# Linked convex B-Rep Boolean history must preserve JSON, undo, and source IDs.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+workflow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+kernel=Path("app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java").read_text(encoding="utf-8")
+for marker in (
+ "ArrayList<es.josxtm.mycad.cad.LinkedConvexIntersection> intersectionRecipes=",
+ 'file.put("linkedConvexIntersections",intersections);',
+ 'optJSONArray("linkedConvexIntersections")',
+ "intersectionRecipes=restored.intersections",
+ "intersectionRecipes=loaded.intersections",
+ "intersectionRecipes.clear()",
+ "intersectionRecipes.remove(i)",
+ "intersectionRecipes.remove(removed)",
+ "stageLinkedIntersectionRebuild(staged,null,override)",
+ "stageLinkedIntersectionRebuild(staged,changed,null)",
+ "stageLinkedIntersectionRebuild(staged,null,proposed.segments())",
+ "intersectionRecipes.add(linked)",
+ "loopExtrusionFeatures.add(feature);intersectionRecipes.add(null);",
+ "linked.regenerate(refs,lines)",
+ "recipe.regenerate(sourceFeatures,sourceLines).triangles()",
+):
+ assert marker in a,marker
+assert a.count("intersectionRecipes.add(null)")>=5
+assert "LinkedConvexIntersectionTest" in workflow
+assert "dependsOnFeature" in kernel
+block=a[a.index("void stageLinkedIntersectionRebuild(") if "void stageLinkedIntersectionRebuild(" in a else a.index("stageLinkedIntersectionRebuild("):
+        a.index("void applyLinkedLoopEdit(")]
+assert "recipe.regenerate(sources,lines).triangles()" in block
+print("Intersección B-Rep vinculada: guardado, undo y regeneración enlazados: OK")
+PY

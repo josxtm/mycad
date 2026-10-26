@@ -12,7 +12,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
- ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loopExtrusionFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport,pendingDxfExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
+ ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loopExtrusionFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LinkedConvexIntersection> intersectionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport,pendingDxfExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
  static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104, IMPORT_DXF=105, EXPORT_DXF=106; MeshEngine meshView; FrameLayout meshPanel; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; int selectedStoredMeshIndex=-1; MeshEngine.Mesh selectedStoredMeshObject=null; String selectedPolygonFaceId=null; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
@@ -232,7 +232,7 @@ public class MainActivity extends Activity {
       throw new IllegalArgumentException("Volumen analítico y malla discrepan");
      checkpoint();
      booleanMeshes.add(mesh);unionRecipes.add(null);holeRecipes.add(null);
-     loopExtrusionFeatures.add(feature);
+     loopExtrusionFeatures.add(feature);intersectionRecipes.add(null);
      save();scene.invalidate();
      if(!meshMode)toggleMeshView();
      else if(meshView!=null)renderCurrentCadMesh();
@@ -258,6 +258,61 @@ public class MainActivity extends Activity {
   }
   return result;
  }
+
+ /** Immutable ID-based view of live plus proposed parametric source bodies.
+  * Reference lookup never uses the mutable mesh positions as identity. */
+ java.util.Map<String,es.josxtm.mycad.cad.LoopExtrusionFeature>
+ intersectionSourceMap(java.util.Map<Integer,es.josxtm.mycad.cad.LoopExtrusionFeature> replacements){
+  java.util.LinkedHashMap<String,es.josxtm.mycad.cad.LoopExtrusionFeature> result=
+   new java.util.LinkedHashMap<>();
+  for(int i=0;i<loopExtrusionFeatures.size();i++){
+   es.josxtm.mycad.cad.LoopExtrusionFeature item=
+    replacements!=null&&replacements.containsKey(i)?
+     replacements.get(i):loopExtrusionFeatures.get(i);
+   if(item!=null&&result.put(item.id,item)!=null)
+    throw new IllegalArgumentException("UUID de extrusión de origen duplicado");
+  }
+  return result;
+ }
+ /** Build EVERY affected dependent Boolean mesh before any user-visible edit. */
+ java.util.Map<Integer,MeshEngine.Mesh> stageLinkedIntersectionRebuild(
+   java.util.Map<Integer,MeshEngine.Mesh> staged,
+   java.util.Map<Integer,es.josxtm.mycad.cad.LoopExtrusionFeature> replacements,
+   java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> changes){
+  if(intersectionRecipes.size()!=booleanMeshes.size()||
+     loopExtrusionFeatures.size()!=booleanMeshes.size())
+   throw new IllegalArgumentException("Historial de booleanas B-Rep desalineado");
+  java.util.LinkedHashMap<Integer,MeshEngine.Mesh> out=
+   new java.util.LinkedHashMap<>(staged);
+  java.util.Map<String,es.josxtm.mycad.cad.LoopExtrusionFeature> sources=
+   intersectionSourceMap(replacements);
+  java.util.HashSet<String> touched=new java.util.HashSet<>();
+  for(Integer meshIndex:staged.keySet())if(meshIndex>=0&&meshIndex<loopExtrusionFeatures.size()){
+   es.josxtm.mycad.cad.LoopExtrusionFeature f=loopExtrusionFeatures.get(meshIndex);
+   if(f!=null)touched.add(f.id);
+  }
+  if(replacements!=null)for(es.josxtm.mycad.cad.LoopExtrusionFeature f:replacements.values())
+   if(f!=null)touched.add(f.id);
+  if(touched.isEmpty())return out;
+  for(int i=0;i<intersectionRecipes.size();i++){
+   es.josxtm.mycad.cad.LinkedConvexIntersection recipe=intersectionRecipes.get(i);
+   if(recipe==null||(!touched.contains(recipe.firstId)&&!touched.contains(recipe.secondId)))
+    continue;
+   java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
+    new java.util.LinkedHashMap<>();
+   for(String sourceId:new String[]{recipe.firstId,recipe.secondId}){
+    es.josxtm.mycad.cad.LoopExtrusionFeature f=sources.get(sourceId);
+    if(f==null)throw new IllegalArgumentException("Se eliminó un sólido de una intersección");
+    lines.putAll(loopSketchSegments(f,null,0,0,0,0));
+   }
+   if(changes!=null)for(java.util.Map.Entry<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> e:changes.entrySet())
+    if(lines.containsKey(e.getKey()))lines.put(e.getKey(),e.getValue());
+   float[] geometry=recipe.regenerate(sources,lines).triangles();
+   out.put(i,new MeshEngine.Mesh(geometry));
+  }
+  return out;
+ }
+
  /** Preflight all linked meshes before ANY geometry, history or JSON mutation. */
  java.util.Map<Integer,MeshEngine.Mesh> prepareLinkedLoopEdit(
    Sketch changed,float x1,float y1,float x2,float y2){
@@ -270,7 +325,11 @@ public class MainActivity extends Activity {
     staged.put(i,new MeshEngine.Mesh(solid.triangles));
    }
   }
-  return staged;
+  java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> override=
+   new java.util.LinkedHashMap<>();
+  override.put(changed.id,new es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment(
+   changed.plane,x1,y1,x2,y2));
+  return stageLinkedIntersectionRebuild(staged,null,override);
  }
  void applyLinkedLoopEdit(java.util.Map<Integer,MeshEngine.Mesh> staged){
   for(java.util.Map.Entry<Integer,MeshEngine.Mesh> e:staged.entrySet())
@@ -368,6 +427,7 @@ public class MainActivity extends Activity {
      }
      if(!staged.containsKey(index))
       throw new IllegalArgumentException("No se reconstruyó el cuerpo seleccionado");
+     staged.putAll(stageLinkedIntersectionRebuild(staged,null,proposed.segments()));
      checkpoint();
      for(java.util.Map.Entry<String,Sketch> e:sources.entrySet()){
       es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment v=
@@ -466,7 +526,15 @@ public class MainActivity extends Activity {
      es.josxtm.mycad.cad.LoopExtrusionFeature next=original.withDistance(distance);
      MeshEngine.Mesh mesh=new MeshEngine.Mesh(next.regenerate(
       loopSketchSegments(next,null,0,0,0,0)).triangles);
+     java.util.LinkedHashMap<Integer,MeshEngine.Mesh> staged=new java.util.LinkedHashMap<>();
+     staged.put(index,mesh);
+     java.util.LinkedHashMap<Integer,es.josxtm.mycad.cad.LoopExtrusionFeature> changed=
+      new java.util.LinkedHashMap<>();
+     changed.put(index,next);
+     staged.putAll(stageLinkedIntersectionRebuild(staged,changed,null));
      checkpoint();booleanMeshes.set(index,mesh);loopExtrusionFeatures.set(index,next);
+     for(java.util.Map.Entry<Integer,MeshEngine.Mesh> e:staged.entrySet())
+      if(e.getKey()!=index)booleanMeshes.set(e.getKey(),e.getValue());
      save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast("Extrusión de contorno regenerada · "+distance+" mm");
@@ -489,8 +557,15 @@ public class MainActivity extends Activity {
   int linkedLoops=0;
   for(es.josxtm.mycad.cad.LoopExtrusionFeature f:loopExtrusionFeatures)
    if(f!=null&&f.dependsOn(target.id))linkedLoops++;
+  int linkedBooleans=0;
+  java.util.HashSet<String> affectedIds=new java.util.HashSet<>();
+  for(es.josxtm.mycad.cad.LoopExtrusionFeature f:loopExtrusionFeatures)
+   if(f!=null&&f.dependsOn(target.id))affectedIds.add(f.id);
+  for(es.josxtm.mycad.cad.LinkedConvexIntersection f:intersectionRecipes)
+   if(f!=null&&(affectedIds.contains(f.firstId)||affectedIds.contains(f.secondId)))
+    linkedBooleans++;
   String detail="Boceto "+(index+1)+" · "+count+" pieza(s) vinculada(s), "+
-   linkedLoops+" extrusión(es) de líneas. "+
+   linkedLoops+" extrusión(es), "+linkedBooleans+" intersección(es) dependiente(s). "+
    "Puedes conservar los cuerpos como independientes o eliminarlos junto al boceto. "+
    "Ambas operaciones se pueden deshacer.";
   new AlertDialog.Builder(this).setTitle("Eliminar boceto y dependencias")
@@ -513,15 +588,26 @@ public class MainActivity extends Activity {
   final java.util.HashSet<String> retained=new java.util.HashSet<>();
   for(es.josxtm.mycad.cad.SketchDeletionPlan.BodyLink b:updated)retained.add(b.bodyId);
   final String selectedId=selected>=0&&selected<parts.size()?parts.get(selected).id:null;
+  java.util.HashSet<String> doomedSourceIds=new java.util.HashSet<>();
+  for(es.josxtm.mycad.cad.LoopExtrusionFeature f:loopExtrusionFeatures)
+   if(f!=null&&f.dependsOn(target.id))doomedSourceIds.add(f.id);
   checkpoint();
   sketches.remove(index);
   for(int i=loopExtrusionFeatures.size()-1;i>=0;i--){
    es.josxtm.mycad.cad.LoopExtrusionFeature feature=loopExtrusionFeatures.get(i);
-   if(feature==null||!feature.dependsOn(target.id))continue;
+   es.josxtm.mycad.cad.LinkedConvexIntersection booleanRecipe=intersectionRecipes.get(i);
+   boolean sourceRemoved=feature!=null&&doomedSourceIds.contains(feature.id);
+   boolean dependent=booleanRecipe!=null&&
+    (doomedSourceIds.contains(booleanRecipe.firstId)||
+     doomedSourceIds.contains(booleanRecipe.secondId));
+   if(!sourceRemoved&&!dependent)continue;
    if(mode==es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE){
     loopExtrusionFeatures.remove(i);booleanMeshes.remove(i);
-    unionRecipes.remove(i);holeRecipes.remove(i);
-   }else loopExtrusionFeatures.set(i,null);
+    unionRecipes.remove(i);holeRecipes.remove(i);intersectionRecipes.remove(i);
+   }else{
+    if(sourceRemoved)loopExtrusionFeatures.set(i,null);
+    if(dependent)intersectionRecipes.set(i,null);
+   }
   }
   if(mode==es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE){
    parts.removeIf(body->!retained.contains(body.id));
@@ -689,7 +775,7 @@ public class MainActivity extends Activity {
     new AlertDialog.Builder(this).setTitle("Guardar resultado booleano")
      .setMessage("Guardar una copia de la malla en el proyecto. Los dos sólidos originales se conservarán. Podrás exportar todo como STL/OBJ.")
      .setPositiveButton("Guardar malla",(confirm,which)->{
-      checkpoint();booleanMeshes.add(new MeshEngine.Mesh(triangles));unionRecipes.add(null);holeRecipes.add(null);loopExtrusionFeatures.add(null);save();
+      checkpoint();booleanMeshes.add(new MeshEngine.Mesh(triangles));unionRecipes.add(null);holeRecipes.add(null);loopExtrusionFeatures.add(null);intersectionRecipes.add(null);save();
       renderCurrentCadMesh();
       info.setText("Malla booleana guardada · "+booleanMeshes.size()+" resultado(s)");
      }).setNegativeButton("Solo previsualizar",null).show();
@@ -742,8 +828,8 @@ public class MainActivity extends Activity {
   }
   new AlertDialog.Builder(this).setTitle("Intersección B-Rep · elegir segundo sólido")
    .setMessage("Primera fase: dos perfiles convexos en el mismo plano, "+
-    "con extrusiones hacia el mismo lado. Se creará una malla independiente; "+
-    "ambos cuerpos originales se conservan.")
+    "con extrusiones hacia el mismo lado. "+
+    "Se creará una intersección vinculada a los dos sólidos, que se regenerará cuando cambien sus perfiles o alturas.")
    .setItems(names.toArray(new String[0]),(dialog,choice)->{
     int second=candidates.get(choice);
     if(fileBusy||booleanMeshes.size()>=100||
@@ -767,14 +853,26 @@ public class MainActivity extends Activity {
         booleanMeshes.get(first)!=firstMesh)
       throw new IllegalArgumentException("Cuerpos modificados durante la operación");
      MeshEngine.Mesh newMesh=new MeshEngine.Mesh(outcome.triangles());
+     es.josxtm.mycad.cad.LinkedConvexIntersection linked=
+      new es.josxtm.mycad.cad.LinkedConvexIntersection(
+       java.util.UUID.randomUUID().toString(),firstFeature.id,secondFeature.id);
+     // Validate both exact source UUIDs before any mutation/undo.
+     java.util.LinkedHashMap<String,es.josxtm.mycad.cad.LoopExtrusionFeature> refs=
+      new java.util.LinkedHashMap<>();
+     refs.put(firstFeature.id,firstFeature);refs.put(secondFeature.id,secondFeature);
+     java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
+      new java.util.LinkedHashMap<>(loopSketchSegments(firstFeature,null,0,0,0,0));
+     lines.putAll(loopSketchSegments(secondFeature,null,0,0,0,0));
+     if(!java.util.Arrays.equals(linked.regenerate(refs,lines).triangles(),newMesh.vertices))
+      throw new IllegalArgumentException("Intersección no reproducible");
      checkpoint();
      booleanMeshes.add(newMesh);
      unionRecipes.add(null);holeRecipes.add(null);
-     loopExtrusionFeatures.add(null);
+     loopExtrusionFeatures.add(null);intersectionRecipes.add(null);intersectionRecipes.add(linked);
      save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast(String.format(java.util.Locale.US,
-       "Intersección guardada · %.2f mm³ (malla independiente)",outcome.volume));
+       "Intersección B-Rep vinculada · %.2f mm³",outcome.volume));
     }catch(Exception error){
      toast("Intersección B-Rep rechazada: "+error.getMessage());
     }
@@ -789,6 +887,8 @@ public class MainActivity extends Activity {
    names[i]="Malla "+(i+1)+" · "+booleanMeshes.get(i).triangles()+" triángulos";
    if(i<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(i)!=null)
     names[i]+=" · contorno "+loopExtrusionFeatures.get(i).distance+" mm";
+   if(i<intersectionRecipes.size()&&intersectionRecipes.get(i)!=null)
+    names[i]+=" · intersección B-Rep vinculada";
    if(drill!=null)names[i]+=" · "+
     (drill.drillDepth==0?"pasante":drill.drillDepth+" mm de profundidad");
   }
@@ -809,7 +909,22 @@ public class MainActivity extends Activity {
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
        .setPositiveButton("Eliminar",(confirm,which)->{
-        checkpoint();int removed=booleanMeshes.indexOf(mesh);booleanMeshes.remove(mesh);if(removed>=0&&removed<unionRecipes.size())unionRecipes.remove(removed);if(removed>=0&&removed<holeRecipes.size())holeRecipes.remove(removed);if(removed>=0&&removed<loopExtrusionFeatures.size())loopExtrusionFeatures.remove(removed);save();
+        int removed=booleanMeshes.indexOf(mesh);
+        if(removed<0){toast("La malla ya no existe");return;}
+        checkpoint();
+        es.josxtm.mycad.cad.LoopExtrusionFeature deleted=
+         removed<loopExtrusionFeatures.size()?loopExtrusionFeatures.get(removed):null;
+        booleanMeshes.remove(mesh);
+        if(removed<unionRecipes.size())unionRecipes.remove(removed);
+        if(removed<holeRecipes.size())holeRecipes.remove(removed);
+        if(removed<loopExtrusionFeatures.size())loopExtrusionFeatures.remove(removed);
+        if(removed<intersectionRecipes.size())intersectionRecipes.remove(removed);
+        if(deleted!=null)for(int i=0;i<intersectionRecipes.size();i++){
+         es.josxtm.mycad.cad.LinkedConvexIntersection dependent=intersectionRecipes.get(i);
+         if(dependent!=null&&dependent.dependsOnFeature(deleted.id))
+          intersectionRecipes.set(i,null);
+        }
+        save();
         if(meshMode&&meshView!=null)renderCurrentCadMesh();
         toast("Resultado eliminado");
        }).show();
@@ -875,7 +990,7 @@ public class MainActivity extends Activity {
         parts.remove(Math.max(boxIndex,cutterIndex));
         parts.remove(Math.min(boxIndex,cutterIndex));
         booleanMeshes.add(new MeshEngine.Mesh(surface));
-        loopExtrusionFeatures.add(null);unionRecipes.add(null);
+        loopExtrusionFeatures.add(null);intersectionRecipes.add(null);unionRecipes.add(null);
         holeRecipes.add(option==2?result.cut:null);
         selected=-1;selectedSketch=-1;activeCadFace=null;
         save();scene.invalidate();
@@ -934,7 +1049,7 @@ public class MainActivity extends Activity {
      if(geometry.length==0||geometry.length>18000||
       !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(geometry).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
      checkpoint();parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(geometry));
-     loopExtrusionFeatures.add(null);unionRecipes.add(null);holeRecipes.add(recipe);
+     loopExtrusionFeatures.add(null);intersectionRecipes.add(null);unionRecipes.add(null);holeRecipes.add(recipe);
      selected=-1;selectedSketch=-1;activeCadFace=null;save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast("Perforación guardada · "+(recipe.drillDepth==0?"pasante":"ciega")+" · editable en Resultados booleanos");
@@ -1191,6 +1306,13 @@ public class MainActivity extends Activity {
    .put("distance",linked.distance).put("lineIds",ids));
  }
  file.put("loopExtrusionFeatures",linkedLoops);
+ if(intersectionRecipes.size()!=booleanMeshes.size())
+  throw new IllegalStateException("Historial de intersecciones B-Rep desalineado");
+ JSONArray intersections=new JSONArray();
+ for(es.josxtm.mycad.cad.LinkedConvexIntersection item:intersectionRecipes)
+  intersections.put(item==null?JSONObject.NULL:new JSONObject()
+   .put("id",item.id).put("firstId",item.firstId).put("secondId",item.secondId));
+ file.put("linkedConvexIntersections",intersections);
 
  JSONArray chains=new JSONArray();
  for(es.josxtm.mycad.cad.FaceExtrusionChain chain:extrusionChains){
@@ -1237,9 +1359,9 @@ public class MainActivity extends Activity {
    all.put(vertices);
   }return all;
  }
- class ParsedDesign {ArrayList<Part> parts;ArrayList<Sketch> sketches;ArrayList<MeshEngine.Mesh> meshes;ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> recipes;ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> drills;ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loops;ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> chains;ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> features;ParsedDesign(ArrayList<Part> p,ArrayList<Sketch> sk,ArrayList<MeshEngine.Mesh> m,ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> r,ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> c,ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> f,ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holes,ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> lp){parts=p;sketches=sk;meshes=m;recipes=r;chains=c;features=f;drills=holes;loops=lp;}}
+ class ParsedDesign {ArrayList<Part> parts;ArrayList<Sketch> sketches;ArrayList<MeshEngine.Mesh> meshes;ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> recipes;ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> drills;ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loops;ArrayList<es.josxtm.mycad.cad.LinkedConvexIntersection> intersections;ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> chains;ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> features;ParsedDesign(ArrayList<Part> p,ArrayList<Sketch> sk,ArrayList<MeshEngine.Mesh> m,ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> r,ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> c,ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> f,ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holes,ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> lp,ArrayList<es.josxtm.mycad.cad.LinkedConvexIntersection> ix){intersections=ix;parts=p;sketches=sk;meshes=m;recipes=r;chains=c;features=f;drills=holes;loops=lp;}}
  ParsedDesign decode(String data) throws Exception {
- Object raw=new JSONTokener(data).nextValue();JSONArray a;ArrayList<Sketch> parsedSketches=new ArrayList<>();ArrayList<MeshEngine.Mesh> parsedMeshes=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> parsedRecipes=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> parsedDrills=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> parsedChains=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> parsedFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> parsedLoops=new ArrayList<>();
+ Object raw=new JSONTokener(data).nextValue();JSONArray a;ArrayList<Sketch> parsedSketches=new ArrayList<>();ArrayList<MeshEngine.Mesh> parsedMeshes=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> parsedRecipes=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> parsedDrills=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> parsedChains=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> parsedFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> parsedLoops=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LinkedConvexIntersection> parsedIntersections=new ArrayList<>();
  if(raw instanceof JSONArray)a=(JSONArray)raw;
  else if(raw instanceof JSONObject){JSONObject o=(JSONObject)raw;if(!"mycad".equals(o.getString("format"))||o.getInt("version")!=1||!"mm".equals(o.getString("units")))throw new IOException("Formato o versión no compatible");a=o.getJSONArray("parts");
  JSONArray meshArrays=o.optJSONArray("booleanMeshes");
@@ -1380,7 +1502,50 @@ public class MainActivity extends Activity {
   }
  }
  while(parsedLoops.size()<parsedMeshes.size())parsedLoops.add(null);
-return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedChains,parsedFeatures,parsedDrills,parsedLoops);
+ if(raw instanceof JSONObject){
+  JSONArray storedIntersections=((JSONObject)raw).optJSONArray("linkedConvexIntersections");
+  if(storedIntersections!=null){
+   if(storedIntersections.length()!=parsedMeshes.size())
+    throw new IOException("Historial de intersecciones B-Rep desalineado");
+   java.util.LinkedHashMap<String,es.josxtm.mycad.cad.LoopExtrusionFeature> sourceFeatures=
+    new java.util.LinkedHashMap<>();
+   java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> sourceLines=
+    new java.util.LinkedHashMap<>();
+   for(es.josxtm.mycad.cad.LoopExtrusionFeature feature:parsedLoops)
+    if(feature!=null){
+     if(sourceFeatures.put(feature.id,feature)!=null)
+      throw new IOException("UUID de extrusión duplicado");
+    }
+   for(Sketch q:parsedSketches)if(q.type==1){
+    try{
+     if(sourceLines.put(q.id,new es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment(
+      q.plane,q.x1,q.y1,q.x2,q.y2))!=null)
+      throw new IOException("UUID de línea duplicado");
+    }catch(IllegalArgumentException e){throw new IOException("Línea paramétrica inválida",e);}
+   }
+   java.util.HashSet<String> usedRecipes=new java.util.HashSet<>();
+   for(int i=0;i<storedIntersections.length();i++){
+    if(storedIntersections.isNull(i)){parsedIntersections.add(null);continue;}
+    try{
+     if(parsedLoops.get(i)!=null)
+      throw new IllegalArgumentException("Intersección y extrusión ocupan la misma malla");
+     JSONObject row=storedIntersections.getJSONObject(i);
+     es.josxtm.mycad.cad.LinkedConvexIntersection recipe=
+      new es.josxtm.mycad.cad.LinkedConvexIntersection(
+       row.getString("id"),row.getString("firstId"),row.getString("secondId"));
+     if(!usedRecipes.add(recipe.id))throw new IllegalArgumentException("UUID de booleana duplicado");
+     float[] regenerated=recipe.regenerate(sourceFeatures,sourceLines).triangles();
+     if(!java.util.Arrays.equals(regenerated,parsedMeshes.get(i).vertices))
+      throw new IllegalArgumentException("Intersección distinta de su historial");
+     parsedIntersections.add(recipe);
+    }catch(IllegalArgumentException e){
+     throw new IOException("Intersección B-Rep paramétrica inválida",e);
+    }
+   }
+  }
+ }
+ while(parsedIntersections.size()<parsedMeshes.size())parsedIntersections.add(null);
+return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedChains,parsedFeatures,parsedDrills,parsedLoops,parsedIntersections);
  }
  boolean validBodyId(String id){try{return java.util.UUID.fromString(id).toString().equals(id);}catch(Exception e){return false;}}
  void checkpoint(){try{undo.push(encode());if(undo.size()>50)undo.removeLast();redo.clear();}catch(Exception e){}}
@@ -1394,7 +1559,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    src.pop();dst.push(prior);
    activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);
    parts=restored.parts;sketches=restored.sketches;
-   booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;loopExtrusionFeatures=restored.loops;
+   booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;loopExtrusionFeatures=restored.loops;intersectionRecipes=restored.intersections;
    extrusionChains=restored.chains;chainFeatures=restored.features;
    selected=parts.isEmpty()?-1:0;selectedSketch=-1;
    save();scene.invalidate();
@@ -1403,7 +1568,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  }
  void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
  void save(){try{getPreferences(MODE_PRIVATE).edit().putString("design",encode()).apply();updateStep();}catch(Exception e){toast("No se pudo guardar el borrador interno");}}
- void load(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;loopExtrusionFeatures=restored.loops;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
+ void load(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;loopExtrusionFeatures=restored.loops;intersectionRecipes=restored.intersections;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
  protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putString("pendingExport",pendingExport);}
 
  void addTri(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r){for(float v:p)a.add(v);for(float v:q)a.add(v);for(float v:r)a.add(v);}
@@ -1925,7 +2090,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     float[] united=BoxBooleanMesh.build(a,b,BoxBooleanMesh.Operation.UNION);
     if(united.length==0)throw new IllegalArgumentException("Empty union");
     checkpoint();
-    parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(united));loopExtrusionFeatures.add(null);holeRecipes.add(null);unionRecipes.add(new es.josxtm.mycad.cad.FaceUnionRecipe(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,face,amount));
+    parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(united));loopExtrusionFeatures.add(null);intersectionRecipes.add(null);holeRecipes.add(null);unionRecipes.add(new es.josxtm.mycad.cad.FaceUnionRecipe(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,face,amount));
     selected=parts.isEmpty()?-1:Math.min(index,parts.size()-1);
     info.setText("Extrusión fusionada como malla · "+amount+" mm");
    }else{
@@ -2843,11 +3008,11 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  }else{String text;try(InputStream in=getContentResolver().openInputStream(uri);ByteArrayOutputStream out=new ByteArrayOutputStream()){
  if(in==null)throw new IOException("No se pudo leer");byte[] buf=new byte[8192];int n,total=0;while((n=in.read(buf))!=-1){total+=n;if(total>2*1024*1024)throw new IOException("Archivo demasiado grande");out.write(buf,0,n);}text=new String(out.toByteArray(),StandardCharsets.UTF_8);}
  ParsedDesign loaded=decode(text);
- runOnUiThread(()->{fileBusy=false;checkpoint();parts=loaded.parts;sketches=loaded.sketches;booleanMeshes=loaded.meshes;unionRecipes=loaded.recipes;holeRecipes=loaded.drills;loopExtrusionFeatures=loaded.loops;extrusionChains=loaded.chains;chainFeatures=loaded.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();info.setText("Archivo abierto · "+parts.size()+" piezas");toast("Diseño abierto correctamente");});
+ runOnUiThread(()->{fileBusy=false;checkpoint();parts=loaded.parts;sketches=loaded.sketches;booleanMeshes=loaded.meshes;unionRecipes=loaded.recipes;holeRecipes=loaded.drills;loopExtrusionFeatures=loaded.loops;intersectionRecipes=loaded.intersections;extrusionChains=loaded.chains;chainFeatures=loaded.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();info.setText("Archivo abierto · "+parts.size()+" piezas");toast("Diseño abierto correctamente");});
  }
  }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AlertDialog.Builder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
  }
- void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();loopExtrusionFeatures.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
+ void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();loopExtrusionFeatures.clear();intersectionRecipes.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
  void guide(){new AlertDialog.Builder(this).setTitle("Guía · De la idea al archivo").setMessage(
  "1. NUEVO: empieza con el lienzo vacío.\n\n"+
  "2. RECTÁNGULO o CÍRCULO: introduce medidas en mm y el espesor. APLICAR crea la pieza. Por ahora se introducen medidas; no se dibuja a mano.\n\n"+

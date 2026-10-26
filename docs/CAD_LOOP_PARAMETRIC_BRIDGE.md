@@ -77,10 +77,21 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
 - El núcleo ejecuta recorte de polígonos mediante semiplanos convexos,
   simplifica vértices collineales, verifica el volumen y genera un
   **nuevo sólido B-Rep analítico** con caras, aristas y semiaristas.
-- La app guarda su triangulación como **malla independiente** con deshacer,
-  sin borrar ni cambiar los sólidos fuente. La operación no se regenera
-  al modificar posteriormente los operandos; no se persiste el B-Rep
-  resultante como feature editable.
+- **Intersección paramétrica vinculada:** la app guarda la malla resultado
+  y una receta UUID que referencia sus dos extrusiones originales. Si se
+  modifican sus alturas, las coordenadas de líneas fuente o la posición
+  de una cara lateral, primero se regeneran **todas** las intersecciones
+  afectadas en memoria y solo después se guarda la transacción completa.
+  Un resultado no válido cancela la edición sin cambiar ninguna malla.
+- **Guardar, abrir, deshacer/rehacer** incluyen esas recetas dentro del JSON
+  existente v1, con validación de todos los UUID y comparación exacta de la
+  malla reconstruida frente a la persistida antes de cargar. Documentos
+  antiguos siguen funcionando como mallas independientes.
+- Al eliminar una fuente, se permite conservar la malla derivada como
+  instantánea desligada o eliminarla en cascada. Eliminar manualmente una
+  fuente desliga automáticamente las intersecciones que dependían de ella.
+- No es todavía un cuerpo Boolean B-Rep con selección de sus caras de
+  resultado: se conserva una malla triangulada enlazada a sus dos fuentes.
 - Se rechazan explícitamente perfiles cóncavos, sólidos de distintos
   planos, extrusiones opuestas, volúmenes sin solape y polígonos
   degenerados. Todavía no hay unión/diferencia B-Rep generales, huecos

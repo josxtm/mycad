@@ -91,6 +91,8 @@ jobs:
           java -cp build/geometry-tests PolygonPrismSideOffsetTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ConvexPrismBRepIntersection.java tests/ConvexPrismBRepIntersectionTest.java
           java -cp build/geometry-tests ConvexPrismBRepIntersectionTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedConvexIntersectionTest.java
+          java -cp build/geometry-tests LinkedConvexIntersectionTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/DxfContourExtrusionIntegrationTest.java
           java -cp build/geometry-tests DxfContourExtrusionIntegrationTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/BlindCircularHoleTest.java
