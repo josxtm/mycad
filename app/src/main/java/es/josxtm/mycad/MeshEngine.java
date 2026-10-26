@@ -21,7 +21,15 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private float yaw=35,pitch=25,distance=300,centerX,centerY,centerZ;
  private float lastX,lastY,downX,downY; private boolean dragging,moved;
  private volatile int highlightedFirstTriangle=-1;
+ private float[] highlightedEdgeVertices=null;
  public void highlightFace(int firstTriangle){highlightedFirstTriangle=firstTriangle;requestRender();}
+ /** A genuine analytic edge outline, not arbitrary tessellation triangle edges. */
+ public void highlightEdge(float[] xyz){
+  if(xyz!=null&&(xyz.length<6||xyz.length%3!=0))
+   throw new IllegalArgumentException("Invalid selected edge outline");
+  final float[] copy=xyz==null?null:xyz.clone();
+  queueEvent(()->{highlightedEdgeVertices=copy;requestRender();});
+ }
 
  public interface SurfaceTapListener {void onSurfaceTap(int triangle,double x,double y,double z);}
  private SurfaceTapListener surfaceTapListener;
@@ -33,11 +41,12 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   final Mesh snapshot=new Mesh(candidate.vertices.clone());
   queueEvent(()->{
    meshes.clear();meshes.add(snapshot);
+   highlightedEdgeVertices=null;
    highlightedFirstTriangle=-1;
    requestRender();
   });
  }
- public void setMeshes(List<Mesh> incoming){final ArrayList<Mesh> copy=new ArrayList<>(incoming);highlightedFirstTriangle=-1;queueEvent(()->{meshes.clear();meshes.addAll(copy);fitCamera();requestRender();});}
+ public void setMeshes(List<Mesh> incoming){final ArrayList<Mesh> copy=new ArrayList<>(incoming);highlightedFirstTriangle=-1;queueEvent(()->{meshes.clear();meshes.addAll(copy);highlightedEdgeVertices=null;fitCamera();requestRender();});}
  public void orbit(float dx,float dy){yaw+=dx*.35f;pitch=Math.max(-89,Math.min(89,pitch+dy*.35f));requestRender();}
  public void zoom(float factor){distance=Math.max(.1f,Math.min(100000f,distance/factor));requestRender();}
  @Override public boolean onTouchEvent(android.view.MotionEvent e){
@@ -112,6 +121,20 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
     GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL);
    }
    triangleOffset+=mesh.triangles();
+  }
+  // Draw the selected topological line/rim as an overlay in world XYZ.
+  // Disable depth temporarily so its complete path is visible, then restore it.
+  if(highlightedEdgeVertices!=null){
+   float[] outline=highlightedEdgeVertices;
+   FloatBuffer edgeBuf=ByteBuffer.allocateDirect(outline.length*4)
+     .order(ByteOrder.nativeOrder()).asFloatBuffer();
+   edgeBuf.put(outline).position(0);
+   GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,edgeBuf);
+   GLES30.glDisable(GLES30.GL_DEPTH_TEST);
+   GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
+   GLES30.glLineWidth(3f);
+   GLES30.glDrawArrays(GLES30.GL_LINE_STRIP,0,outline.length/3);
+   GLES30.glEnable(GLES30.GL_DEPTH_TEST);
   }
   GLES30.glDisableVertexAttribArray(0);
  }
