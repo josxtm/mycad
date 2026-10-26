@@ -2,6 +2,17 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Extrusión de contornos cerrados con líneas (0.6.0):** permite
+seleccionar una línea del boceto y detectar su circuito conectado de
+segmentos rectos en XY, XZ o YZ. Triangulación por recorte de orejas
+para polígonos cóncavos, paredes y tapas orientadas, con verificación
+de estanqueidad. Los perfiles abiertos, ramificados, autointersectados
+y con agujeros no admitidos se rechazan. La salida es una **malla STL/OBJ
+persistida en el proyecto y deshacible**, no un sólido B-Rep editable
+ni una extrusión que se regenere al modificar el boceto. Pruebas Java
+de las tres orientaciones y perfiles cóncavos; Android CI y Lint antes
+de APK. Véase [extrusión de contornos](CAD_CLOSED_LINE_EXTRUSION.md).
+
 **Bocetos DXF 2D XY (0.6.0):** importación y exportación ASCII DXF
 en milímetros de líneas, círculos y rectángulos ortogonales (polilínea
 LWPOLYLINE cerrada de cuatro vértices). La importación valida todas las
