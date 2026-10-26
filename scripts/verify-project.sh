@@ -376,7 +376,8 @@ assert "showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz)" in a
 assert "AnalyticPrimitiveRayPicker.pick(" in a
 assert "activeCylinderFaceId=exactFace==null?hit.faceId:exactFace;" in a
 assert "if(exactFace!=null)try{" in a
-assert "AnalyticEdgePicker.nearestEdge(" in a
+assert "AnalyticEdgePicker.nearestEdgeOnFace(" in a
+assert "String visibleFace=exactFace!=null?exactFace:" in a
 assert "public interface SurfaceRayListener {" in m
 assert "surfaceRayListener.onSurfaceRay(triangle,x,y,z,ox,oy,oz,dx,dy,dz)" in m
 print("Rayo analítico B-Rep conectado con selección visible de malla: OK")

@@ -38,6 +38,25 @@ public final class AnalyticEdgePickerTest {
   double[] returned=edge.closestPoint();returned[0]=1e12;
   yes(edge.closestPoint()[0]!=1e12,"Closest point is immutable");
 
+  // A hit attributed to the top face must not select an edge belonging
+  // only to the bottom face, even if the caller supplies a generous radius.
+  double[] topX=rotated.point(0,-5,8);
+  AnalyticEdgePicker.Hit topBox=AnalyticEdgePicker.nearestEdgeOnFace(
+      box,"persistent-box/face/Z_MAX",topX[0],topX[1],topX[2],.001);
+  yes(topBox!=null&&topBox.edgeId.equals("persistent-box/edge/X_2"),
+      "Top face selects only its own analytic rim");
+  double[] bottomX=rotated.point(0,-5,0);
+  yes(find(box,bottomX,.001)!=null,"Legacy global picker still works");
+  yes(AnalyticEdgePicker.nearestEdgeOnFace(box,"persistent-box/face/Z_MAX",
+      bottomX[0],bottomX[1],bottomX[2],.001)==null,
+      "Reject opposite-face box edge");
+  reject(()->AnalyticEdgePicker.nearestEdgeOnFace(box,null,0,0,0,1),
+      "Missing face ID");
+  reject(()->AnalyticEdgePicker.nearestEdgeOnFace(box,
+      "another-body/face/Z_MAX",0,0,0,1),"Foreign face ID");
+  reject(()->AnalyticEdgePicker.nearestEdgeOnFace(box,
+      "persistent-box/face/NOT_A_FACE",0,0,0,1),"Unknown face ID");
+
   PrimitiveBRepBody cylinder=PrimitiveBRepBody.cylinder("persistent-cylinder",20,8,rotated);
   for(int i=0;i<16;i++){
    double a=i*Math.PI/8;
@@ -57,6 +76,23 @@ public final class AnalyticEdgePickerTest {
   yes(find(cylinder,rotated.point(0,0,8),1)==null,"Cap interior not rim");
   AnalyticEdgePicker.Hit bottom=find(cylinder,rotated.point(-10,0,0),.001);
   yes(bottom!=null&&bottom.edgeId.endsWith("/CYLINDER_BOTTOM"),"Bottom rim");
+  double[] bottomRim=rotated.point(10,0,0);
+  AnalyticEdgePicker.Hit sideRim=AnalyticEdgePicker.nearestEdgeOnFace(
+      cylinder,"persistent-cylinder/face/CYLINDER_SIDE",
+      bottomRim[0],bottomRim[1],bottomRim[2],.001);
+  yes(sideRim!=null&&sideRim.edgeId.endsWith("/CYLINDER_BOTTOM"),
+      "Side face has both circular boundary edges");
+  yes(AnalyticEdgePicker.nearestEdgeOnFace(
+      cylinder,"persistent-cylinder/face/CYLINDER_TOP",
+      bottomRim[0],bottomRim[1],bottomRim[2],.001)==null,
+      "Top cap must not select hidden bottom circular edge");
+  double[] topRim=rotated.point(10,0,8);
+  AnalyticEdgePicker.Hit topCapRim=AnalyticEdgePicker.nearestEdgeOnFace(
+      cylinder,"persistent-cylinder/face/CYLINDER_TOP",
+      topRim[0],topRim[1],topRim[2],.001);
+  yes(topCapRim!=null&&topCapRim.edgeId.endsWith("/CYLINDER_TOP"),
+      "Top cap retains its shared circular rim");
+
   PrimitiveBRepBody taller=cylinder.offsetFace("persistent-cylinder/face/CYLINDER_TOP",2);
   yes(find(taller,rotated.point(-10,0,10),.001).edgeId.equals(
       "persistent-cylinder/edge/CYLINDER_TOP"),"Top ID survives parametric resize");

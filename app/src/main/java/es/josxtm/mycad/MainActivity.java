@@ -1032,9 +1032,14 @@ public class MainActivity extends Activity {
     }
     try{
      if(solid==null)solid=analyticBody(chosen);
+     // Search only the boundary of the visible face; otherwise a
+     // close hidden edge may steal the selection on a thin primitive.
+     String visibleFace=exactFace!=null?exactFace:
+      (hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.BOX?
+       hit.bodyId+"/face/"+hit.boxFace.name():hit.faceId);
      es.josxtm.mycad.cad.AnalyticEdgePicker.Hit boundary=
-      es.josxtm.mycad.cad.AnalyticEdgePicker.nearestEdge(
-       solid,x,y,z,meshView==null?
+      es.josxtm.mycad.cad.AnalyticEdgePicker.nearestEdgeOnFace(
+       solid,visibleFace,x,y,z,meshView==null?
        es.josxtm.mycad.cad.AnalyticEdgePicker.suggestedTolerance(solid):
        es.josxtm.mycad.cad.EdgeScreenTolerance.compute(
          solid,meshView.cameraDistance(),meshView.getHeight(),

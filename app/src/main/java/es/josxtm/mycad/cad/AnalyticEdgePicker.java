@@ -45,6 +45,22 @@ public final class AnalyticEdgePicker {
  }
  public static Hit nearestEdge(PrimitiveBRepBody body,double wx,double wy,double wz,
                                double tolerance){
+  return nearest(body,null,wx,wy,wz,tolerance);
+ }
+ /**
+  * Classify an edge ONLY among the boundary edges of the face already
+  * identified by the visible-surface picker. Prevents a nearby edge on a
+  * different face from stealing the selection on thin or small primitives.
+  * The face ID must belong to this body; no silent global fallback.
+  */
+ public static Hit nearestEdgeOnFace(PrimitiveBRepBody body,String faceId,
+                                    double wx,double wy,double wz,double tolerance){
+  if(body==null||faceId==null||body.findFace(faceId)==null)
+   throw new IllegalArgumentException("Unknown or foreign analytic face");
+  return nearest(body,faceId,wx,wy,wz,tolerance);
+ }
+ private static Hit nearest(PrimitiveBRepBody body,String faceId,
+                            double wx,double wy,double wz,double tolerance){
   if(body==null||!Double.isFinite(wx)||!Double.isFinite(wy)||
      !Double.isFinite(wz)||!Double.isFinite(tolerance)||tolerance<0)
    throw new IllegalArgumentException("Invalid world hit or tolerance");
@@ -57,6 +73,7 @@ public final class AnalyticEdgePicker {
    Map<String,double[]> vertices=new HashMap<>();
    for(BoxBRep.Vertex v:model.vertices())vertices.put(v.id,v.position());
    for(BoxBRep.Edge edge:model.edges()){
+    if(faceId!=null&&!edge.adjacentFaceIds().contains(faceId))continue;
     double[] candidate=lineClosest(vertices.get(edge.startId),
                                    vertices.get(edge.endId),point);
     winner=best(winner,new Hit(body.bodyId,edge.id,"LINE",
@@ -68,6 +85,7 @@ public final class AnalyticEdgePicker {
    double[] local=body.pose().inversePoint(wx,wy,wz);
    double angle=Math.atan2(local[1],local[0]);
    for(CylinderBRep.CircularEdge edge:model.edges()){
+    if(faceId!=null&&!edge.adjacentFaceIds().contains(faceId))continue;
     double[] candidate=edge.pointAt(angle);
     winner=best(winner,new Hit(body.bodyId,edge.id,"CIRCLE",
                               distance(point,candidate),candidate));
