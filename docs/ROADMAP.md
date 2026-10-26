@@ -2,6 +2,8 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Precisión del volumen orientado (0.6.0):** el diagnóstico de mallas calcula determinantes respecto al primer vértice y acumula aportaciones con compensación de Neumaier; regresión de tetraedros pequeños trasladados a ±10 millones de mm y orientación invertida. Sin cambios en la topología ni APK; véase [volumen estable](CAD_MESH_STABLE_VOLUME.md).
+
 **Integridad topológica de mallas (incremento 0.6.0):** la validación de
 mallas cerradas ahora rechaza vértices con varios abanicos desconectados
 (dos sólidos que solo se tocan en un punto), además de aristas abiertas,
