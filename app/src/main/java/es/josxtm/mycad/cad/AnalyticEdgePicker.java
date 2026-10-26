@@ -16,10 +16,22 @@ public final class AnalyticEdgePicker {
  public static final class Hit {
   public final String bodyId,edgeId,kind;
   public final double distance;
-  private final double[] closestPoint;
-  private Hit(String bodyId,String edgeId,String kind,double distance,double[] closest){
-   this.bodyId=bodyId;this.edgeId=edgeId;this.kind=kind;this.distance=distance;
-   this.closestPoint=closest.clone();
+  private final double[] closestPoint,sourceGeometry;
+  private final PrimitiveBRepBody.Kind sourceKind;
+  private Hit(PrimitiveBRepBody body,String edgeId,String kind,double distance,double[] closest){
+   this.bodyId=body.bodyId;this.edgeId=edgeId;this.kind=kind;this.distance=distance;
+   this.closestPoint=closest.clone();this.sourceKind=body.kind;
+   sourceGeometry=new double[]{body.width,body.depth,body.height,
+                               body.x,body.y,body.z,body.rx,body.ry,body.rz};
+  }
+  /** Prevent reuse of a touched edge point after any geometry/pose change. */
+  boolean matchesGeometry(PrimitiveBRepBody body){
+   if(body==null||!bodyId.equals(body.bodyId)||sourceKind!=body.kind)return false;
+   double[] now={body.width,body.depth,body.height,
+                 body.x,body.y,body.z,body.rx,body.ry,body.rz};
+   for(int i=0;i<now.length;i++)
+    if(Double.compare(sourceGeometry[i],now[i])!=0)return false;
+   return true;
   }
   public double[] closestPoint(){return closestPoint.clone();}
  }
@@ -76,7 +88,7 @@ public final class AnalyticEdgePicker {
     if(faceId!=null&&!edge.adjacentFaceIds().contains(faceId))continue;
     double[] candidate=lineClosest(vertices.get(edge.startId),
                                    vertices.get(edge.endId),point);
-    winner=best(winner,new Hit(body.bodyId,edge.id,"LINE",
+    winner=best(winner,new Hit(body,edge.id,"LINE",
                               distance(point,candidate),candidate));
    }
   }else{
@@ -87,7 +99,7 @@ public final class AnalyticEdgePicker {
    for(CylinderBRep.CircularEdge edge:model.edges()){
     if(faceId!=null&&!edge.adjacentFaceIds().contains(faceId))continue;
     double[] candidate=edge.pointAt(angle);
-    winner=best(winner,new Hit(body.bodyId,edge.id,"CIRCLE",
+    winner=best(winner,new Hit(body,edge.id,"CIRCLE",
                               distance(point,candidate),candidate));
    }
   }
