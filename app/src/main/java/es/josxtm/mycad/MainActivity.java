@@ -12,7 +12,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
- ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport,pendingDxfExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
+ ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loopExtrusionFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport,pendingDxfExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
  static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104, IMPORT_DXF=105, EXPORT_DXF=106; MeshEngine meshView; FrameLayout meshPanel; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
@@ -182,10 +182,12 @@ public class MainActivity extends Activity {
   final Sketch anchor=sketches.get(selectedSketch);
   final java.util.ArrayList<es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
    new java.util.ArrayList<>();
+  final java.util.ArrayList<String> lineIds=new java.util.ArrayList<>();
   int anchorIndex=-1;
   try{
    for(Sketch q:sketches)if(q.type==1&&q.plane==anchor.plane){
     if(q==anchor)anchorIndex=lines.size();
+    lineIds.add(q.id);
     lines.add(new es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment(
      q.plane,q.x1,q.y1,q.x2,q.y2));
    }
@@ -216,14 +218,81 @@ public class MainActivity extends Activity {
      if(result.triangles.length>18000)
       throw new IllegalArgumentException("Resultado de malla demasiado grande");
      MeshEngine.Mesh mesh=new MeshEngine.Mesh(result.triangles);
+     java.util.ArrayList<String> sources=new java.util.ArrayList<>();
+     for(int i:result.sourceIndices)sources.add(lineIds.get(i));
+     es.josxtm.mycad.cad.LoopExtrusionFeature feature=
+      new es.josxtm.mycad.cad.LoopExtrusionFeature(
+       java.util.UUID.randomUUID().toString(),anchor.id,anchor.plane,h,sources);
      checkpoint();
      booleanMeshes.add(mesh);unionRecipes.add(null);holeRecipes.add(null);
+     loopExtrusionFeatures.add(feature);
      save();scene.invalidate();
      if(!meshMode)toggleMeshView();
      else if(meshView!=null)renderCurrentCadMesh();
      toast("Contorno extruido: "+result.usedLines+" líneas · "+
        mesh.triangles()+" triángulos");
     }catch(Exception error){toast("No se pudo extruir: "+error.getMessage());}
+   }).show();
+ }
+
+
+ /** Resolve current sketch coordinates by persistent UUID, not list position. */
+ java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment>
+ loopSketchSegments(es.josxtm.mycad.cad.LoopExtrusionFeature feature,
+                    Sketch override,float x1,float y1,float x2,float y2){
+  java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> result=
+   new java.util.LinkedHashMap<>();
+  for(Sketch sketch:sketches)if(feature.dependsOn(sketch.id)){
+   if(sketch.type!=1||sketch.plane!=feature.plane)
+    throw new IllegalArgumentException("La línea de origen ha cambiado de plano");
+   result.put(sketch.id,new es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment(
+    sketch.plane,sketch==override?x1:sketch.x1,sketch==override?y1:sketch.y1,
+    sketch==override?x2:sketch.x2,sketch==override?y2:sketch.y2));
+  }
+  return result;
+ }
+ /** Preflight all linked meshes before ANY geometry, history or JSON mutation. */
+ java.util.Map<Integer,MeshEngine.Mesh> prepareLinkedLoopEdit(
+   Sketch changed,float x1,float y1,float x2,float y2){
+  java.util.LinkedHashMap<Integer,MeshEngine.Mesh> staged=new java.util.LinkedHashMap<>();
+  for(int i=0;i<loopExtrusionFeatures.size();i++){
+   es.josxtm.mycad.cad.LoopExtrusionFeature feature=loopExtrusionFeatures.get(i);
+   if(feature!=null&&feature.dependsOn(changed.id)){
+    es.josxtm.mycad.cad.ClosedSketchExtrusion.Result solid=
+     feature.regenerate(loopSketchSegments(feature,changed,x1,y1,x2,y2));
+    staged.put(i,new MeshEngine.Mesh(solid.triangles));
+   }
+  }
+  return staged;
+ }
+ void applyLinkedLoopEdit(java.util.Map<Integer,MeshEngine.Mesh> staged){
+  for(java.util.Map.Entry<Integer,MeshEngine.Mesh> e:staged.entrySet())
+   booleanMeshes.set(e.getKey(),e.getValue());
+  if(!staged.isEmpty()&&meshMode&&meshView!=null)renderCurrentCadMesh();
+ }
+ void editLoopExtrusionDistance(int index){
+  if(index<0||index>=loopExtrusionFeatures.size()||
+     loopExtrusionFeatures.get(index)==null){toast("Malla sin vínculo paramétrico");return;}
+  final es.josxtm.mycad.cad.LoopExtrusionFeature original=loopExtrusionFeatures.get(index);
+  EditText input=new EditText(this);input.setInputType(8194|4096);
+  input.setText(String.valueOf(original.distance));
+  new AlertDialog.Builder(this).setTitle("Distancia de extrusión · mm")
+   .setMessage("Se regenerará desde las líneas originales con distancia firmada. "+
+    "El resultado sigue siendo una malla, no una B-Rep editable.")
+   .setView(input).setNegativeButton("Cancelar",null)
+   .setPositiveButton("Aplicar",(dialog,which)->{
+    if(fileBusy||index>=loopExtrusionFeatures.size()||
+       loopExtrusionFeatures.get(index)!=original){toast("La malla ha cambiado");return;}
+    try{
+     double distance=Double.parseDouble(input.getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.LoopExtrusionFeature next=original.withDistance(distance);
+     MeshEngine.Mesh mesh=new MeshEngine.Mesh(next.regenerate(
+      loopSketchSegments(next,null,0,0,0,0)).triangles);
+     checkpoint();booleanMeshes.set(index,mesh);loopExtrusionFeatures.set(index,next);
+     save();scene.invalidate();
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     toast("Extrusión de contorno regenerada · "+distance+" mm");
+    }catch(Exception error){toast("Contorno no válido: "+error.getMessage());}
    }).show();
  }
 
@@ -239,7 +308,11 @@ public class MainActivity extends Activity {
    plan=es.josxtm.mycad.cad.SketchDeletionPlan.inspect(target.id,sketchBodyLinks());
   }catch(Exception error){toast("Hay identificadores de cuerpos duplicados");return;}
   int count=plan.dependentBodyIds.size();
-  String detail="Boceto "+(index+1)+" · "+count+" pieza(s) vinculada(s). "+
+  int linkedLoops=0;
+  for(es.josxtm.mycad.cad.LoopExtrusionFeature f:loopExtrusionFeatures)
+   if(f!=null&&f.dependsOn(target.id))linkedLoops++;
+  String detail="Boceto "+(index+1)+" · "+count+" pieza(s) vinculada(s), "+
+   linkedLoops+" extrusión(es) de líneas. "+
    "Puedes conservar los cuerpos como independientes o eliminarlos junto al boceto. "+
    "Ambas operaciones se pueden deshacer.";
   new AlertDialog.Builder(this).setTitle("Eliminar boceto y dependencias")
@@ -264,6 +337,14 @@ public class MainActivity extends Activity {
   final String selectedId=selected>=0&&selected<parts.size()?parts.get(selected).id:null;
   checkpoint();
   sketches.remove(index);
+  for(int i=loopExtrusionFeatures.size()-1;i>=0;i--){
+   es.josxtm.mycad.cad.LoopExtrusionFeature feature=loopExtrusionFeatures.get(i);
+   if(feature==null||!feature.dependsOn(target.id))continue;
+   if(mode==es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE){
+    loopExtrusionFeatures.remove(i);booleanMeshes.remove(i);
+    unionRecipes.remove(i);holeRecipes.remove(i);
+   }else loopExtrusionFeatures.set(i,null);
+  }
   if(mode==es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE){
    parts.removeIf(body->!retained.contains(body.id));
   }else{
@@ -369,7 +450,11 @@ public class MainActivity extends Activity {
  int draftIndex(ArrayList<Part> all,Part draft){
   int direct=all.indexOf(draft);return direct>=0?direct:all.size()-1;
  }
- void dimensionSketch(){if(selectedSketch<0||selectedSketch>=sketches.size()){toast("Selecciona primero un boceto");return;}Sketch q=sketches.get(selectedSketch);if(q.type==1){EditText lengthInput=new EditText(this);lengthInput.setInputType(8194|4096);lengthInput.setText(String.format(java.util.Locale.US,"%.2f",Math.hypot(q.x2-q.x1,q.y2-q.y1)));new AlertDialog.Builder(this).setTitle("Longitud de línea · mm").setView(lengthInput).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,which)->{try{float length=Float.parseFloat(lengthInput.getText().toString().replace(',','.'));if(!Float.isFinite(length)||length<=0||length>10000)throw new Exception();float dx=q.x2-q.x1,dy=q.y2-q.y1;float oldLength=(float)Math.hypot(dx,dy);if(oldLength<.0001f)throw new Exception();checkpoint();q.x2=q.x1+dx*length/oldLength;q.y2=q.y1+dy*length/oldLength;rebuildLinkedParts(q);save();scene.invalidate();info.setText("Línea acotada · "+length+" mm");}catch(Exception ex){toast("Longitud inválida (0–10000 mm)");}}).show();return;}LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(8),dp(20),dp(8));EditText[] e=new EditText[2];String[] labels=q.type==3?new String[]{"Diámetro (mm)"}:new String[]{"Ancho (mm)","Fondo (mm)"};for(int i=0;i<labels.length;i++){TextView label=new TextView(this);label.setText(labels[i]);box.addView(label);e[i]=new EditText(this);e[i].setInputType(8194|4096);e[i].setText(""+(q.type==3?2*Math.hypot(q.x2-q.x1,q.y2-q.y1):i==0?Math.abs(q.x2-q.x1):Math.abs(q.y2-q.y1)));box.addView(e[i]);}new AlertDialog.Builder(this).setTitle("Acotar perfil").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,w)->{try{float a=Float.parseFloat(e[0].getText().toString().replace(',','.'));float b=e[1]==null?a:Float.parseFloat(e[1].getText().toString().replace(',','.'));if(!Float.isFinite(a+b)||a<=0||b<=0||a>10000||b>10000)throw new Exception();float nextX=q.type==3?q.x1+a/2:q.x1+(q.x2>=q.x1?a:-a);float nextY=q.type==3?q.y1:q.y1+(q.y2>=q.y1?b:-b);if(!validateLinkedSketchEdit(q,q.x1,q.y1,nextX,nextY))throw new Exception();checkpoint();q.x2=nextX;q.y2=nextY;rebuildLinkedParts(q);save();scene.invalidate();}catch(Exception ex){toast("Cota inválida");}}).show();}
+ void dimensionSketch(){if(selectedSketch<0||selectedSketch>=sketches.size()){toast("Selecciona primero un boceto");return;}Sketch q=sketches.get(selectedSketch);if(q.type==1){EditText lengthInput=new EditText(this);lengthInput.setInputType(8194|4096);lengthInput.setText(String.format(java.util.Locale.US,"%.2f",Math.hypot(q.x2-q.x1,q.y2-q.y1)));new AlertDialog.Builder(this).setTitle("Longitud de línea · mm").setView(lengthInput).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,which)->{try{float length=Float.parseFloat(lengthInput.getText().toString().replace(',','.'));if(!Float.isFinite(length)||length<=0||length>10000)throw new Exception();float dx=q.x2-q.x1,dy=q.y2-q.y1;float oldLength=(float)Math.hypot(dx,dy);if(oldLength<.0001f)throw new Exception();float nextX=q.x1+dx*length/oldLength,nextY=q.y1+dy*length/oldLength;
+ java.util.Map<Integer,MeshEngine.Mesh> staged=
+  prepareLinkedLoopEdit(q,q.x1,q.y1,nextX,nextY);
+ checkpoint();q.x2=nextX;q.y2=nextY;rebuildLinkedParts(q);
+ applyLinkedLoopEdit(staged);save();scene.invalidate();info.setText("Línea acotada · "+length+" mm");}catch(Exception ex){toast("Longitud inválida (0–10000 mm)");}}).show();return;}LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(8),dp(20),dp(8));EditText[] e=new EditText[2];String[] labels=q.type==3?new String[]{"Diámetro (mm)"}:new String[]{"Ancho (mm)","Fondo (mm)"};for(int i=0;i<labels.length;i++){TextView label=new TextView(this);label.setText(labels[i]);box.addView(label);e[i]=new EditText(this);e[i].setInputType(8194|4096);e[i].setText(""+(q.type==3?2*Math.hypot(q.x2-q.x1,q.y2-q.y1):i==0?Math.abs(q.x2-q.x1):Math.abs(q.y2-q.y1)));box.addView(e[i]);}new AlertDialog.Builder(this).setTitle("Acotar perfil").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,w)->{try{float a=Float.parseFloat(e[0].getText().toString().replace(',','.'));float b=e[1]==null?a:Float.parseFloat(e[1].getText().toString().replace(',','.'));if(!Float.isFinite(a+b)||a<=0||b<=0||a>10000||b>10000)throw new Exception();float nextX=q.type==3?q.x1+a/2:q.x1+(q.x2>=q.x1?a:-a);float nextY=q.type==3?q.y1:q.y1+(q.y2>=q.y1?b:-b);if(!validateLinkedSketchEdit(q,q.x1,q.y1,nextX,nextY))throw new Exception();checkpoint();q.x2=nextX;q.y2=nextY;rebuildLinkedParts(q);save();scene.invalidate();}catch(Exception ex){toast("Cota inválida");}}).show();}
  void loadSettings(){android.content.SharedPreferences p=getPreferences(MODE_PRIVATE);darkMode=p.getBoolean("dark",true);rotateSensitivity=p.getFloat("rot",1f);zoomSensitivity=p.getFloat("zoom",1f);dragSensitivity=p.getFloat("drag",1f);gridVisible=p.getBoolean("gridVisible",true);snapEnabled=p.getBoolean("snap",false);gridStep=p.getFloat("gridStep",5);gridPlane=p.getInt("gridPlane",0);axesVisible=p.getBoolean("axes",true);cameraLock=p.getBoolean("cameraLock",true);moveMode=p.getInt("moveMode",0);moveAxis=p.getInt("moveAxis",0);}
  void applyTheme(){int bg=darkMode?Color.rgb(18,25,36):Color.rgb(235,241,247),fg=darkMode?Color.WHITE:Color.rgb(25,38,55),bar=darkMode?Color.rgb(34,47,64):Color.rgb(211,222,233);rootLayout.setBackgroundColor(bg);titleView.setTextColor(fg);info.setTextColor(fg);for(LinearLayout group:new LinearLayout[]{topBar,leftBar,rightBar})for(int i=0;i<group.getChildCount();i++){View v=group.getChildAt(i);if(v instanceof TextView){((TextView)v).setTextColor(fg);v.setBackgroundColor(bar);}}scene.invalidate();}
  void storeSettings(){getPreferences(MODE_PRIVATE).edit().putBoolean("dark",darkMode).putFloat("rot",rotateSensitivity).putFloat("zoom",zoomSensitivity).putFloat("drag",dragSensitivity).putBoolean("gridVisible",gridVisible).putBoolean("snap",snapEnabled).putFloat("gridStep",gridStep).putInt("gridPlane",gridPlane).putBoolean("axes",axesVisible).putBoolean("cameraLock",cameraLock).putInt("moveMode",moveMode).putInt("moveAxis",moveAxis).apply();applyTheme();}
@@ -426,7 +511,7 @@ public class MainActivity extends Activity {
     new AlertDialog.Builder(this).setTitle("Guardar resultado booleano")
      .setMessage("Guardar una copia de la malla en el proyecto. Los dos sólidos originales se conservarán. Podrás exportar todo como STL/OBJ.")
      .setPositiveButton("Guardar malla",(confirm,which)->{
-      checkpoint();booleanMeshes.add(new MeshEngine.Mesh(triangles));unionRecipes.add(null);holeRecipes.add(null);save();
+      checkpoint();booleanMeshes.add(new MeshEngine.Mesh(triangles));unionRecipes.add(null);holeRecipes.add(null);loopExtrusionFeatures.add(null);save();
       renderCurrentCadMesh();
       info.setText("Malla booleana guardada · "+booleanMeshes.size()+" resultado(s)");
      }).setNegativeButton("Solo previsualizar",null).show();
@@ -456,23 +541,26 @@ public class MainActivity extends Activity {
   for(int i=0;i<names.length;i++){
    es.josxtm.mycad.cad.DrilledBoxRecipe drill=i<holeRecipes.size()?holeRecipes.get(i):null;
    names[i]="Malla "+(i+1)+" · "+booleanMeshes.get(i).triangles()+" triángulos";
-   if(drill!=null)names[i]+=" · "+drill.axis.name()+" · "+
+   if(i<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(i)!=null)
+    names[i]+=" · contorno "+loopExtrusionFeatures.get(i).distance+" mm";
+   if(drill!=null)names[i]+=" · "+
     (drill.drillDepth==0?"pasante":drill.drillDepth+" mm de profundidad");
   }
   new AlertDialog.Builder(this).setTitle("Resultados booleanos")
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
     new AlertDialog.Builder(this).setTitle(names[index])
-     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular"},(d,choice)->{
+     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno"},(d,choice)->{
       if(choice==0){showMeshOnly(mesh);}
       else if(choice==1){exportMeshMenuFor(mesh);}
       else if(choice==3){editFaceUnionRecipe(index);}
       else if(choice==4){editHoleRecipe(index);}
+      else if(choice==5){editLoopExtrusionDistance(index);}
       else new AlertDialog.Builder(this).setTitle("Eliminar resultado")
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
        .setPositiveButton("Eliminar",(confirm,which)->{
-        checkpoint();int removed=booleanMeshes.indexOf(mesh);booleanMeshes.remove(mesh);if(removed>=0&&removed<unionRecipes.size())unionRecipes.remove(removed);if(removed>=0&&removed<holeRecipes.size())holeRecipes.remove(removed);save();
+        checkpoint();int removed=booleanMeshes.indexOf(mesh);booleanMeshes.remove(mesh);if(removed>=0&&removed<unionRecipes.size())unionRecipes.remove(removed);if(removed>=0&&removed<holeRecipes.size())holeRecipes.remove(removed);if(removed>=0&&removed<loopExtrusionFeatures.size())loopExtrusionFeatures.remove(removed);save();
         if(meshMode&&meshView!=null)renderCurrentCadMesh();
         toast("Resultado eliminado");
        }).show();
@@ -538,7 +626,7 @@ public class MainActivity extends Activity {
         parts.remove(Math.max(boxIndex,cutterIndex));
         parts.remove(Math.min(boxIndex,cutterIndex));
         booleanMeshes.add(new MeshEngine.Mesh(surface));
-        unionRecipes.add(null);
+        loopExtrusionFeatures.add(null);unionRecipes.add(null);
         holeRecipes.add(option==2?result.cut:null);
         selected=-1;selectedSketch=-1;activeCadFace=null;
         save();scene.invalidate();
@@ -597,7 +685,7 @@ public class MainActivity extends Activity {
      if(geometry.length==0||geometry.length>18000||
       !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(geometry).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
      checkpoint();parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(geometry));
-     unionRecipes.add(null);holeRecipes.add(recipe);
+     loopExtrusionFeatures.add(null);unionRecipes.add(null);holeRecipes.add(recipe);
      selected=-1;selectedSketch=-1;activeCadFace=null;save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast("Perforación guardada · "+(recipe.drillDepth==0?"pasante":"ciega")+" · editable en Resultados booleanos");
@@ -842,6 +930,18 @@ public class MainActivity extends Activity {
    .put("drillDepth",drill.drillDepth));
  }
  file.put("throughHoleRecipes",drills);
+ if(loopExtrusionFeatures.size()!=booleanMeshes.size())
+  throw new IllegalStateException("Índices de extrusiones vinculadas incoherentes");
+ JSONArray linkedLoops=new JSONArray();
+ for(es.josxtm.mycad.cad.LoopExtrusionFeature linked:loopExtrusionFeatures){
+  if(linked==null){linkedLoops.put(JSONObject.NULL);continue;}
+  JSONArray ids=new JSONArray();
+  for(String lineId:linked.lineIds())ids.put(lineId);
+  linkedLoops.put(new JSONObject().put("id",linked.id)
+   .put("selectedLineId",linked.selectedLineId).put("plane",linked.plane)
+   .put("distance",linked.distance).put("lineIds",ids));
+ }
+ file.put("loopExtrusionFeatures",linkedLoops);
 
  JSONArray chains=new JSONArray();
  for(es.josxtm.mycad.cad.FaceExtrusionChain chain:extrusionChains){
@@ -888,9 +988,9 @@ public class MainActivity extends Activity {
    all.put(vertices);
   }return all;
  }
- class ParsedDesign {ArrayList<Part> parts;ArrayList<Sketch> sketches;ArrayList<MeshEngine.Mesh> meshes;ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> recipes;ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> drills;ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> chains;ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> features;ParsedDesign(ArrayList<Part> p,ArrayList<Sketch> sk,ArrayList<MeshEngine.Mesh> m,ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> r,ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> c,ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> f,ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holes){parts=p;sketches=sk;meshes=m;recipes=r;chains=c;features=f;drills=holes;}}
+ class ParsedDesign {ArrayList<Part> parts;ArrayList<Sketch> sketches;ArrayList<MeshEngine.Mesh> meshes;ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> recipes;ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> drills;ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loops;ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> chains;ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> features;ParsedDesign(ArrayList<Part> p,ArrayList<Sketch> sk,ArrayList<MeshEngine.Mesh> m,ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> r,ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> c,ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> f,ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holes,ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> lp){parts=p;sketches=sk;meshes=m;recipes=r;chains=c;features=f;drills=holes;loops=lp;}}
  ParsedDesign decode(String data) throws Exception {
- Object raw=new JSONTokener(data).nextValue();JSONArray a;ArrayList<Sketch> parsedSketches=new ArrayList<>();ArrayList<MeshEngine.Mesh> parsedMeshes=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> parsedRecipes=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> parsedDrills=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> parsedChains=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> parsedFeatures=new ArrayList<>();
+ Object raw=new JSONTokener(data).nextValue();JSONArray a;ArrayList<Sketch> parsedSketches=new ArrayList<>();ArrayList<MeshEngine.Mesh> parsedMeshes=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> parsedRecipes=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> parsedDrills=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> parsedChains=new ArrayList<>();ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> parsedFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> parsedLoops=new ArrayList<>();
  if(raw instanceof JSONArray)a=(JSONArray)raw;
  else if(raw instanceof JSONObject){JSONObject o=(JSONObject)raw;if(!"mycad".equals(o.getString("format"))||o.getInt("version")!=1||!"mm".equals(o.getString("units")))throw new IOException("Formato o versión no compatible");a=o.getJSONArray("parts");
  JSONArray meshArrays=o.optJSONArray("booleanMeshes");
@@ -981,7 +1081,57 @@ public class MainActivity extends Activity {
  for(int i=0;i<a.length();i++){JSONObject p=a.getJSONObject(i);float w=(float)p.getDouble("w"),d=(float)p.getDouble("d"),h=(float)p.getDouble("h"),x=(float)p.getDouble("x");
  if(!Float.isFinite(w+d+h+x)||w<=0||d<=0||h<=0||w>10000||d>10000||h>10000||Math.abs(x)>10000)throw new IOException("Medidas no válidas");
  boolean circle=p.getBoolean("c");if(circle&&w!=d)throw new IOException("Diámetro inconsistente");
- Part item=new Part(circle,w,d,h,x);item.id=p.optString("bodyId",item.id);item.y=(float)p.optDouble("y",0);item.z=(float)p.optDouble("z",0);item.rotationX=(float)p.optDouble("rotationX",0);item.rotationY=(float)p.optDouble("rotationY",0);item.rotationZ=(float)p.optDouble("rotationZ",0);item.sourceSketchId=p.optString("sourceSketchId","");if(!Float.isFinite(item.y+item.z+item.rotationX+item.rotationY+item.rotationZ)||Math.abs(item.y)>10000||Math.abs(item.z)>10000||item.id.length()>100||!validBodyId(item.id))throw new IOException("Posición o ID de cuerpo inválidos");if(!loadedBodyIds.add(item.id))throw new IOException("Cuerpos duplicados");list.add(item);}try{es.josxtm.mycad.cad.ChainDependencyReport.requireValid(parsedChains,parsedFeatures);}catch(IllegalArgumentException e){throw new IOException("Historial paramétrico inválido",e);}return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedChains,parsedFeatures,parsedDrills);
+ Part item=new Part(circle,w,d,h,x);item.id=p.optString("bodyId",item.id);item.y=(float)p.optDouble("y",0);item.z=(float)p.optDouble("z",0);item.rotationX=(float)p.optDouble("rotationX",0);item.rotationY=(float)p.optDouble("rotationY",0);item.rotationZ=(float)p.optDouble("rotationZ",0);item.sourceSketchId=p.optString("sourceSketchId","");if(!Float.isFinite(item.y+item.z+item.rotationX+item.rotationY+item.rotationZ)||Math.abs(item.y)>10000||Math.abs(item.z)>10000||item.id.length()>100||!validBodyId(item.id))throw new IOException("Posición o ID de cuerpo inválidos");if(!loadedBodyIds.add(item.id))throw new IOException("Cuerpos duplicados");list.add(item);}try{es.josxtm.mycad.cad.ChainDependencyReport.requireValid(parsedChains,parsedFeatures);}catch(IllegalArgumentException e){throw new IOException("Historial paramétrico inválido",e);}
+ // Legacy JSON v1 did not contain line-loop features; preserve those meshes as
+ // independent snapshots. New linked recipes are aligned by mesh index.
+ if(raw instanceof JSONObject){
+  JSONArray serialized=((JSONObject)raw).optJSONArray("loopExtrusionFeatures");
+  if(serialized!=null){
+   if(serialized.length()!=parsedMeshes.size())
+    throw new IOException("Extrusiones de contornos desalineadas");
+   java.util.HashSet<String> requiredLineIds=new java.util.HashSet<>();
+   for(int i=0;i<serialized.length();i++)if(!serialized.isNull(i)){
+    JSONArray ids=serialized.getJSONObject(i).getJSONArray("lineIds");
+    for(int j=0;j<ids.length();j++)requiredLineIds.add(ids.getString(j));
+   }
+   java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> source=
+    new java.util.LinkedHashMap<>();
+   for(Sketch q:parsedSketches)if(requiredLineIds.contains(q.id)){
+    if(q.type!=1)throw new IOException("Referencia a boceto no lineal");
+    try{
+     if(source.put(q.id,new es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment(
+      q.plane,q.x1,q.y1,q.x2,q.y2))!=null)
+      throw new IOException("Líneas con IDs duplicados");
+    }catch(IllegalArgumentException e){throw new IOException("Boceto vinculado inválido",e);}
+   }
+   java.util.HashSet<String> seenFeatures=new java.util.HashSet<>();
+   for(int i=0;i<serialized.length();i++){
+    if(serialized.isNull(i)){parsedLoops.add(null);continue;}
+    JSONObject row=serialized.getJSONObject(i);
+    JSONArray ids=row.getJSONArray("lineIds");
+    if(ids.length()>200)throw new IOException("Demasiadas líneas vinculadas");
+    java.util.ArrayList<String> names=new java.util.ArrayList<>();
+    for(int j=0;j<ids.length();j++)names.add(ids.getString(j));
+    try{
+     es.josxtm.mycad.cad.LoopExtrusionFeature feature=
+      new es.josxtm.mycad.cad.LoopExtrusionFeature(row.getString("id"),
+       row.getString("selectedLineId"),row.getInt("plane"),
+       row.getDouble("distance"),names);
+     if(!seenFeatures.add(feature.id))
+      throw new IllegalArgumentException("Extrusión con UUID duplicado");
+     es.josxtm.mycad.cad.ClosedSketchExtrusion.Result regenerated=
+      feature.regenerate(source);
+     if(!java.util.Arrays.equals(regenerated.triangles,parsedMeshes.get(i).vertices))
+      throw new IllegalArgumentException("Malla no coincide con su historial");
+     parsedLoops.add(feature);
+    }catch(IllegalArgumentException e){
+     throw new IOException("Contorno paramétrico inválido",e);
+    }
+   }
+  }
+ }
+ while(parsedLoops.size()<parsedMeshes.size())parsedLoops.add(null);
+return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedChains,parsedFeatures,parsedDrills,parsedLoops);
  }
  boolean validBodyId(String id){try{return java.util.UUID.fromString(id).toString().equals(id);}catch(Exception e){return false;}}
  void checkpoint(){try{undo.push(encode());if(undo.size()>50)undo.removeLast();redo.clear();}catch(Exception e){}}
@@ -995,7 +1145,7 @@ public class MainActivity extends Activity {
    src.pop();dst.push(prior);
    activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);
    parts=restored.parts;sketches=restored.sketches;
-   booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;
+   booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;loopExtrusionFeatures=restored.loops;
    extrusionChains=restored.chains;chainFeatures=restored.features;
    selected=parts.isEmpty()?-1:0;selectedSketch=-1;
    save();scene.invalidate();
@@ -1004,7 +1154,7 @@ public class MainActivity extends Activity {
  }
  void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
  void save(){try{getPreferences(MODE_PRIVATE).edit().putString("design",encode()).apply();updateStep();}catch(Exception e){toast("No se pudo guardar el borrador interno");}}
- void load(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
+ void load(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;loopExtrusionFeatures=restored.loops;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
  protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putString("pendingExport",pendingExport);}
 
  void addTri(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r){for(float v:p)a.add(v);for(float v:q)a.add(v);for(float v:r)a.add(v);}
@@ -1435,7 +1585,7 @@ public class MainActivity extends Activity {
     float[] united=BoxBooleanMesh.build(a,b,BoxBooleanMesh.Operation.UNION);
     if(united.length==0)throw new IllegalArgumentException("Empty union");
     checkpoint();
-    parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(united));holeRecipes.add(null);unionRecipes.add(new es.josxtm.mycad.cad.FaceUnionRecipe(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,face,amount));
+    parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(united));loopExtrusionFeatures.add(null);holeRecipes.add(null);unionRecipes.add(new es.josxtm.mycad.cad.FaceUnionRecipe(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,face,amount));
     selected=parts.isEmpty()?-1:Math.min(index,parts.size()-1);
     info.setText("Extrusión fusionada como malla · "+amount+" mm");
    }else{
@@ -2352,11 +2502,11 @@ public class MainActivity extends Activity {
  }else{String text;try(InputStream in=getContentResolver().openInputStream(uri);ByteArrayOutputStream out=new ByteArrayOutputStream()){
  if(in==null)throw new IOException("No se pudo leer");byte[] buf=new byte[8192];int n,total=0;while((n=in.read(buf))!=-1){total+=n;if(total>2*1024*1024)throw new IOException("Archivo demasiado grande");out.write(buf,0,n);}text=new String(out.toByteArray(),StandardCharsets.UTF_8);}
  ParsedDesign loaded=decode(text);
- runOnUiThread(()->{fileBusy=false;checkpoint();parts=loaded.parts;sketches=loaded.sketches;booleanMeshes=loaded.meshes;unionRecipes=loaded.recipes;holeRecipes=loaded.drills;extrusionChains=loaded.chains;chainFeatures=loaded.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();info.setText("Archivo abierto · "+parts.size()+" piezas");toast("Diseño abierto correctamente");});
+ runOnUiThread(()->{fileBusy=false;checkpoint();parts=loaded.parts;sketches=loaded.sketches;booleanMeshes=loaded.meshes;unionRecipes=loaded.recipes;holeRecipes=loaded.drills;loopExtrusionFeatures=loaded.loops;extrusionChains=loaded.chains;chainFeatures=loaded.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();info.setText("Archivo abierto · "+parts.size()+" piezas");toast("Diseño abierto correctamente");});
  }
  }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AlertDialog.Builder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
  }
- void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
+ void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();loopExtrusionFeatures.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
  void guide(){new AlertDialog.Builder(this).setTitle("Guía · De la idea al archivo").setMessage(
  "1. NUEVO: empieza con el lienzo vacío.\n\n"+
  "2. RECTÁNGULO o CÍRCULO: introduce medidas en mm y el espesor. APLICAR crea la pieza. Por ahora se introducen medidas; no se dibuja a mano.\n\n"+
@@ -2435,7 +2585,11 @@ public class MainActivity extends Activity {
  void handle(Canvas c,float x,float y){paint.setStyle(Paint.Style.FILL);paint.setColor(Color.rgb(255,185,65));c.drawCircle(x,y,dp(6),paint);paint.setColor(Color.WHITE);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);c.drawCircle(x,y,dp(6),paint);}
  void drawHandles(Canvas c,Sketch q){float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);if(q.type==1){handle(c,a[0],a[1]);handle(c,b[0],b[1]);}else if(q.type==2){handle(c,a[0],a[1]);handle(c,a[0],b[1]);handle(c,b[0],a[1]);handle(c,b[0],b[1]);handle(c,(a[0]+b[0])/2,(a[1]+b[1])/2);}else{handle(c,a[0],a[1]);handle(c,b[0],b[1]);}paint.setStyle(Paint.Style.STROKE);}
  int hitHandle(float sx,float sy){if(selectedSketch<0||selectedSketch>=sketches.size())return -1;Sketch q=sketches.get(selectedSketch);float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);float[][] pts=q.type==1||q.type==3?new float[][]{a,b}:new float[][]{a,{a[0],b[1]},{b[0],a[1]},b,{(a[0]+b[0])/2,(a[1]+b[1])/2}};for(int i=0;i<pts.length;i++)if(Math.hypot(sx-pts[i][0],sy-pts[i][1])<dp(22))return i;return -1;}
- void editSketch(){if(selectedSketch<0)return;Sketch q=sketches.get(selectedSketch);LinearLayout box=new LinearLayout(MainActivity.this);box.setOrientation(LinearLayout.VERTICAL);String[] names={"Inicio X","Inicio Y","Final X","Final Y"};float[] vals={q.x1,q.y1,q.x2,q.y2};EditText[] fields=new EditText[4];for(int i=0;i<4;i++){TextView label=new TextView(MainActivity.this);label.setText(names[i]+" (mm)");box.addView(label);fields[i]=new EditText(MainActivity.this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(MainActivity.this).setTitle("Editar boceto · mm").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[4];for(int i=0;i<4;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}if(!validateLinkedSketchEdit(q,v[0],v[1],v[2],v[3]))throw new Exception();checkpoint();q.x1=v[0];q.y1=v[1];q.x2=v[2];q.y2=v[3];rebuildLinkedParts(q);save();invalidate();}catch(Exception ex){toast("Coordenadas no válidas");}}).show();}
+ void editSketch(){if(selectedSketch<0)return;Sketch q=sketches.get(selectedSketch);LinearLayout box=new LinearLayout(MainActivity.this);box.setOrientation(LinearLayout.VERTICAL);String[] names={"Inicio X","Inicio Y","Final X","Final Y"};float[] vals={q.x1,q.y1,q.x2,q.y2};EditText[] fields=new EditText[4];for(int i=0;i<4;i++){TextView label=new TextView(MainActivity.this);label.setText(names[i]+" (mm)");box.addView(label);fields[i]=new EditText(MainActivity.this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(MainActivity.this).setTitle("Editar boceto · mm").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[4];for(int i=0;i<4;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}if(!validateLinkedSketchEdit(q,v[0],v[1],v[2],v[3]))throw new Exception();
+ java.util.Map<Integer,MeshEngine.Mesh> staged=
+  prepareLinkedLoopEdit(q,v[0],v[1],v[2],v[3]);
+ checkpoint();q.x1=v[0];q.y1=v[1];q.x2=v[2];q.y2=v[3];rebuildLinkedParts(q);
+ applyLinkedLoopEdit(staged);save();invalidate();}catch(Exception ex){toast("Coordenadas no válidas");}}).show();}
 
  float[][] partPoints(Part p){float z=p.z+p.h;if(p.circle)return new float[][]{{p.x,p.y,z},{p.x+p.w/2,p.y,z},{p.x,p.y,z-p.h/2}};return new float[][]{{p.x+p.w/2,p.y,z},{p.x,p.y+p.d/2,z},{p.x,p.y,z-p.h/2},{p.x,p.y,z}};}
  void drawPartHandles(Canvas c,Part p){float[][] pts=partPoints(p);for(int i=0;i<pts.length;i++){float[] q=project(pts[i][0],pts[i][1],pts[i][2]);handle(c,q[0],q[1]);paint.setStyle(Paint.Style.FILL);paint.setColor(Color.WHITE);paint.setTextSize(dp(11));c.drawText(p.circle?new String[]{"C","R","H"}[i]:new String[]{"W","D","H","C"}[i],q[0]+dp(8),q[1]-dp(8),paint);}paint.setStyle(Paint.Style.FILL);}

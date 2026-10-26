@@ -28,9 +28,13 @@ public final class ClosedSketchExtrusion {
   public final float[] triangles;
   public final int plane,usedLines;
   public final double area,volume;
-  private Result(float[] t,int plane,int used,double area,double volume){
+  /** Exact input segment indices forming the selected connected contour. */
+  public final List<Integer> sourceIndices;
+  private Result(float[] t,int plane,int used,double area,double volume,
+                 List<Integer> sourceIndices){
    this.triangles=t.clone();this.plane=plane;usedLines=used;
    this.area=area;this.volume=volume;
+   this.sourceIndices=Collections.unmodifiableList(new ArrayList<>(sourceIndices));
   }
  }
  private static final class Vertex {
@@ -259,6 +263,9 @@ public final class ClosedSketchExtrusion {
   TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(mesh);
   if(!health.isWatertight()||health.signedVolume<=0)
    throw new IllegalArgumentException("La extrusión no produce una malla cerrada válida");
-  return new Result(mesh,plane,component.size(),area2/2,area2*Math.abs(height)/2);
+  ArrayList<Integer> sources=new ArrayList<>();
+  for(int i=0;i<lines.size();i++)if(component.contains(i))sources.add(i);
+  return new Result(mesh,plane,component.size(),area2/2,
+                    area2*Math.abs(height)/2,sources);
  }
 }

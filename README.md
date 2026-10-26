@@ -10,6 +10,8 @@ El código 0.6.0 pasa las pruebas de integridad, las regresiones geométricas y 
 
 ### Motor 0.6.0 — funcionalidades ya incorporadas al código
 
+**Puente paramétrico de contornos (nuevo):** al extruir líneas cerradas XY/XZ/YZ, MyCAD conserva los UUID de los segmentos y la distancia firmada. Permite reabrir el resultado, editar la altura y regenerarlo al cambiar las líneas, con validación atómica y deshacer. La salida aún es una malla STL/OBJ, no un sólido B-Rep de tipo Shapr3D. [Documentación del vínculo](docs/CAD_LOOP_PARAMETRIC_BRIDGE.md).
+
 **Intercambio nuevo:** menú Proyecto → Importar/Exportar bocetos DXF (XY). Solo líneas, círculos y rectángulos ortogonales 2D; importación transaccional con deshacer y exportación con aviso de exclusión de planos XZ/YZ. No es B-Rep ni interoperabilidad DXF completa. Véase [alcance DXF](docs/CAD_DXF_SKETCH_XY.md).
 
 - Bocetos, extrusiones y vinculación parcial entre croquis y piezas, con identificadores persistentes.
