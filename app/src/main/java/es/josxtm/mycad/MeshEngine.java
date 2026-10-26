@@ -107,8 +107,15 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  }
 
  public interface SurfaceTapListener {void onSurfaceTap(int triangle,double x,double y,double z);}
+ /** World-ray metadata allows analytic B-Rep picking after GPU mesh visibility test. */
+ public interface SurfaceRayListener {
+  void onSurfaceRay(int triangle,double x,double y,double z,
+                    double ox,double oy,double oz,double dx,double dy,double dz);
+ }
  private SurfaceTapListener surfaceTapListener;
+ private SurfaceRayListener surfaceRayListener;
  public void setSurfaceTapListener(SurfaceTapListener listener){surfaceTapListener=listener;}
+ public void setSurfaceRayListener(SurfaceRayListener listener){surfaceRayListener=listener;}
  public MeshEngine(Context context){super(context);setEGLContextClientVersion(3);setRenderer(this);setRenderMode(RENDERMODE_WHEN_DIRTY);}
  /** Transient preview: swap geometry on the GL thread without refitting camera. */
  public void previewMesh(Mesh candidate){
@@ -194,7 +201,13 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   }
   if(chosen!=null){
    final int triangle=chosenIndex;final double x=chosen.x,y=chosen.y,z=chosen.z;
-   post(()->{if(surfaceTapListener!=null)surfaceTapListener.onSurfaceTap(triangle,x,y,z);});
+   final double ox=p[0],oy=p[1],oz=p[2];
+   post(()->{
+    if(surfaceRayListener!=null)
+     surfaceRayListener.onSurfaceRay(triangle,x,y,z,ox,oy,oz,dx,dy,dz);
+    else if(surfaceTapListener!=null)
+     surfaceTapListener.onSurfaceTap(triangle,x,y,z);
+   });
   }
  }
  private void fitCamera(){float[] bounds={Float.MAX_VALUE,Float.MAX_VALUE,Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE};

@@ -356,7 +356,8 @@ public class MainActivity extends Activity {
     if(triangles.length==0){toast("El resultado es vacío");return;}
     if(meshView==null){
      meshView=new MeshEngine(this);
-     meshView.setSurfaceTapListener((triangle,x,y,z)->showGpuSurfaceSelection(triangle,x,y,z));
+     meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
+      showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
      rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));
     }
     meshMode=true;meshView.setVisibility(View.VISIBLE);
@@ -382,7 +383,8 @@ public class MainActivity extends Activity {
   meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
-  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->showGpuSurfaceSelection(triangle,x,y,z));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
+  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
+      showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=true;meshView.setVisibility(View.VISIBLE);
   isolatedMeshPreview=true;activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
   meshView.highlightFace(-1);
@@ -970,7 +972,8 @@ public class MainActivity extends Activity {
     else editExtrusionChain(chainIndex);
    }).show();
  }
- void showGpuSurfaceSelection(int triangle,double x,double y,double z){
+ void showGpuSurfaceSelection(int triangle,double x,double y,double z,
+    double ox,double oy,double oz,double dx,double dy,double dz){
   if(isolatedMeshPreview){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;if(meshView!=null)meshView.highlightEdge(null);info.setText("Vista previa · sin selección de piezas");return;}
   boolean handled=false;
   if(cadGpuMesh){
@@ -990,20 +993,43 @@ public class MainActivity extends Activity {
    es.josxtm.mycad.cad.PrimitiveTopologyMap.Hit hit=map.resolve(triangle);
    if(hit!=null&&hit.partIndex<parts.size()&&parts.get(hit.partIndex).id.equals(hit.bodyId)){
     selected=hit.partIndex;selectedSketch=-1;scene.invalidate();
+    Part chosen=parts.get(hit.partIndex);
+    es.josxtm.mycad.cad.PrimitiveBRepBody solid=null;
+    String exactFace=null;
+    // Mesh first determines which visible body was touched. Within that body
+    // refine its location with the exact analytic surface, never assuming
+    // a tessellated cylinder triangle is geometrically identical to a circle.
+    try{
+     solid=analyticBody(chosen);
+     es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit exact=
+      es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.pick(
+       solid,ox,oy,oz,dx,dy,dz);
+     if(exact!=null&&Math.hypot(Math.hypot(exact.x-x,exact.y-y),exact.z-z)<
+        Math.max(.05,Math.min(2,solid.width*.008))){
+      exactFace=exact.faceId;
+      x=exact.x;y=exact.y;z=exact.z;
+     }
+    }catch(IllegalArgumentException ignored){}
     String description;
     if(hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.BOX){
      activeCylinderFaceId=null;
-     activeCadFace=new es.josxtm.mycad.cad.CadFaceReference(hit.partIndex,hit.bodyId,hit.boxFace);
-     description="Prisma "+(hit.partIndex+1)+" · "+hit.boxFace.name().replace('_',' ');
+     es.josxtm.mycad.cad.BoxFaceSelection.Face face=hit.boxFace;
+     if(exactFace!=null)try{
+      face=es.josxtm.mycad.cad.BoxFaceSelection.Face.valueOf(
+       exactFace.substring(exactFace.lastIndexOf('/')+1));
+     }catch(IllegalArgumentException ignored){}
+     activeCadFace=new es.josxtm.mycad.cad.CadFaceReference(hit.partIndex,hit.bodyId,face);
+     description="Prisma "+(hit.partIndex+1)+" · "+face.name().replace('_',' ');
     }else{
-     activeCadFace=null;activeCylinderFaceId=hit.faceId;
+     activeCadFace=null;
+     activeCylinderFaceId=exactFace==null?hit.faceId:exactFace;
+     String slot=activeCylinderFaceId.substring(activeCylinderFaceId.lastIndexOf('/')+1);
      description="Cilindro "+(hit.partIndex+1)+" · "+
-      (hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.CYLINDER_SIDE?"lateral":
-       hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.CYLINDER_BOTTOM?"base":"tapa");
+      (slot.equals("CYLINDER_SIDE")?"lateral":
+       slot.equals("CYLINDER_BOTTOM")?"base":"tapa");
     }
     try{
-     Part chosen=parts.get(hit.partIndex);
-     es.josxtm.mycad.cad.PrimitiveBRepBody solid=analyticBody(chosen);
+     if(solid==null)solid=analyticBody(chosen);
      es.josxtm.mycad.cad.AnalyticEdgePicker.Hit boundary=
       es.josxtm.mycad.cad.AnalyticEdgePicker.nearestEdge(
        solid,x,y,z,meshView==null?
@@ -2026,7 +2052,8 @@ public class MainActivity extends Activity {
   */
  MeshEngine.Mesh currentMesh(){return experimentalCadMesh();}
  void toggleMeshView(){
-  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->showGpuSurfaceSelection(triangle,x,y,z));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
+  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
+      showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=!meshMode;meshView.setVisibility(meshMode?View.VISIBLE:View.GONE);
   if(meshMode){renderCurrentCadMesh();toast("Visor GPU: arrastra para girar");}
  }

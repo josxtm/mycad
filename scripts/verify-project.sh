@@ -150,6 +150,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveEdgeHandle.java \
   app/src/main/java/es/josxtm/mycad/cad/DragPrecision.java \
   app/src/main/java/es/josxtm/mycad/cad/AnalyticSceneMesh.java \
+  app/src/main/java/es/josxtm/mycad/cad/AnalyticPrimitiveRayPicker.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -161,7 +162,8 @@ javac -d build/box-brep-tests \
   tests/PrimitiveFaceHandleTest.java \
   tests/PrimitiveEdgeHandleTest.java \
   tests/DragPrecisionTest.java \
-  tests/AnalyticSceneMeshTest.java
+  tests/AnalyticSceneMeshTest.java \
+  tests/AnalyticPrimitiveRayPickerTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -174,6 +176,7 @@ java -cp build/box-brep-tests PrimitiveFaceHandleTest
 java -cp build/box-brep-tests PrimitiveEdgeHandleTest
 java -cp build/box-brep-tests DragPrecisionTest
 java -cp build/box-brep-tests AnalyticSceneMeshTest
+java -cp build/box-brep-tests AnalyticPrimitiveRayPickerTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -352,6 +355,22 @@ for required in (
 if "if(cadGpuMesh)return experimentalCadMesh();" in segment:
     raise SystemExit("ERROR: la vista clásica conserva geometría distinta de la exportación")
 print("Modelo único XYZ para vista normal, visor CAD, preview y STL/OBJ: OK")
+PY
+
+# Integrate exact B-Rep ray hits with existing visibility/mesh-hit pipeline.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+assert a.count("meshView.setSurfaceRayListener(")==3
+assert "showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz)" in a
+assert "AnalyticPrimitiveRayPicker.pick(" in a
+assert "activeCylinderFaceId=exactFace==null?hit.faceId:exactFace;" in a
+assert "if(exactFace!=null)try{" in a
+assert "AnalyticEdgePicker.nearestEdge(" in a
+assert "public interface SurfaceRayListener {" in m
+assert "surfaceRayListener.onSurfaceRay(triangle,x,y,z,ox,oy,oz,dx,dy,dz)" in m
+print("Rayo analítico B-Rep conectado con selección visible de malla: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
