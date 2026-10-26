@@ -677,3 +677,26 @@ assert "validateSimpleContour(corners);" in parser
 assert parser.index("validateSimpleContour(corners);") < parser.index("if(rectangle){")
 print("Android DXF: validar contornos antes de modificar bocetos y conservar proyecto ante error: OK")
 PY
+
+# Touch picking for imported vs stored/linked mesh must agree with composed
+# scene triangle ordering, and Android actions are guarded against stale data.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+m=Path("app/src/main/java/es/josxtm/mycad/cad/StoredMeshTriangleMap.java").read_text(encoding="utf-8")
+w=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for marker in (
+ "selectStoredMeshByTriangle(triangle,x,y,z)",
+ "StoredMeshTriangleMap.resolve(",
+ "selectedStoredMeshIndex==index",
+ "selectedStoredMeshObject==actual",
+ "if(index>=booleanMeshes.size()||booleanMeshes.get(index)!=original)",
+ "editLoopExtrusionDistance(index);return;",
+ "if(secondTap)showStoredMeshTouchActions(index,actual);",
+ "clearStoredMeshSelection();",
+):
+    assert marker in a,marker
+assert "firstTriangle" in m and "IMPORTED" in m and "STORED" in m
+assert "StoredMeshTriangleMapTest" in w
+print("Selección 3D: offsets de malla, segunda pulsación y vínculos verificados")
+PY
