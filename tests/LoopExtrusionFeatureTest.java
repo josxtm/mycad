@@ -41,7 +41,8 @@ public final class LoopExtrusionFeatureTest {
   // Malformed edits MUST fail without mutating either saved recipe or the mesh.
   Map<String,ClosedSketchExtrusion.Segment> invalid=square();
   invalid.remove(ids[1]);
-  reject(()->f.regenerate(invalid),"orphan sketch");
+  final Map<String,ClosedSketchExtrusion.Segment> orphan=invalid;
+  reject(()->f.regenerate(orphan),"orphan sketch");
   invalid=square();
   invalid.put(ids[0],new ClosedSketchExtrusion.Segment(1,0,0,5,0));
   final Map<String,ClosedSketchExtrusion.Segment> wrongPlane=invalid;
