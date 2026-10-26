@@ -715,6 +715,72 @@ public class MainActivity extends Activity {
   meshView.setMeshes(java.util.Collections.singletonList(mesh));
   info.setText("Resultado booleano · "+mesh.triangles()+" triángulos");
  }
+
+ /** Intersect two analytic convex polygonal B-Rep prism shells from the
+  * same sketch plane. Commit only a new snapshot mesh on valid overlap.
+  * Source features and their original editable meshes remain untouched. */
+ void intersectLinkedLoopMeshes(int first){
+  if(fileBusy||first<0||first>=booleanMeshes.size()||
+     first>=loopExtrusionFeatures.size()||
+     loopExtrusionFeatures.get(first)==null||booleanMeshes.size()>=100){
+   toast("Selecciona un contorno B-Rep y deja espacio para otra malla");return;
+  }
+  final es.josxtm.mycad.cad.LoopExtrusionFeature firstFeature=
+   loopExtrusionFeatures.get(first);
+  final MeshEngine.Mesh firstMesh=booleanMeshes.get(first);
+  java.util.ArrayList<Integer> candidates=new java.util.ArrayList<>();
+  java.util.ArrayList<String> names=new java.util.ArrayList<>();
+  for(int i=0;i<loopExtrusionFeatures.size()&&i<booleanMeshes.size();i++){
+   es.josxtm.mycad.cad.LoopExtrusionFeature other=loopExtrusionFeatures.get(i);
+   if(i==first||other==null||other.plane!=firstFeature.plane||
+      other.distance*firstFeature.distance<=0)continue;
+   candidates.add(i);
+   names.add("Contorno "+(i+1)+" · "+other.distance+" mm");
+  }
+  if(candidates.isEmpty()){
+   toast("Necesitas otro contorno B-Rep del mismo plano y dirección");return;
+  }
+  new AlertDialog.Builder(this).setTitle("Intersección B-Rep · elegir segundo sólido")
+   .setMessage("Primera fase: dos perfiles convexos en el mismo plano, "+
+    "con extrusiones hacia el mismo lado. Se creará una malla independiente; "+
+    "ambos cuerpos originales se conservan.")
+   .setItems(names.toArray(new String[0]),(dialog,choice)->{
+    int second=candidates.get(choice);
+    if(fileBusy||booleanMeshes.size()>=100||
+       first>=booleanMeshes.size()||second>=booleanMeshes.size()||
+       loopExtrusionFeatures.get(first)!=firstFeature||
+       booleanMeshes.get(first)!=firstMesh){
+     toast("La geometría cambió; vuelve a elegir los sólidos");return;
+    }
+    final es.josxtm.mycad.cad.LoopExtrusionFeature secondFeature=
+     loopExtrusionFeatures.get(second);
+    final MeshEngine.Mesh secondMesh=booleanMeshes.get(second);
+    try{
+     es.josxtm.mycad.cad.PolygonPrismBRep a=firstFeature.asBRep(
+      loopSketchSegments(firstFeature,null,0,0,0,0));
+     es.josxtm.mycad.cad.PolygonPrismBRep b=secondFeature.asBRep(
+      loopSketchSegments(secondFeature,null,0,0,0,0));
+     es.josxtm.mycad.cad.ConvexPrismBRepIntersection.Result outcome=
+      es.josxtm.mycad.cad.ConvexPrismBRepIntersection.intersect(a,b);
+     if(booleanMeshes.get(second)!=secondMesh||
+        loopExtrusionFeatures.get(second)!=secondFeature||
+        booleanMeshes.get(first)!=firstMesh)
+      throw new IllegalArgumentException("Cuerpos modificados durante la operación");
+     MeshEngine.Mesh newMesh=new MeshEngine.Mesh(outcome.triangles());
+     checkpoint();
+     booleanMeshes.add(newMesh);
+     unionRecipes.add(null);holeRecipes.add(null);
+     loopExtrusionFeatures.add(null);
+     save();scene.invalidate();
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     toast(String.format(java.util.Locale.US,
+       "Intersección guardada · %.2f mm³ (malla independiente)",outcome.volume));
+    }catch(Exception error){
+     toast("Intersección B-Rep rechazada: "+error.getMessage());
+    }
+   }).setNegativeButton("Cancelar",null).show();
+ }
+
  void booleanMeshManager(){
   if(booleanMeshes.isEmpty()){toast("No hay resultados booleanos guardados");return;}
   String[] names=new String[booleanMeshes.size()];
@@ -730,7 +796,7 @@ public class MainActivity extends Activity {
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
     new AlertDialog.Builder(this).setTitle(names[index])
-     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno","Editar perfil original del contorno","Inspeccionar topología B-Rep"},(d,choice)->{
+     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno","Editar perfil original del contorno","Inspeccionar topología B-Rep","Intersectar con otro contorno B-Rep"},(d,choice)->{
       if(choice==0){showMeshOnly(mesh);}
       else if(choice==1){exportMeshMenuFor(mesh);}
       else if(choice==3){editFaceUnionRecipe(index);}
@@ -738,6 +804,7 @@ public class MainActivity extends Activity {
       else if(choice==5){editLoopExtrusionDistance(index);}
       else if(choice==6){editLoopSourceSketch(index);}
       else if(choice==7){inspectLoopBRep(index);}
+      else if(choice==8){intersectLinkedLoopMeshes(index);}
       else new AlertDialog.Builder(this).setTitle("Eliminar resultado")
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
@@ -1429,7 +1496,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   String[] options=linked?
    new String[]{"Editar cara B-Rep seleccionada","Editar distancia de extrusión",
       "Editar perfil original","Inspeccionar topología B-Rep",
-      "Ver solo esta malla","Exportar a STL/OBJ","Gestionar resultados"}:
+      "Intersectar con otro contorno B-Rep","Ver solo esta malla",
+      "Exportar a STL/OBJ","Gestionar resultados"}:
    new String[]{"Ver solo esta malla","Exportar a STL/OBJ",
       "Gestionar resultados"};
   new AlertDialog.Builder(this)
@@ -1443,7 +1511,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
      if(option==1){editLoopExtrusionDistance(index);return;}
      if(option==2){editLoopSourceSketch(index);return;}
      if(option==3){inspectLoopBRep(index);return;}
-     option-=4;
+     if(option==4){intersectLinkedLoopMeshes(index);return;}
+     option-=5;
     }
     if(option==0)showMeshOnly(original);
     else if(option==1)exportMeshMenuFor(original);
