@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Picking sensible al zoom:** la distancia de selección de aristas ahora deriva de 12dp de tolerancia visual y del tamaño/proyección de cada cuerpo, acotada para evitar selecciones lejanas. Mejora la interacción al variar el zoom; validación táctil en Nothing Phone 2a pendiente.
+
 **Selección visual de aristas:** el visor OpenGL destaca toda la arista matemática (segmento recto o circunferencia), con aproximación de línea independiente de los triángulos; se limpia con el cambio de selección o previsualización. Pendiente validación táctil real.
 
 **Vista previa geométrica en edición:** deslizador(es) táctiles para caras y aristas de primitivas con recalculado de geometría inmutable, actualización GPU sin cambiar la escena guardada, confirmación mediante checkpoint y restauración al cancelar. Verificación en Android físico pendiente.

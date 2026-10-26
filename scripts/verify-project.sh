@@ -145,13 +145,15 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/AnalyticEdgePicker.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveMovePreview.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveEdgeCurve.java \
+  app/src/main/java/es/josxtm/mycad/cad/EdgeScreenTolerance.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
   tests/AnalyticEdgePickerTest.java \
   tests/PrimitiveEdgeMoveTest.java \
   tests/PrimitiveMovePreviewTest.java \
-  tests/PrimitiveEdgeCurveTest.java
+  tests/PrimitiveEdgeCurveTest.java \
+  tests/EdgeScreenToleranceTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -159,6 +161,7 @@ java -cp build/box-brep-tests AnalyticEdgePickerTest
 java -cp build/box-brep-tests PrimitiveEdgeMoveTest
 java -cp build/box-brep-tests PrimitiveMovePreviewTest
 java -cp build/box-brep-tests PrimitiveEdgeCurveTest
+java -cp build/box-brep-tests EdgeScreenToleranceTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -246,6 +249,17 @@ assert "public void highlightEdge(float[] xyz)" in m
 assert "GLES30.glDrawArrays(GLES30.GL_LINE_STRIP" in m
 assert "highlightedEdgeVertices=null" in m
 print("Contorno GPU de arista topológica: OK")
+PY
+
+# Ensure viewport/density-based tolerance is actually read at selection time.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+assert "EdgeScreenTolerance.compute(" in a
+assert "meshView.cameraDistance(),meshView.getHeight()" in a
+assert "private volatile float distance=300;" in m
+print("Tolerancia tactil dependiente del zoom: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
