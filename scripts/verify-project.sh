@@ -155,6 +155,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/FloatVertexBufferCache.java \
   app/src/main/java/es/josxtm/mycad/cad/CubeCameraPreset.java \
   app/src/main/java/es/josxtm/mycad/cad/SurfaceTapPolicy.java \
+  app/src/main/java/es/josxtm/mycad/cad/CameraRefitPolicy.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -171,7 +172,8 @@ javac -d build/box-brep-tests \
   tests/CameraGestureMathTest.java \
   tests/FloatVertexBufferCacheTest.java \
   tests/CubeCameraPresetTest.java \
-  tests/SurfaceTapPolicyTest.java
+  tests/SurfaceTapPolicyTest.java \
+  tests/CameraRefitPolicyTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -189,6 +191,7 @@ java -cp build/box-brep-tests CameraGestureMathTest
 java -cp build/box-brep-tests FloatVertexBufferCacheTest
 java -cp build/box-brep-tests CubeCameraPresetTest
 java -cp build/box-brep-tests SurfaceTapPolicyTest
+java -cp build/box-brep-tests CameraRefitPolicyTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -446,6 +449,26 @@ assert "if(surfaceRayListener!=null)" in mesh
 assert "surfaceRayListener.onSurfaceRay(" in mesh
 assert activity.count("meshView.setSurfaceRayListener(")==3
 print("Selección de caras con callback moderno de rayos: OK")
+PY
+
+# Camera must keep pan/zoom through saved edits, but still fit new/isolated scenes.
+python3 - <<'PY'
+from pathlib import Path
+m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+render=a[a.index("void renderCurrentCadMesh(){"):a.index("void showMeshOnly(",a.index("void renderCurrentCadMesh(){"))]
+isolated=a[a.index("void showMeshOnly("):a.index("void booleanMeshManager(){")]
+for marker in (
+ "public void setMeshes(List<Mesh> incoming){replaceSceneMeshes(incoming,true);}",
+ "public void updateMeshesPreservingCamera(List<Mesh> incoming)",
+ "CameraRefitPolicy.shouldFit(",
+ "CameraRefitPolicy.rememberFitted(hasTriangles)",
+ "if(item==null)",
+):
+    assert marker in m,marker
+assert "meshView.updateMeshesPreservingCamera(" in render
+assert "meshView.setMeshes(java.util.Collections.singletonList(mesh));" in isolated
+print("Regenerar CAD conserva pan y zoom; malla aislada recibe encuadre: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"

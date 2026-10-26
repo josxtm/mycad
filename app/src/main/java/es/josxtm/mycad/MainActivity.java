@@ -380,7 +380,7 @@ public class MainActivity extends Activity {
   isolatedMeshPreview=false;
   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
   meshView.highlightFace(-1);meshView.highlightEdge(null);
-  meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
+  meshView.updateMeshesPreservingCamera(java.util.Collections.singletonList(currentMesh()));
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
   if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
