@@ -14,7 +14,16 @@ public final class CadRayPicker {
  }
  public static Hit pick(float[] triangles,double ox,double oy,double oz,
                         double dx,double dy,double dz){
+  return pickRange(triangles,0,triangles==null?0:triangles.length/9,
+                   ox,oy,oz,dx,dy,dz);
+ }
+ /** Inclusive/exclusive triangle subrange, preserving global triangle IDs. */
+ static Hit pickRange(float[] triangles,int firstTriangle,int endTriangle,
+                      double ox,double oy,double oz,
+                      double dx,double dy,double dz){
   if(triangles==null||triangles.length%9!=0||
+     firstTriangle<0||endTriangle<firstTriangle||
+     endTriangle>triangles.length/9||
      !Double.isFinite(ox)||!Double.isFinite(oy)||!Double.isFinite(oz)||
      !Double.isFinite(dx)||!Double.isFinite(dy)||!Double.isFinite(dz))
    throw new IllegalArgumentException("Invalid ray or triangles");
@@ -23,7 +32,7 @@ public final class CadRayPicker {
    throw new IllegalArgumentException("Invalid ray direction");
   dx/=magnitude;dy/=magnitude;dz/=magnitude;
   Hit best=null;
-  for(int i=0;i<triangles.length;i+=9){
+  for(int i=firstTriangle*9;i<endTriangle*9;i+=9){
    // A damaged imported triangle must never create a NaN selection or poison
    // the hit test for the rest of an otherwise valid mesh.
    boolean valid=true;

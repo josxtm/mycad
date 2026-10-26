@@ -157,6 +157,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/SurfaceTapPolicy.java \
   app/src/main/java/es/josxtm/mycad/cad/CameraRefitPolicy.java \
   app/src/main/java/es/josxtm/mycad/cad/TouchDragThreshold.java \
+  app/src/main/java/es/josxtm/mycad/cad/MeshRayIndex.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -175,7 +176,8 @@ javac -d build/box-brep-tests \
   tests/CubeCameraPresetTest.java \
   tests/SurfaceTapPolicyTest.java \
   tests/CameraRefitPolicyTest.java \
-  tests/TouchDragThresholdTest.java
+  tests/TouchDragThresholdTest.java \
+  tests/MeshRayIndexTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -195,6 +197,7 @@ java -cp build/box-brep-tests CubeCameraPresetTest
 java -cp build/box-brep-tests SurfaceTapPolicyTest
 java -cp build/box-brep-tests CameraRefitPolicyTest
 java -cp build/box-brep-tests TouchDragThresholdTest
+java -cp build/box-brep-tests MeshRayIndexTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -484,6 +487,23 @@ assert "SurfaceTapPolicy.shouldPick(" in src
 assert src.index("Some drivers deliver a final position only with UP") < src.index("SurfaceTapPolicy.shouldPick(")
 assert "if(e.getPointerCount()>1&&faceHandleCaptured)" in src
 print("Toque/órbita GPU: tolerancia, cancelación y picking protegidos: OK")
+PY
+
+# Broad-phase selection must keep the original triangle index and visible hit.
+python3 - <<'PY'
+from pathlib import Path
+p=Path("app/src/main/java/es/josxtm/mycad/cad/CadRayPicker.java").read_text(encoding="utf-8")
+i=Path("app/src/main/java/es/josxtm/mycad/cad/MeshRayIndex.java").read_text(encoding="utf-8")
+m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+assert "static Hit pickRange(" in p
+assert "best=new Hit(i/9,t,hx,hy,hz);" in p
+assert "CadRayPicker.pickRange(triangles,block.first,block.end" in i
+assert "private static final int CHUNK_TRIANGLES=64;" in i
+assert "private es.josxtm.mycad.cad.MeshRayIndex pickIndex;" in m
+assert "mesh.rayIndex().pick(p[0],p[1],p[2],dx,dy,dz)" in m
+assert "chosenIndex=offset+hit.triangle" in m
+assert "offset+=mesh.triangles();" in m
+print("Broad phase AABB preserva índices globales, picking visible y B-Rep: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
