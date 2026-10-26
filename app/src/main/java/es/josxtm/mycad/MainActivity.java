@@ -270,6 +270,42 @@ public class MainActivity extends Activity {
    booleanMeshes.set(e.getKey(),e.getValue());
   if(!staged.isEmpty()&&meshMode&&meshView!=null)renderCurrentCadMesh();
  }
+
+ /** Navigate from a touched 3D linked mesh back to its original 2D line.
+  * No sketch or solid is changed here; the ordinary sketch editor validates
+  * dependencies before committing any subsequent coordinate edit. */
+ void editLoopSourceSketch(int meshIndex){
+  if(fileBusy||meshIndex<0||meshIndex>=loopExtrusionFeatures.size()||
+     meshIndex>=booleanMeshes.size()||
+     loopExtrusionFeatures.get(meshIndex)==null){
+   toast("La malla no tiene un perfil editable");return;
+  }
+  es.josxtm.mycad.cad.LoopExtrusionFeature link=
+   loopExtrusionFeatures.get(meshIndex);
+  try{
+   // A stale missing source or broken contour is not a safe target to edit.
+   link.regenerate(loopSketchSegments(link,null,0,0,0,0));
+   int source=-1;
+   for(int i=0;i<sketches.size();i++)
+    if(sketches.get(i).id.equals(link.selectedLineId)){
+     if(source!=-1)throw new IllegalArgumentException("ID de boceto duplicado");
+     source=i;
+    }
+   if(source<0||sketches.get(source).type!=1||
+      sketches.get(source).plane!=link.plane)
+    throw new IllegalArgumentException("Línea de origen no disponible");
+   selected=-1;selectedSketch=source;
+   sketchPlane=link.plane;sketchTool=0;flat=true;
+   if(meshMode)toggleMeshView(); // Return to 2D canvas before editing.
+   scene.invalidate();
+   info.setText("Perfil origen · línea "+(source+1)+
+    " · plano "+new String[]{"XY","XZ","YZ"}[sketchPlane]);
+   scene.editSketch();
+  }catch(IllegalArgumentException error){
+   toast("No se puede abrir el origen: "+error.getMessage());
+  }
+ }
+
  void editLoopExtrusionDistance(int index){
   if(index<0||index>=loopExtrusionFeatures.size()||
      loopExtrusionFeatures.get(index)==null){toast("Malla sin vínculo paramétrico");return;}
@@ -552,12 +588,13 @@ public class MainActivity extends Activity {
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
     new AlertDialog.Builder(this).setTitle(names[index])
-     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno"},(d,choice)->{
+     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno","Editar perfil original del contorno"},(d,choice)->{
       if(choice==0){showMeshOnly(mesh);}
       else if(choice==1){exportMeshMenuFor(mesh);}
       else if(choice==3){editFaceUnionRecipe(index);}
       else if(choice==4){editHoleRecipe(index);}
       else if(choice==5){editLoopExtrusionDistance(index);}
+      else if(choice==6){editLoopSourceSketch(index);}
       else new AlertDialog.Builder(this).setTitle("Eliminar resultado")
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
@@ -1232,8 +1269,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   boolean linked=index<loopExtrusionFeatures.size()&&
      loopExtrusionFeatures.get(index)!=null;
   String[] options=linked?
-   new String[]{"Editar distancia de extrusión","Ver solo esta malla",
-      "Exportar a STL/OBJ","Gestionar resultados"}:
+   new String[]{"Editar distancia de extrusión","Editar perfil original",
+      "Ver solo esta malla","Exportar a STL/OBJ","Gestionar resultados"}:
    new String[]{"Ver solo esta malla","Exportar a STL/OBJ",
       "Gestionar resultados"};
   new AlertDialog.Builder(this)
@@ -1244,7 +1281,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     }
     if(linked){
      if(option==0){editLoopExtrusionDistance(index);return;}
-     option--;
+     if(option==1){editLoopSourceSketch(index);return;}
+     option-=2;
     }
     if(option==0)showMeshOnly(original);
     else if(option==1)exportMeshMenuFor(original);

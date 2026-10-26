@@ -700,3 +700,25 @@ assert "firstTriangle" in m and "IMPORTED" in m and "STORED" in m
 assert "StoredMeshTriangleMapTest" in w
 print("Selección 3D: offsets de malla, segunda pulsación y vínculos verificados")
 PY
+
+# A touched parametric mesh must be able to navigate to its original sketch,
+# preserving validation, plane selection, and undoable downstream rebuilds.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+block=a[a.index("void editLoopSourceSketch("):a.index("void editLoopExtrusionDistance(")]
+for marker in (
+ "link.regenerate(loopSketchSegments(link,null,0,0,0,0));",
+ "sketches.get(i).id.equals(link.selectedLineId)",
+ "sketches.get(source).type!=1",
+ "sketches.get(source).plane!=link.plane",
+ "sketchPlane=link.plane;sketchTool=0;flat=true;",
+ "if(meshMode)toggleMeshView();",
+ "scene.editSketch();",
+):
+    assert marker in block,marker
+assert "if(option==1){editLoopSourceSketch(index);return;}" in a
+assert "if(choice==6){editLoopSourceSketch(index);}" in a
+assert "prepareLinkedLoopEdit(q,v[0],v[1],v[2],v[3])" in a
+print("Visor 3D → origen 2D editable con validación de vínculos: OK")
+PY

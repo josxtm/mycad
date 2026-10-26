@@ -11,9 +11,15 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
   misma operación con una nueva altura positiva o negativa.
 - **Visor GPU 3D → tocar dos veces una malla de contorno:** el primer
   toque selecciona la malla y marca el triángulo; el segundo abre las
-  acciones de editar distancia, aislar la malla, exportarla a STL/OBJ
-  o consultar el gestor. Las mallas importadas y otras mallas guardadas
-  se identifican sin confundirlas con prismas y cilindros.
+  acciones de editar distancia, **editar perfil original**, aislar la
+  malla, exportarla a STL/OBJ o consultar el gestor.
+  Las mallas importadas y otras mallas guardadas se identifican sin
+  confundirlas con prismas y cilindros.
+- **Editar perfil original:** comprueba primero que todas las líneas
+  origen sigan formando una extrusión válida, localiza su UUID estable,
+  vuelve al lienzo 2D del plano correspondiente y abre la edición de
+  coordenadas. Al aplicar, se validan y regeneran los cuerpos dependientes
+  de manera atómica; cancelar no cambia el diseño.
 - **Editar boceto → cambiar coordenadas o acotar longitud:** reconstruye
   primero en memoria *todos* los resultados de contornos que dependen
   de la línea. Si un circuito deja de ser válido, el cambio no se guarda;
