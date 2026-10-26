@@ -44,6 +44,17 @@ public final class ClosedSketchExtrusionTest {
   two.add(line(0,11,2,10,0));
   valid(two,0,2,5,6,"Select L component");
   valid(two,7,2,2,3,"Select triangle component");
+  // A nested disconnected loop must not be silently filled in: holes are
+  // unsupported. Likewise, an unrelated crossing must not be ignored.
+  List<ClosedSketchExtrusion.Segment> nested=new ArrayList<>();
+  nested.add(line(0,0,0,10,0));nested.add(line(0,10,0,10,10));
+  nested.add(line(0,10,10,0,10));nested.add(line(0,0,10,0,0));
+  nested.add(line(0,3,3,4,3));nested.add(line(0,4,3,4,4));
+  nested.add(line(0,4,4,3,4));nested.add(line(0,3,4,3,3));
+  invalid(nested,0,5,"Nested hole cannot be filled");
+  List<ClosedSketchExtrusion.Segment> crossing=new ArrayList<>(nested.subList(0,4));
+  crossing.add(line(0,-1,5,11,5));
+  invalid(crossing,0,5,"Stray line crossing selected boundary");
   // Slightly different drawn endpoints are snapped to form ONE manifold mesh.
   List<ClosedSketchExtrusion.Segment> snap=Arrays.asList(
    line(0,0,0,5,0),line(0,5.05,0,5,3),

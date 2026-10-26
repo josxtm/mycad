@@ -21,6 +21,9 @@ a la línea seleccionada; otros contornos desconectados no se modifican.
   extremos presentan un emparejamiento ambiguo se rechaza.
 - Rechazo de perfiles abiertos, bifurcaciones, cruces, contacto consigo
   mismo o área nula.
+- Si hay líneas ajenas dentro del contorno o atravesando su perímetro,
+  se rechaza la operación para evitar llenar silenciosamente agujeros.
+- Tras aceptar se abre el visor GPU 3D y se muestra el resultado.
 - Triangulación de polígonos convexos y cóncavos sin agujeros.
 - Caras laterales, superior e inferior con normales orientadas; la
   transformación del plano XZ corrige el cambio de orientación.
