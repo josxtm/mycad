@@ -6,12 +6,15 @@ public final class TriangleMeshHealth {
  private TriangleMeshHealth(){}
  public static final class Report {
   public final int triangles,boundaryEdges,nonManifoldEdges,nonManifoldVertices,reversedEdges,degenerateTriangles;
+  /** Edge-connected face components, including incomplete or invalid ones. */
+  public final int shells,zeroVolumeShells;
   public final double signedVolume;
-  Report(int t,int b,int n,int nv,int r,int d,double v){
-   triangles=t;boundaryEdges=b;nonManifoldEdges=n;nonManifoldVertices=nv;reversedEdges=r;degenerateTriangles=d;signedVolume=v;
+  Report(int t,int b,int n,int nv,int r,int d,int shells,int zeroVolumeShells,double v){
+   triangles=t;boundaryEdges=b;nonManifoldEdges=n;nonManifoldVertices=nv;reversedEdges=r;degenerateTriangles=d;
+   this.shells=shells;this.zeroVolumeShells=zeroVolumeShells;signedVolume=v;
   }
   public boolean isWatertight(){
-   return triangles>0&&boundaryEdges==0&&nonManifoldEdges==0&&nonManifoldVertices==0&&reversedEdges==0&&degenerateTriangles==0;
+   return triangles>0&&boundaryEdges==0&&nonManifoldEdges==0&&nonManifoldVertices==0&&reversedEdges==0&&degenerateTriangles==0&&zeroVolumeShells==0;
   }
  }
  private static final class Vertex implements Comparable<Vertex>{
@@ -132,12 +135,19 @@ public final class TriangleMeshHealth {
    acc[3]=next;
   }
   double volume=0,volumeCorrection=0;
+  int zeroVolumeShells=0;
   for(double[] acc:shellVolumes.values()){
-   double term=acc[3]+acc[4],next=volume+term;
+   double term=acc[3]+acc[4];
+   // A two-sided coplanar sheet can have paired, correctly oriented edges
+   // yet enclose no solid. Check each shell independently: opposite-volume
+   // shells must not hide a collapsed component through global cancellation.
+   if(term==0.0)zeroVolumeShells++;
+   double next=volume+term;
    if(Math.abs(volume)>=Math.abs(term))volumeCorrection+=(volume-next)+term;
    else volumeCorrection+=(term-next)+volume;
    volume=next;
   }
-  return new Report(mesh.length/9,boundary,nonManifold,splitVertices.size(),reversed,degenerates,volume+volumeCorrection);
+  return new Report(mesh.length/9,boundary,nonManifold,splitVertices.size(),reversed,degenerates,
+    shellVolumes.size(),zeroVolumeShells,volume+volumeCorrection);
  }
 }
