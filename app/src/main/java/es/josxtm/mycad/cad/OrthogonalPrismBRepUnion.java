@@ -97,7 +97,7 @@ public final class OrthogonalPrismBRepUnion {
   }
   return area;
  }
- private static List<double[]> outline(Rect a,Rect b){
+ private static List<double[]> outline(Rect a,Rect b,boolean subtract){
   double[] xs=cutCoordinates(a.left,a.right,b.left,b.right);
   double[] ys=cutCoordinates(a.bottom,a.top,b.bottom,b.top);
   int nx=xs.length-1,ny=ys.length-1;
@@ -105,7 +105,8 @@ public final class OrthogonalPrismBRepUnion {
   int cells=0;
   for(int i=0;i<nx;i++)for(int j=0;j<ny;j++){
    double u=(xs[i]+xs[i+1])/2,v=(ys[j]+ys[j+1])/2;
-   filled[i][j]=a.inside(u,v)||b.inside(u,v);
+   filled[i][j]=subtract?(a.inside(u,v)&&!b.inside(u,v)):
+                     (a.inside(u,v)||b.inside(u,v));
    if(filled[i][j])cells++;
   }
   if(cells==0)throw new IllegalArgumentException("Unión sin superficie");
@@ -165,7 +166,7 @@ public final class OrthogonalPrismBRepUnion {
   double iy=Math.min(a.top,b.top)-Math.max(a.bottom,b.bottom);
   if(ix<=EPS||iy<=EPS)
    throw new IllegalArgumentException("La unión necesita solape con volumen");
-  List<double[]> corners=outline(a,b);
+  List<double[]> corners=outline(a,b,false);
   // Stable operand order: the same union produces equal B-Rep and preview
   // coordinates even if the user chooses the other rectangle first.
   String aId=first.id(),bId=second.id();
@@ -191,6 +192,49 @@ public final class OrthogonalPrismBRepUnion {
   double expected=(a.area()+b.area()-ix*iy)*Math.abs(h);
   if(Math.abs(solid.volume()-expected)>1e-5*Math.max(1,expected))
    throw new IllegalArgumentException("Volumen de unión distinto del previsto");
+  return new Result(solid);
+ }
+
+ /**
+  * Subtract a full-height rectangular cutter from a rectangular prism.
+  * If it yields a hole, more than one connected solid, or zero volume,
+  * the operation is rejected: PolygonPrismBRep currently supports exactly
+  * one simple outer loop with no interior rings.
+  */
+ public static Result difference(PolygonPrismBRep target,PolygonPrismBRep cutter){
+  if(target==null||cutter==null||target.plane()!=cutter.plane())
+   throw new IllegalArgumentException("Resta B-Rep: los prismas deben compartir plano");
+  double height=target.distance(),other=cutter.distance();
+  if(!Double.isFinite(height)||!Double.isFinite(other)||
+     Math.abs(height-other)>EPS*Math.max(1,Math.abs(height)))
+   throw new IllegalArgumentException("Resta B-Rep: alturas firmadas distintas");
+  Rect a=requireRectangle(target),b=requireRectangle(cutter);
+  double ix=Math.min(a.right,b.right)-Math.max(a.left,b.left);
+  double iy=Math.min(a.top,b.top)-Math.max(a.bottom,b.bottom);
+  if(ix<=EPS||iy<=EPS)
+   throw new IllegalArgumentException("Resta B-Rep: el cortador no penetra el prisma");
+  List<double[]> boundary=outline(a,b,true);
+  StringBuilder seed=new StringBuilder(target.id()).append("|DIFFERENCE|")
+   .append(cutter.id()).append('|').append(target.plane()).append('|').append(height);
+  for(double[] pt:boundary)seed.append('|').append((float)pt[0])
+                                .append(',').append((float)pt[1]);
+  String id=UUID.nameUUIDFromBytes(seed.toString().getBytes(StandardCharsets.UTF_8))
+   .toString();
+  ArrayList<String> edgeIds=new ArrayList<>();
+  Map<String,ClosedSketchExtrusion.Segment> segments=new LinkedHashMap<>();
+  for(int i=0;i<boundary.size();i++){
+   String edgeId=UUID.nameUUIDFromBytes((id+"/cut-edge/"+i)
+     .getBytes(StandardCharsets.UTF_8)).toString();
+   double[] start=boundary.get(i),end=boundary.get((i+1)%boundary.size());
+   edgeIds.add(edgeId);
+   segments.put(edgeId,new ClosedSketchExtrusion.Segment(target.plane(),
+    (float)start[0],(float)start[1],(float)end[0],(float)end[1]));
+  }
+  PolygonPrismBRep solid=new LoopExtrusionFeature(id,edgeIds.get(0),
+    target.plane(),height,edgeIds).asBRep(segments);
+  double expected=(a.area()-ix*iy)*Math.abs(height);
+  if(Math.abs(solid.volume()-expected)>1e-5*Math.max(1,expected))
+   throw new IllegalArgumentException("Volumen de resta B-Rep incorrecto");
   return new Result(solid);
  }
 }
