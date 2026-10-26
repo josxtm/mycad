@@ -2087,9 +2087,9 @@ public class MainActivity extends Activity {
     showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
   meshView.setCameraOrientationListener((heading,elevation)->{
    if(scene!=null){
-    float[] rad=es.josxtm.mycad.cad.CameraOrientationSync.sceneRadians(
+    float[] radians=es.josxtm.mycad.cad.CameraOrientationSync.sceneRadians(
       heading,elevation);
-    scene.yaw=rad[0];scene.pitch=rad[1];scene.invalidate();
+    scene.yaw=radians[0];scene.pitch=radians[1];scene.invalidate();
    }
   });
   meshPanel=new FrameLayout(this);

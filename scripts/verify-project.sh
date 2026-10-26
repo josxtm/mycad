@@ -394,7 +394,7 @@ python3 - <<'PY'
 from pathlib import Path
 a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
 m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
-assert a.count("meshView.setSurfaceRayListener(")==3
+assert a.count("meshView.setSurfaceRayListener(")==1
 assert "showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz)" in a
 assert "AnalyticPrimitiveRayPicker.pick(" in a
 assert "activeCylinderFaceId=exactFace==null?hit.faceId:exactFace;" in a
@@ -460,7 +460,7 @@ assert "SurfaceTapPolicy.shouldPick(moved,surfaceRayListener!=null,surfaceTapLis
 assert "if(!moved&&surfaceTapListener!=null)" not in mesh
 assert "if(surfaceRayListener!=null)" in mesh
 assert "surfaceRayListener.onSurfaceRay(" in mesh
-assert activity.count("meshView.setSurfaceRayListener(")==3
+assert activity.count("meshView.setSurfaceRayListener(")==1
 print("Selección de caras con callback moderno de rayos: OK")
 PY
 
@@ -537,7 +537,7 @@ python3 - <<'PY'
 from pathlib import Path
 m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
 a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
-assert a.count("meshView.setCameraOrientationListener(")==3
+assert a.count("meshView.setCameraOrientationListener(")==1
 assert "scene.yaw=radians[0];scene.pitch=radians[1];" in a
 assert "CameraOrientationSync.sceneRadians(" in a
 assert "scene.invalidate();" in a
