@@ -7,7 +7,7 @@ Revisión: 2026-10-26. **Progreso global estimado: 42 % antes de este lote**. Es
 | Primitivas prismáticas y cilíndricas | Base implementada | Mallas trianguladas y transformaciones XYZ |
 | Navegación, zoom, ViewCube | Parcial | ViewCube y selección avanzada precisan más trabajo |
 | Bocetos en XY/XZ/YZ y cotas | Parcial | Falta solver de restricciones generales |
-| Extrusión 2D→3D | Básica | Parte de los vínculos son prototipos |
+| Extrusión 2D→3D | Básica + contornos de líneas cerrados | Cóncavos XY/XZ/YZ como malla, sin historial B-Rep paramétrico |
 | Guardado, apertura, deshacer/rehacer | Base implementada | JSON v1 y migración pendiente |
 | Intercambio STL/OBJ | Básico | No son formatos sólidos paramétricos |
 | DXF de bocetos 2D | Subconjunto XY integrado | LINE, CIRCLE y rectángulos ortogonales; no DXF 3D ni splines/arcos |

@@ -143,13 +143,14 @@ public class MainActivity extends Activity {
  void chooseSketchPlane(){new AlertDialog.Builder(this).setTitle("Plano de boceto").setSingleChoiceItems(new String[]{"XY · planta","XZ · alzado","YZ · lateral"},sketchPlane,(d,n)->{sketchPlane=n;flat=true;sketchTool=0;scene.invalidate();info.setText("Plano "+new String[]{"XY","XZ","YZ"}[n]+" seleccionado · Elige herramienta de boceto");d.dismiss();sketchMenu();}).setNegativeButton("Cancelar",null).show();}
  void sketchMenu(){
   String[] items={"Salir de boceto","Línea","Rectángulo","Círculo","Acotar seleccionado",
-   "Extruir seleccionado","Eliminar último boceto","Eliminar boceto seleccionado"};
+   "Extruir seleccionado","Eliminar último boceto","Eliminar boceto seleccionado","Extruir contorno cerrado de líneas (malla)"};
   new AlertDialog.Builder(this).setTitle("Boceto táctil · plano "+new String[]{"XY","XZ","YZ"}[sketchPlane])
    .setItems(items,(dialog,choice)->{
     if(choice==4){dimensionSketch();return;}
     if(choice==5){extrudeSketch();return;}
     if(choice==6){requestSketchDeletion(false);return;}
     if(choice==7){requestSketchDeletion(true);return;}
+    if(choice==8){extrudeSelectedLineLoop();return;}
     sketchTool=choice;
     if(choice>0){
      flat=true;info.setText("BOCETO · Arrastra con el dedo · Pellizca para zoom");
@@ -164,6 +165,66 @@ public class MainActivity extends Activity {
    body.id,body.sourceSketchId));
   return bodyLinks;
  }
+
+ /**
+  * One selected line chooses a connected contour in its own XY/XZ/YZ plane.
+  * The new watertight triangulation is stored as a snapshot result (not B-Rep).
+  * The original lines stay editable; later edits do not regenerate this mesh.
+  */
+ void extrudeSelectedLineLoop(){
+  if(selectedSketch<0||selectedSketch>=sketches.size()||
+     sketches.get(selectedSketch).type!=1){
+   toast("Selecciona una línea de un contorno cerrado");return;
+  }
+  if(fileBusy||booleanMeshes.size()>=100){
+   toast("No se puede añadir otra malla al proyecto");return;
+  }
+  final Sketch anchor=sketches.get(selectedSketch);
+  final java.util.ArrayList<es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
+   new java.util.ArrayList<>();
+  int anchorIndex=-1;
+  try{
+   for(Sketch q:sketches)if(q.type==1&&q.plane==anchor.plane){
+    if(q==anchor)anchorIndex=lines.size();
+    lines.add(new es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment(
+     q.plane,q.x1,q.y1,q.x2,q.y2));
+   }
+  }catch(Exception error){toast("Línea inválida: "+error.getMessage());return;}
+  if(lines.size()>200){
+   toast("Máximo 200 líneas por contorno y plano");return;
+  }
+  final int selectedLine=anchorIndex;
+  if(selectedLine<0)return;
+  final EditText entry=new EditText(this);
+  entry.setInputType(8194|4096);
+  entry.setSingleLine(true);entry.setText("20");
+  entry.setSelectAllOnFocus(true);
+  new AlertDialog.Builder(this).setTitle("Extruir contorno de líneas")
+   .setMessage("Altura positiva en mm. Se creará una malla 3D cerrada, "+
+     "también para perfiles cóncavos. No será una pieza B-Rep paramétrica; "+
+     "editar después las líneas no actualizará esta malla.")
+   .setView(entry).setNegativeButton("Cancelar",null)
+   .setPositiveButton("Crear malla 3D",(dialog,which)->{
+    if(fileBusy||!sketches.contains(anchor)||booleanMeshes.size()>=100){
+     toast("El diseño ha cambiado; selecciona la línea otra vez");return;
+    }
+    try{
+     double h=Double.parseDouble(entry.getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.ClosedSketchExtrusion.Result result=
+      es.josxtm.mycad.cad.ClosedSketchExtrusion.extrude(lines,selectedLine,h);
+     if(result.triangles.length>18000)
+      throw new IllegalArgumentException("Resultado de malla demasiado grande");
+     MeshEngine.Mesh mesh=new MeshEngine.Mesh(result.triangles);
+     checkpoint();
+     booleanMeshes.add(mesh);unionRecipes.add(null);holeRecipes.add(null);
+     save();scene.invalidate();
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     toast("Contorno extruido: "+result.usedLines+" líneas · "+
+       mesh.triangles()+" triángulos");
+    }catch(Exception error){toast("No se pudo extruir: "+error.getMessage());}
+   }).show();
+ }
+
  void requestSketchDeletion(boolean selectedOnly){
   if(sketches.isEmpty()){toast("No hay bocetos para eliminar");return;}
   int index=selectedOnly?selectedSketch:sketches.size()-1;
