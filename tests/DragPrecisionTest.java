@@ -25,7 +25,8 @@ public final class DragPrecisionTest {
   near(DragPrecision.quantize(1000,7.3,1),7.3,"clamp AFTER snap");
   near(DragPrecision.quantize(-1000,7.3,1),-7.3,"negative clamp");
   near(DragPrecision.quantize(1000,7.3,0),7.3,"free clamp");
-  near(DragPrecision.quantize(2.5,.4,1),0,"snap below small bound");
+  near(DragPrecision.quantize(2.5,.4,1),.4,"small bound stays reachable");
+  near(DragPrecision.quantize(.2,.4,1),0,"inside small bound snaps to zero");
   near(DragPrecision.quantize(-.45,.5,.1),-.5,"quantization at bound");
   rejects(()->DragPrecision.quantize(Double.NaN,1,.1),"NaN input");
   rejects(()->DragPrecision.quantize(1,Double.NaN,.1),"NaN limit");

@@ -13,6 +13,8 @@ public final class DragPrecision {
       !Double.isFinite(stepMm)||stepMm<0||stepMm>10)
    throw new IllegalArgumentException("Invalid gesture precision");
   double limited=Math.max(-limitMm,Math.min(limitMm,inputMm));
+  // Keep the exact, safe end-stop reachable, even if it is not a grid tick.
+  if(Math.abs(inputMm)>=limitMm)return Math.copySign(limitMm,inputMm);
   if(stepMm==0)return limited==0?0:limited;
   double snapped=Math.copySign(Math.floor(Math.abs(limited)/stepMm+0.5)*stepMm,
                                limited);
