@@ -2,6 +2,12 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Booleanas B-Rep v0.6.0, intersección convexa:** operación entre dos
+prismas analíticos generados de bocetos cerrados en un mismo plano. Recorte
+poligonal convexo y nueva topología semiaristas/caras/vértices; persistencia
+de malla snapshot sin alterar los operandos y verificación de volumen en CI.
+Límite deliberado: sin perfiles cóncavos, distintas bases ni booleanas libres.
+
 **DXF: rechazo de contornos autointersectados (0.6.0):** el importador
 verifica que cada LWPOLYLINE cerrada sea un polígono simple antes de
 crear bocetos Android: rechaza cruces, contactos no adyacentes y área
