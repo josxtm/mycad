@@ -745,3 +745,25 @@ for marker in ("public static final class HalfEdge","nextId,previousId,twinId",
 assert "PolygonPrismBRepTest" in w and "asBRep(" in f
 print("Núcleo B-Rep analítico: interfaz, semiaristas y regresiones conectados: OK")
 PY
+
+# Ray triangle must select the underlying stable analytic polygon face.
+python3 - <<'PY'
+from pathlib import Path
+main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+picker=Path("app/src/main/java/es/josxtm/mycad/cad/PolygonPrismFacePicker.java").read_text(encoding="utf-8")
+flow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for k in [
+ "PolygonPrismFacePicker.resolve(bRep,hit.localTriangle)",
+ "selectedPolygonFaceId,faceId",
+ "showStoredMeshTouchActions(index,actual,faceId)",
+ "void editPolygonFace(int index,MeshEngine.Mesh original,String faceId)",
+ "solid.findFace(faceId)",
+ "editLoopExtrusionDistance(index);return;",
+ "editLoopSourceLine(index,selectedFace.sourceLineId)",
+ "if(!link.dependsOn(requested))",
+]:
+ assert k in main,k
+assert "vertices.containsAll(corners)" in picker
+assert "PolygonPrismFacePickerTest" in flow
+print("Visor 3D: selección B-Rep por cara estable y edición de tapa/lateral: OK")
+PY
