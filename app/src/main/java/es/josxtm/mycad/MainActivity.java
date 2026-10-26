@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
  ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loopExtrusionFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport,pendingDxfExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
- static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104, IMPORT_DXF=105, EXPORT_DXF=106; MeshEngine meshView; FrameLayout meshPanel; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
+ static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104, IMPORT_DXF=105, EXPORT_DXF=106; MeshEngine meshView; FrameLayout meshPanel; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; int selectedStoredMeshIndex=-1; MeshEngine.Mesh selectedStoredMeshObject=null; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
@@ -519,6 +519,7 @@ public class MainActivity extends Activity {
  }
  void renderCurrentCadMesh(){
   if(meshView==null)return;
+  clearStoredMeshSelection();
   faceDragEnabled=false;
   meshView.setFaceDragHandle(null,0,null);
   isolatedMeshPreview=false;
@@ -527,6 +528,7 @@ public class MainActivity extends Activity {
   meshView.updateMeshesPreservingCamera(java.util.Collections.singletonList(currentMesh()));
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
+  clearStoredMeshSelection();
   ensureMeshView();
   meshMode=true;meshView.setVisibility(View.VISIBLE);
   meshPanel.setVisibility(View.VISIBLE);
@@ -1181,10 +1183,80 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     else editExtrusionChain(chainIndex);
    }).show();
  }
+
+ /** The ray hit is in a single composed 3D scene: imported and stored mesh
+  * triangles are before all generated analytic primitives. First tap selects
+  * a stored mesh; the second tap offers its operations, including parametric
+  * distance editing when a linked line contour produced that mesh. */
+ void clearStoredMeshSelection(){
+  selectedStoredMeshIndex=-1;selectedStoredMeshObject=null;
+ }
+ boolean selectStoredMeshByTriangle(int triangle,double x,double y,double z){
+  int[] sizes=new int[booleanMeshes.size()];
+  for(int i=0;i<sizes.length;i++)sizes[i]=booleanMeshes.get(i).triangles();
+  es.josxtm.mycad.cad.StoredMeshTriangleMap.Hit hit=
+   es.josxtm.mycad.cad.StoredMeshTriangleMap.resolve(
+    triangle,importedMesh==null?0:importedMesh.triangles(),sizes);
+  if(hit==null){clearStoredMeshSelection();return false;}
+  activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
+  activeExactFaceHit=null;activeExactEdgeHit=null;
+  selected=-1;selectedSketch=-1;scene.invalidate();
+  if(meshView!=null){
+   meshView.highlightFace(triangle);
+   meshView.highlightEdge(null);
+  }
+  if(hit.kind==es.josxtm.mycad.cad.StoredMeshTriangleMap.Kind.IMPORTED){
+   clearStoredMeshSelection();
+   info.setText(String.format(java.util.Locale.US,
+    "Malla importada · triángulo %d · X %.1f Y %.1f Z %.1f mm",
+    hit.localTriangle+1,x,y,z));
+   return true;
+  }
+  int index=hit.meshIndex;
+  MeshEngine.Mesh actual=booleanMeshes.get(index);
+  boolean secondTap=selectedStoredMeshIndex==index&&
+                    selectedStoredMeshObject==actual;
+  selectedStoredMeshIndex=index;
+  selectedStoredMeshObject=actual;
+  boolean linked=index<loopExtrusionFeatures.size()&&
+                 loopExtrusionFeatures.get(index)!=null;
+  info.setText(String.format(java.util.Locale.US,
+   "Malla %d%s · cara %d · X %.1f Y %.1f Z %.1f mm · toca otra vez para editar",
+   index+1,linked?" · contorno vinculado":"",hit.localTriangle+1,x,y,z));
+  if(secondTap)showStoredMeshTouchActions(index,actual);
+  return true;
+ }
+ void showStoredMeshTouchActions(int index,MeshEngine.Mesh original){
+  if(index<0||index>=booleanMeshes.size()||
+     booleanMeshes.get(index)!=original){clearStoredMeshSelection();return;}
+  boolean linked=index<loopExtrusionFeatures.size()&&
+     loopExtrusionFeatures.get(index)!=null;
+  String[] options=linked?
+   new String[]{"Editar distancia de extrusión","Ver solo esta malla",
+      "Exportar a STL/OBJ","Gestionar resultados"}:
+   new String[]{"Ver solo esta malla","Exportar a STL/OBJ",
+      "Gestionar resultados"};
+  new AlertDialog.Builder(this)
+   .setTitle("Malla "+(index+1)+(linked?" · contorno paramétrico":""))
+   .setItems(options,(dialog,option)->{
+    if(index>=booleanMeshes.size()||booleanMeshes.get(index)!=original){
+     toast("El resultado ha cambiado; vuelve a seleccionarlo");return;
+    }
+    if(linked){
+     if(option==0){editLoopExtrusionDistance(index);return;}
+     option--;
+    }
+    if(option==0)showMeshOnly(original);
+    else if(option==1)exportMeshMenuFor(original);
+    else booleanMeshManager();
+   }).setNegativeButton("Cancelar",null).show();
+ }
+
  void showGpuSurfaceSelection(int triangle,double x,double y,double z,
     double ox,double oy,double oz,double dx,double dy,double dz){
   activeExactFaceHit=null;activeExactEdgeHit=null;
-  if(isolatedMeshPreview){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightEdge(null);info.setText("Vista previa · sin selección de piezas");return;}
+  if(isolatedMeshPreview){clearStoredMeshSelection();activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightEdge(null);info.setText("Vista previa · sin selección de piezas");return;}
+  if(selectStoredMeshByTriangle(triangle,x,y,z))return;
   boolean handled=false;
   if(cadGpuMesh){
    es.josxtm.mycad.cad.PrimitiveTopologyMap map=new es.josxtm.mycad.cad.PrimitiveTopologyMap();
@@ -2358,6 +2430,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   meshMode=!meshMode;meshView.setVisibility(meshMode?View.VISIBLE:View.GONE);
   meshPanel.setVisibility(meshMode?View.VISIBLE:View.GONE);
   if(meshMode){renderCurrentCadMesh();toast("Visor GPU: arrastra para girar");}
+  else clearStoredMeshSelection();
  }
 
  /**
