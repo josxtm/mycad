@@ -128,6 +128,33 @@ public final class PrimitiveBRepBody {
   return cylinder(bodyId,newCylinder.diameter(),newCylinder.height(),newCylinder.pose());
  }
 
+ /**
+  * Atomically moves the two faces meeting at an analytic primitive edge.
+  *
+  * Distances are signed outward offsets in millimetres, in the deterministic
+  * order exposed by Edge.adjacentFaceIds(). A zero value holds that face fixed.
+  * - Box edge: the two independent planar directions may be edited together.
+  * - Cylinder circular rim: lateral direction changes diameter; axial
+  *   direction extends the selected cap.
+  *
+  * Builds a NEW validated primitive; original body is never changed, including
+  * when a second step fails. Edges/faces retain their persistent logical IDs.
+  * This is not a bevel, fillet, or arbitrary B-Rep edge deformation.
+  */
+ public PrimitiveBRepBody offsetEdge(String edgeId,double firstMm,double secondMm){
+  Edge target=findEdge(edgeId);
+  if(target==null||!Double.isFinite(firstMm)||!Double.isFinite(secondMm)||
+     (firstMm==0&&secondMm==0)||target.adjacentFaceIds().size()!=2)
+   throw new IllegalArgumentException("Invalid or stale edge movement");
+  List<String> adjacent=target.adjacentFaceIds();
+  PrimitiveBRepBody proposed=this;
+  if(firstMm!=0)proposed=proposed.offsetFace(adjacent.get(0),firstMm);
+  if(secondMm!=0)proposed=proposed.offsetFace(adjacent.get(1),secondMm);
+  if(proposed.findEdge(edgeId)==null)
+   throw new IllegalArgumentException("Edge identity changed");
+  return proposed;
+ }
+
  /** Preview tessellation is secondary to the analytic model and always a new array. */
  public float[] triangles(int cylinderSegments){
   if(kind==Kind.CYLINDER)

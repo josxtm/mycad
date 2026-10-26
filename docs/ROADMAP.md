@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Incremento de edición:** desplazamiento numérico atómico de aristas de prismas/cilindros, limitado a las dos caras adyacentes, con IDs estables, controles de selección obsoleta y deshacer. No son filetes/chaflanes ni arrastre gestual de aristas; estos siguen pendientes.
+
 **Nuevo bloque (26/10):** selección de aristas analíticas en puntos de impacto del visor GPU, comprobando distancia a segmentos de prismas y circunferencias exactas de cilindros. Es selección asistida por un hit de malla, no raycasting directo de bordes ni manipulación táctil de aristas. CI Java independiente, sin APK.
 
 **Código en desarrollo; NO se ha publicado APK 0.6.0 ni validado completamente en Nothing Phone 2a.**
