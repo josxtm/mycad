@@ -692,7 +692,7 @@ for marker in (
  "selectedStoredMeshObject==actual",
  "if(index>=booleanMeshes.size()||booleanMeshes.get(index)!=original)",
  "editLoopExtrusionDistance(index);return;",
- "if(secondTap)showStoredMeshTouchActions(index,actual);",
+ "if(secondTap)showStoredMeshTouchActions(index,actual,faceId);",
  "clearStoredMeshSelection();",
 ):
     assert marker in a,marker
@@ -709,7 +709,7 @@ a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding
 block=a[a.index("void editLoopSourceSketch("):a.index("void editLoopExtrusionDistance(")]
 for marker in (
  "link.regenerate(loopSketchSegments(link,null,0,0,0,0));",
- "sketches.get(i).id.equals(link.selectedLineId)",
+ "sketches.get(i).id.equals(requested)",
  "sketches.get(source).type!=1",
  "sketches.get(source).plane!=link.plane",
  "sketchPlane=link.plane;sketchTool=0;flat=true;",
@@ -717,7 +717,7 @@ for marker in (
  "scene.editSketch();",
 ):
     assert marker in block,marker
-assert "if(option==1){editLoopSourceSketch(index);return;}" in a
+assert "if(option==2){editLoopSourceSketch(index);return;}" in a
 assert "if(choice==6){editLoopSourceSketch(index);}" in a
 assert "prepareLinkedLoopEdit(q,v[0],v[1],v[2],v[3])" in a
 print("Visor 3D → origen 2D editable con validación de vínculos: OK")
@@ -736,7 +736,7 @@ for marker in (
  "void inspectLoopBRep(int index)",
  "editLoopSourceSketch(index)",
  'Inspeccionar topología B-Rep',
- "if(option==2){inspectLoopBRep(index);return;}",
+ "if(option==3){inspectLoopBRep(index);return;}",
 ):
  assert marker in a,marker
 for marker in ("public static final class HalfEdge","nextId,previousId,twinId",
@@ -744,4 +744,26 @@ for marker in ("public static final class HalfEdge","nextId,previousId,twinId",
  assert marker in s,marker
 assert "PolygonPrismBRepTest" in w and "asBRep(" in f
 print("Núcleo B-Rep analítico: interfaz, semiaristas y regresiones conectados: OK")
+PY
+
+# Ray triangle must select the underlying stable analytic polygon face.
+python3 - <<'PY'
+from pathlib import Path
+main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+picker=Path("app/src/main/java/es/josxtm/mycad/cad/PolygonPrismFacePicker.java").read_text(encoding="utf-8")
+flow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for k in [
+ "PolygonPrismFacePicker.resolve(bRep,hit.localTriangle)",
+ "selectedPolygonFaceId,faceId",
+ "showStoredMeshTouchActions(index,actual,faceId)",
+ "void editPolygonFace(int index,MeshEngine.Mesh original,String faceId)",
+ "solid.findFace(faceId)",
+ "editLoopExtrusionDistance(index);return;",
+ "editLoopSourceLine(index,selectedFace.sourceLineId)",
+ "if(!link.dependsOn(requested))",
+]:
+ assert k in main,k
+assert "vertices.containsAll(corners)" in picker
+assert "PolygonPrismFacePickerTest" in flow
+print("Visor 3D: selección B-Rep por cara estable y edición de tapa/lateral: OK")
 PY

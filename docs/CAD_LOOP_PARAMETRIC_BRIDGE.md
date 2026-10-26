@@ -46,6 +46,17 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
   contorno conserva identidades aun tras cambiar coordenadas/altura.
 - Se admite extrusión hacia ambos lados en XY/XZ/YZ. La pantalla de
   resultados y la selección GPU permiten **Inspeccionar topología B-Rep**.
+- **Elegir cara B-Rep desde el visor 3D:** cada triángulo tocado se
+  relaciona con su cara analítica (identidad persistente de cara superior,
+  inferior o lateral vinculada a la línea de origen). El segundo toque
+  permite editar esa cara: en una tapa se modifica la distancia de
+  extrusión firmada; en una lateral se abre **la línea original concreta**
+  del boceto 2D para cambiar sus coordenadas. La validación de la
+  extrusión y sus dependencias permanece atómica.
+- La edición de cara lateral todavía no desplaza automáticamente la
+  superficie entera manteniendo las restricciones del perfil; la
+  interfaz abre el segmento fuente. No se anuncia fillet/booleanas
+  generales o manipulación B-Rep arbitraria.
 - Crear un contorno ahora verifica su nuevo sólido B-Rep en memoria
   antes de guardar la operación. El proyecto mantiene el formato
   JSON v1 y las mallas compatibles con versiones anteriores.

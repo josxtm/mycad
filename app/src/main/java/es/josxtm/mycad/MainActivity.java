@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
  ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loopExtrusionFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport,pendingDxfExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
- static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104, IMPORT_DXF=105, EXPORT_DXF=106; MeshEngine meshView; FrameLayout meshPanel; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; int selectedStoredMeshIndex=-1; MeshEngine.Mesh selectedStoredMeshObject=null; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
+ static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104, IMPORT_DXF=105, EXPORT_DXF=106; MeshEngine meshView; FrameLayout meshPanel; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; int selectedStoredMeshIndex=-1; MeshEngine.Mesh selectedStoredMeshObject=null; String selectedPolygonFaceId=null; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
@@ -307,7 +307,34 @@ public class MainActivity extends Activity {
   }catch(Exception error){toast("No se pudo construir topología: "+error.getMessage());}
  }
 
- void editLoopSourceSketch(int meshIndex){
+
+ /** Edit the actual analytic face that was selected by an OpenGL ray.
+  * Upper/lower cap adjust the signed extrusion distance. A lateral planar
+  * face opens the exact sketch line from which that face was generated.
+  * Full arbitrary face offset and Boolean recomputation remain future work. */
+ void editPolygonFace(int index,MeshEngine.Mesh original,String faceId){
+  if(fileBusy||faceId==null||index<0||index>=booleanMeshes.size()||
+     booleanMeshes.get(index)!=original||index>=loopExtrusionFeatures.size()||
+     loopExtrusionFeatures.get(index)==null){
+   toast("Selecciona primero una cara B-Rep válida");return;
+  }
+  try{
+   es.josxtm.mycad.cad.LoopExtrusionFeature link=loopExtrusionFeatures.get(index);
+   es.josxtm.mycad.cad.PolygonPrismBRep solid=
+    link.asBRep(loopSketchSegments(link,null,0,0,0,0));
+   es.josxtm.mycad.cad.PolygonPrismBRep.Face selectedFace=solid.findFace(faceId);
+   if(selectedFace==null)throw new IllegalArgumentException("La cara ya no existe");
+   if(selectedFace.sourceLineId==null){
+    editLoopExtrusionDistance(index);return;
+   }
+   editLoopSourceLine(index,selectedFace.sourceLineId);
+  }catch(IllegalArgumentException error){
+   toast("No se puede editar la cara: "+error.getMessage());
+  }
+ }
+
+ void editLoopSourceSketch(int meshIndex){editLoopSourceLine(meshIndex,null);}
+ void editLoopSourceLine(int meshIndex,String requestedLineId){
   if(fileBusy||meshIndex<0||meshIndex>=loopExtrusionFeatures.size()||
      meshIndex>=booleanMeshes.size()||
      loopExtrusionFeatures.get(meshIndex)==null){
@@ -315,12 +342,14 @@ public class MainActivity extends Activity {
   }
   es.josxtm.mycad.cad.LoopExtrusionFeature link=
    loopExtrusionFeatures.get(meshIndex);
+  final String requested=requestedLineId==null?link.selectedLineId:requestedLineId;
   try{
+   if(!link.dependsOn(requested))throw new IllegalArgumentException("Cara sin línea origen");
    // A stale missing source or broken contour is not a safe target to edit.
    link.regenerate(loopSketchSegments(link,null,0,0,0,0));
    int source=-1;
    for(int i=0;i<sketches.size();i++)
-    if(sketches.get(i).id.equals(link.selectedLineId)){
+    if(sketches.get(i).id.equals(requested)){
      if(source!=-1)throw new IllegalArgumentException("ID de boceto duplicado");
      source=i;
     }
@@ -1260,7 +1289,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   * a stored mesh; the second tap offers its operations, including parametric
   * distance editing when a linked line contour produced that mesh. */
  void clearStoredMeshSelection(){
-  selectedStoredMeshIndex=-1;selectedStoredMeshObject=null;
+  selectedStoredMeshIndex=-1;selectedStoredMeshObject=null;selectedPolygonFaceId=null;
  }
  boolean selectStoredMeshByTriangle(int triangle,double x,double y,double z){
   int[] sizes=new int[booleanMeshes.size()];
@@ -1285,27 +1314,42 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   }
   int index=hit.meshIndex;
   MeshEngine.Mesh actual=booleanMeshes.get(index);
-  boolean secondTap=selectedStoredMeshIndex==index&&
-                    selectedStoredMeshObject==actual;
-  selectedStoredMeshIndex=index;
-  selectedStoredMeshObject=actual;
   boolean linked=index<loopExtrusionFeatures.size()&&
                  loopExtrusionFeatures.get(index)!=null;
+  String faceId=null;
+  if(linked)try{
+   es.josxtm.mycad.cad.LoopExtrusionFeature feature=loopExtrusionFeatures.get(index);
+   es.josxtm.mycad.cad.PolygonPrismBRep bRep=feature.asBRep(
+     loopSketchSegments(feature,null,0,0,0,0));
+   es.josxtm.mycad.cad.PolygonPrismBRep.Face face=
+     es.josxtm.mycad.cad.PolygonPrismFacePicker.resolve(bRep,hit.localTriangle);
+   if(face!=null)faceId=face.id;
+  }catch(IllegalArgumentException error){
+   toast("La topología B-Rep necesita revisión");clearStoredMeshSelection();return true;
+  }
+  boolean secondTap=selectedStoredMeshIndex==index&&
+                    selectedStoredMeshObject==actual&&
+                    java.util.Objects.equals(selectedPolygonFaceId,faceId);
+  selectedStoredMeshIndex=index;
+  selectedStoredMeshObject=actual;selectedPolygonFaceId=faceId;
+  String title=faceId==null?"triángulo "+(hit.localTriangle+1):
+   faceId.endsWith("/top")?"cara superior":
+   faceId.endsWith("/base")?"cara inferior":"cara lateral";
   info.setText(String.format(java.util.Locale.US,
-   "Malla %d%s · cara %d · X %.1f Y %.1f Z %.1f mm · toca otra vez para editar",
-   index+1,linked?" · contorno vinculado":"",hit.localTriangle+1,x,y,z));
-  if(secondTap)showStoredMeshTouchActions(index,actual);
+   "Malla %d%s · %s · X %.1f Y %.1f Z %.1f mm · toca otra vez para editar",
+   index+1,linked?" · B-Rep vinculado":"",title,x,y,z));
+  if(secondTap)showStoredMeshTouchActions(index,actual,faceId);
   return true;
  }
- void showStoredMeshTouchActions(int index,MeshEngine.Mesh original){
+ void showStoredMeshTouchActions(int index,MeshEngine.Mesh original,String faceId){
   if(index<0||index>=booleanMeshes.size()||
      booleanMeshes.get(index)!=original){clearStoredMeshSelection();return;}
   boolean linked=index<loopExtrusionFeatures.size()&&
      loopExtrusionFeatures.get(index)!=null;
   String[] options=linked?
-   new String[]{"Editar distancia de extrusión","Editar perfil original",
-      "Inspeccionar topología B-Rep","Ver solo esta malla",
-      "Exportar a STL/OBJ","Gestionar resultados"}:
+   new String[]{"Editar cara B-Rep seleccionada","Editar distancia de extrusión",
+      "Editar perfil original","Inspeccionar topología B-Rep",
+      "Ver solo esta malla","Exportar a STL/OBJ","Gestionar resultados"}:
    new String[]{"Ver solo esta malla","Exportar a STL/OBJ",
       "Gestionar resultados"};
   new AlertDialog.Builder(this)
@@ -1315,10 +1359,11 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
      toast("El resultado ha cambiado; vuelve a seleccionarlo");return;
     }
     if(linked){
-     if(option==0){editLoopExtrusionDistance(index);return;}
-     if(option==1){editLoopSourceSketch(index);return;}
-     if(option==2){inspectLoopBRep(index);return;}
-     option-=3;
+     if(option==0){editPolygonFace(index,original,faceId);return;}
+     if(option==1){editLoopExtrusionDistance(index);return;}
+     if(option==2){editLoopSourceSketch(index);return;}
+     if(option==3){inspectLoopBRep(index);return;}
+     option-=4;
     }
     if(option==0)showMeshOnly(original);
     else if(option==1)exportMeshMenuFor(original);
