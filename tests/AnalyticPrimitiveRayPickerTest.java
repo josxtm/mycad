@@ -54,6 +54,28 @@ public final class AnalyticPrimitiveRayPickerTest {
       "Tangent cylinder is a valid mathematical hit");
   yes(ray(cyl,new double[]{-40,10.00001,4},new double[]{1,0,0})==null,
       "Near-tangent ray outside the cylinder must not be selected");
+  // Micrometre primitives are supported analytically in double precision.
+  // Neither the face bound nor the discriminant may treat one whole
+  // millimetre as the minimum geometric scale.
+  double tiny=1e-6;
+  PrimitiveBRepBody microBox=PrimitiveBRepBody.box("MB",tiny,tiny,tiny,identity);
+  yes(ray(microBox,new double[]{-3*tiny,0,tiny/2},
+      new double[]{1,0,0})!=null,"Micrometre box face is selectable");
+  yes(ray(microBox,new double[]{-3*tiny,tiny/2+1e-10,tiny/2},
+      new double[]{1,0,0})==null,
+      "Outside micrometre box boundary must not snap to face");
+  PrimitiveBRepBody microCylinder=PrimitiveBRepBody.cylinder("MC",tiny,tiny,identity);
+  yes(ray(microCylinder,new double[]{-3*tiny,0,tiny/2},
+      new double[]{1,0,0})!=null,"Micrometre cylinder side is selectable");
+  yes(ray(microCylinder,new double[]{-3*tiny,tiny/2+1e-10,tiny/2},
+      new double[]{1,0,0})==null,
+      "Outside micrometre cylinder tangent must not be selected");
+  yes(ray(microCylinder,new double[]{tiny/2+1e-10,0,3*tiny},
+      new double[]{0,0,-1})==null,
+      "Outside micrometre cylinder cap must not be selected");
+  yes(ray(microCylinder,new double[]{0,0,3*tiny},
+      new double[]{0,0,-1})!=null,
+      "Micrometre cylinder cap is selectable");
   near(side.nx,-1,"Unrotated cylinder side outward normal X");
   near(side.ny,0,"Unrotated cylinder side outward normal Y");
   near(cap.nz,1,"Top cap outward normal");
