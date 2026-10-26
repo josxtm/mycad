@@ -27,6 +27,16 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private SurfaceTapListener surfaceTapListener;
  public void setSurfaceTapListener(SurfaceTapListener listener){surfaceTapListener=listener;}
  public MeshEngine(Context context){super(context);setEGLContextClientVersion(3);setRenderer(this);setRenderMode(RENDERMODE_WHEN_DIRTY);}
+ /** Transient preview: swap geometry on the GL thread without refitting camera. */
+ public void previewMesh(Mesh candidate){
+  if(candidate==null)throw new IllegalArgumentException("Missing preview mesh");
+  final Mesh snapshot=new Mesh(candidate.vertices.clone());
+  queueEvent(()->{
+   meshes.clear();meshes.add(snapshot);
+   highlightedFirstTriangle=-1;
+   requestRender();
+  });
+ }
  public void setMeshes(List<Mesh> incoming){final ArrayList<Mesh> copy=new ArrayList<>(incoming);highlightedFirstTriangle=-1;queueEvent(()->{meshes.clear();meshes.addAll(copy);fitCamera();requestRender();});}
  public void orbit(float dx,float dy){yaw+=dx*.35f;pitch=Math.max(-89,Math.min(89,pitch+dy*.35f));requestRender();}
  public void zoom(float factor){distance=Math.max(.1f,Math.min(100000f,distance/factor));requestRender();}

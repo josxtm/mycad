@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Vista previa geométrica en edición:** deslizador(es) táctiles para caras y aristas de primitivas con recalculado de geometría inmutable, actualización GPU sin cambiar la escena guardada, confirmación mediante checkpoint y restauración al cancelar. Verificación en Android físico pendiente.
+
 **Incremento de edición:** desplazamiento numérico atómico de aristas de prismas/cilindros, limitado a las dos caras adyacentes, con IDs estables, controles de selección obsoleta y deshacer. No son filetes/chaflanes ni arrastre gestual de aristas; estos siguen pendientes.
 
 **Nuevo bloque (26/10):** selección de aristas analíticas en puntos de impacto del visor GPU, comprobando distancia a segmentos de prismas y circunferencias exactas de cilindros. Es selección asistida por un hit de malla, no raycasting directo de bordes ni manipulación táctil de aristas. CI Java independiente, sin APK.
