@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Unificación de mallas XYZ:** el renderizado de prismas y cilindros emplea ahora la misma geometría B-Rep analítica en vistas normales y experimentales, exportación STL/OBJ y previsualización. Evita que las piezas con rotaciones X/Y pierdan orientación en la vista clásica. Concatenación segura de mallas con límite de memoria y tests Java; APK pendiente de hito.
+
 **Picking de superficies reforzado:** raycasting con dirección normalizada, distancia física en mm y descarte seguro de triángulos no finitos o degenerados; mantiene índices originales y pruebas de regresión.
 
 **Nuevo imán de precisión:** movimiento de caras/aristas con arrastre libre o incrementos de 0,1 / 0,5 / 1 mm, simétrico en sentidos positivos y negativos y con límite geométrico. Preferencia local persistente; pruebas sin APK.

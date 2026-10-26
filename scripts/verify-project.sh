@@ -149,6 +149,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveFaceHandle.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveEdgeHandle.java \
   app/src/main/java/es/josxtm/mycad/cad/DragPrecision.java \
+  app/src/main/java/es/josxtm/mycad/cad/AnalyticSceneMesh.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -159,7 +160,8 @@ javac -d build/box-brep-tests \
   tests/EdgeScreenToleranceTest.java \
   tests/PrimitiveFaceHandleTest.java \
   tests/PrimitiveEdgeHandleTest.java \
-  tests/DragPrecisionTest.java
+  tests/DragPrecisionTest.java \
+  tests/AnalyticSceneMeshTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -171,6 +173,7 @@ java -cp build/box-brep-tests EdgeScreenToleranceTest
 java -cp build/box-brep-tests PrimitiveFaceHandleTest
 java -cp build/box-brep-tests PrimitiveEdgeHandleTest
 java -cp build/box-brep-tests DragPrecisionTest
+java -cp build/box-brep-tests AnalyticSceneMeshTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -200,7 +203,7 @@ for marker in (
  "case 21:inspectSelectedAnalyticSolid();break;",
  ".offsetFace(part.id+\"/face/\"+face.name(),delta)",
  "analyticBody(part).offsetFace(faceId,mm)",
- "for(float value:analyticBody(part).triangles(48))floats.add(value)",
+ "AnalyticSceneMesh.compose(before,bodies,after,48)",
  "checkpoint();",
  "activeCylinderFaceId=null;activeCadFace=null;",
 ):
@@ -328,6 +331,27 @@ assert "public void setFaceSnapStepMm(double step)" in m
 assert "DragPrecision.quantize(" in m
 assert "double mm=faceMovement(e.getX(),e.getY());" in m
 print("Arrastre sobre modelo con imán configurable: OK")
+PY
+
+# Verify the same analytic world-coordinate mesh powers normal GPU, CAD and export.
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+b=src.index("MeshEngine.Mesh experimentalCadMeshPreview(")
+e=src.index("void toggleMeshView(){",b)
+segment=src[b:e]
+for required in (
+ "AnalyticSceneMesh.compose(before,bodies,after,48)",
+ "bodies.add(analyticBody(part))",
+ "bodies.add(candidate)",
+ "appendChainTriangles(chain);",
+ "MeshEngine.Mesh currentMesh(){return experimentalCadMesh();}",
+):
+    if required not in segment:
+        raise SystemExit("ERROR: inconsistencia entre malla visible y analítica: "+required)
+if "if(cadGpuMesh)return experimentalCadMesh();" in segment:
+    raise SystemExit("ERROR: la vista clásica conserva geometría distinta de la exportación")
+print("Modelo único XYZ para vista normal, visor CAD, preview y STL/OBJ: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"

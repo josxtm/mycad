@@ -1999,37 +1999,32 @@ public class MainActivity extends Activity {
   if(previewIndex>=parts.size()||previewIndex< -1||
      (previewIndex>=0&&candidate==null))
    throw new IllegalArgumentException("Invalid preview slot");
-  java.util.ArrayList<Float> floats=new java.util.ArrayList<>();
-  if(importedMesh!=null)for(float v:importedMesh.vertices)floats.add(v);
-  for(MeshEngine.Mesh m:booleanMeshes)for(float v:m.vertices)floats.add(v);
+  java.util.ArrayList<float[]> before=new java.util.ArrayList<>();
+  if(importedMesh!=null)before.add(importedMesh.vertices);
+  for(MeshEngine.Mesh mesh:booleanMeshes)before.add(mesh.vertices);
+  java.util.ArrayList<es.josxtm.mycad.cad.PrimitiveBRepBody> bodies=
+    new java.util.ArrayList<>();
   for(int i=0;i<parts.size();i++){
    Part part=parts.get(i);
    if(i==previewIndex){
     if(!part.id.equals(candidate.bodyId))
      throw new IllegalArgumentException("Stale preview body");
-    for(float value:candidate.triangles(48))floats.add(value);
-   }else{
-    for(float value:analyticBody(part).triangles(48))floats.add(value);
-   }
+    bodies.add(candidate);
+   }else bodies.add(analyticBody(part));
   }
-  appendChainTriangles(floats);
-  float[] coordinates=new float[floats.size()];
-  for(int i=0;i<coordinates.length;i++)coordinates[i]=floats.get(i);
-  return new MeshEngine.Mesh(coordinates);
+  java.util.ArrayList<Float> chain=new java.util.ArrayList<>();
+  appendChainTriangles(chain);
+  float[] featureTriangles=new float[chain.size()];
+  for(int i=0;i<chain.size();i++)featureTriangles[i]=chain.get(i);
+  java.util.List<float[]> after=java.util.Collections.singletonList(featureTriangles);
+  return new MeshEngine.Mesh(
+    es.josxtm.mycad.cad.AnalyticSceneMesh.compose(before,bodies,after,48));
  }
- MeshEngine.Mesh currentMesh(){
-  if(cadGpuMesh)return experimentalCadMesh();
-  java.util.ArrayList<Float> a=new java.util.ArrayList<>();
-  if(importedMesh!=null)for(float v:importedMesh.vertices)a.add(v);
-  for(MeshEngine.Mesh mesh:booleanMeshes)for(float value:mesh.vertices)a.add(value);
-  for(Part p:parts){
-   float z=p.z,top=z+p.h;
-   if(p.circle){int n=48;float radius=p.w/2;for(int i=0;i<n;i++){double t=i*2*Math.PI/n,u=(i+1)*2*Math.PI/n;float[] b={p.x+(float)Math.cos(t)*radius,p.y+(float)Math.sin(t)*radius,z},c={p.x+(float)Math.cos(u)*radius,p.y+(float)Math.sin(u)*radius,z},d={b[0],b[1],top},e={c[0],c[1],top};quad(a,b,c,e,d);addTri(a,new float[]{p.x,p.y,z},c,b);addTri(a,new float[]{p.x,p.y,top},d,e);}}
-   else{float x=p.x,y=p.y,w=p.w/2,h=p.d/2;float[][] v={{x-w,y-h,z},{x+w,y-h,z},{x+w,y+h,z},{x-w,y+h,z},{x-w,y-h,top},{x+w,y-h,top},{x+w,y+h,top},{x-w,y+h,top}};for(float[] pt:v){float dx=pt[0]-p.x,dy=pt[1]-p.y,angle=(float)Math.toRadians(p.rotationZ);pt[0]=p.x+(float)(dx*Math.cos(angle)-dy*Math.sin(angle));pt[1]=p.y+(float)(dx*Math.sin(angle)+dy*Math.cos(angle));}quad(a,v[3],v[2],v[1],v[0]);quad(a,v[4],v[5],v[6],v[7]);quad(a,v[0],v[1],v[5],v[4]);quad(a,v[1],v[2],v[6],v[5]);quad(a,v[2],v[3],v[7],v[6]);quad(a,v[3],v[0],v[4],v[7]);}
-  }
-  appendChainTriangles(a);
-  float[] vertices=new float[a.size()];for(int i=0;i<vertices.length;i++)vertices[i]=a.get(i);return new MeshEngine.Mesh(vertices);
- }
+ /**
+  * One source of geometry for all 3D modes: world XYZ rotations are identical
+  * in normal viewing, CAD face selection, STL/OBJ export and live previews.
+  */
+ MeshEngine.Mesh currentMesh(){return experimentalCadMesh();}
  void toggleMeshView(){
   if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->showGpuSurfaceSelection(triangle,x,y,z));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=!meshMode;meshView.setVisibility(meshMode?View.VISIBLE:View.GONE);
