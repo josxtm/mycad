@@ -24,3 +24,20 @@ Las pruebas cubren prismas y cilindros girados, reconstrucción idéntica,
 selección de tapa, rechazo de geometría obsoleta y tolerancias inválidas.
 Verificación Java y Android mediante `verify`; no se genera APK ni se
 presume validación táctil en Nothing Phone 2a.
+
+## Corrección: límites precisos para primitivas micrométricas (0.6.0)
+
+La clasificación de una cara analítica usa ahora una tolerancia en mm
+**proporcional a las dimensiones reales** del cuerpo, ampliada únicamente
+por el error de redondeo de su traslación mundial. El mínimo fijo de 1 mm
+empleado al estimar tolerancias podía aceptar impactos externos en cajas
+y cilindros de tamaño micrométrico. La tolerancia del discriminante
+cuadrático del cilindro usa igualmente la escala de sus términos en
+lugar de elevarla artificialmente a 1.
+
+Regresiones: impacto interior y fallo exterior para caja de 1 µm,
+lateral y tapa de cilindro de 1 µm, además de los casos previos con
+cuerpos rotados y desplazados. Es una corrección del selector analítico
+de **primitivas**, no un cambio en STL/OBJ, B-Rep general o gestos.
+No se presupone verificación física; este cambio solo requiere CI Java
+y Android, **sin generar APK**.

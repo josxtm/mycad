@@ -44,6 +44,18 @@ public final class AnalyticPrimitiveRayPicker {
   public double[] normal(){return new double[]{nx,ny,nz};}
  }
 
+ /**
+  * Surface bounds use the actual primitive scale, not a fixed millimetre
+  * floor.  An absolute 1e-8 mm allowance is large enough to mistake a ray
+  * just outside a micron-size face for a valid touch.  At translated poses,
+  * retain a few ULPs of world-position rounding for inverse transforms.
+  */
+ private static double boundaryTolerance(PrimitiveBRepBody body){
+  double scale=Math.max(body.width,Math.max(body.depth,body.height));
+  double worldUlp=Math.max(Math.ulp(body.x),Math.max(Math.ulp(body.y),
+                                                   Math.ulp(body.z)));
+  return Math.max(1e-10*scale,64*worldUlp);
+ }
  private static Hit choose(Hit best,PrimitiveBRepBody body,String slot,
                            double t,double[] localOrigin,double[] localDir,
                            double[] worldOrigin,double[] worldDir,
@@ -51,7 +63,7 @@ public final class AnalyticPrimitiveRayPicker {
   if(!Double.isFinite(t)||t<=EPS)return best;
   double lx=localOrigin[0]+t*localDir[0],ly=localOrigin[1]+t*localDir[1],
          lz=localOrigin[2]+t*localDir[2];
-  double boundaryEps=1e-8*Math.max(1,Math.max(body.width,Math.max(body.depth,body.height)));
+  double boundaryEps=boundaryTolerance(body);
   boolean valid;
   if(body.kind==PrimitiveBRepBody.Kind.BOX){
    valid=Math.abs(lx)<=body.width/2+boundaryEps&&
@@ -62,7 +74,7 @@ public final class AnalyticPrimitiveRayPicker {
    double radial=Math.hypot(lx,ly);
    valid=lz>=-boundaryEps&&lz<=body.height+boundaryEps&&
         (slot.equals("CYLINDER_SIDE")?
-         Math.abs(radial-rad)<=1e-9*Math.max(1,rad):
+         Math.abs(radial-rad)<=boundaryEps:
          radial<=rad+boundaryEps);
   }
   if(!valid)return best;
@@ -121,7 +133,7 @@ public final class AnalyticPrimitiveRayPicker {
     double disc=b*b-4*a*c;
     // A broad relative epsilon can turn a near-tangent MISS into a false hit.
     // Accept only round-off on the quadratic terms, then verify the radius.
-    double discScale=Math.max(1,Math.max(Math.abs(b*b),Math.abs(4*a*c)));
+    double discScale=Math.max(Math.abs(b*b),Math.abs(4*a*c));
     if(disc>=-64*Math.ulp(discScale)){
      disc=Math.max(0,disc);
      // Numerically stable quadratic roots when b is large.
