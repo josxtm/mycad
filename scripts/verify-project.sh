@@ -722,3 +722,26 @@ assert "if(choice==6){editLoopSourceSketch(index);}" in a
 assert "prepareLinkedLoopEdit(q,v[0],v[1],v[2],v[3])" in a
 print("Visor 3D → origen 2D editable con validación de vínculos: OK")
 PY
+
+# B-Rep core must be invoked from Android create/inspect actions and validated
+# by the Java manifold/ID regression suite before an APK build is considered.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+w=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+s=Path("app/src/main/java/es/josxtm/mycad/cad/PolygonPrismBRep.java").read_text(encoding="utf-8")
+f=Path("app/src/main/java/es/josxtm/mycad/cad/LoopExtrusionFeature.java").read_text(encoding="utf-8")
+for marker in (
+ "feature.asBRep(sourceMap)",
+ "void inspectLoopBRep(int index)",
+ "editLoopSourceSketch(index)",
+ 'Inspeccionar topología B-Rep',
+ "if(option==2){inspectLoopBRep(index);return;}",
+):
+ assert marker in a,marker
+for marker in ("public static final class HalfEdge","nextId,previousId,twinId",
+               "Nonmanifold or inverted B-Rep edge","ClosedSketchExtrusion.extrude("):
+ assert marker in s,marker
+assert "PolygonPrismBRepTest" in w and "asBRep(" in f
+print("Núcleo B-Rep analítico: interfaz, semiaristas y regresiones conectados: OK")
+PY
