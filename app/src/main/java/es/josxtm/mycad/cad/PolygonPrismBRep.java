@@ -138,14 +138,17 @@ public final class PolygonPrismBRep {
   return new double[]{a[0]/n,a[1]/n,a[2]/n};
  }
  private static double[] faceNormal(List<Vertex> vertices,int[] loop){
-  double[] a=vertices.get(loop[0]).position();
-  for(int i=1;i<loop.length-1;i++){
-   double[] b=vertices.get(loop[i]).position();
-   double[] c=vertices.get(loop[i+1]).position();
-   double[] normal=cross(sub(b,a),sub(c,a));
-   if(norm(normal)>0)return unit(normal);
+  // Newell's area-weighted polygon normal works for concave and collinear
+  // corner sequences. A single local cross could flip on a reflex vertex.
+  double[] origin=vertices.get(loop[0]).position();
+  double[] normal={0,0,0};
+  for(int i=0;i<loop.length;i++){
+   double[] a=sub(vertices.get(loop[i]).position(),origin);
+   double[] b=sub(vertices.get(loop[(i+1)%loop.length]).position(),origin);
+   double[] c=cross(a,b);
+   for(int k=0;k<3;k++)normal[k]+=c[k];
   }
-  throw new IllegalArgumentException("Degenerate polygon face");
+  return unit(normal);
  }
  private static String stableCornerId(Corner c,List<Line> lines){
   if(c.edges.size()!=2)throw new IllegalArgumentException("Open or branching polygon sketch");
