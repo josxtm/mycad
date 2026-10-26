@@ -192,4 +192,168 @@ public final class OrthogonalPolygonBRepBoolean {
    throw new IllegalArgumentException("Volumen B-Rep incompatible con sección");
   return new Result(result,operation);
  }
+
+
+ /**
+  * Multiple analytic disconnected solids in ONE saved GPU result mesh.
+  * Every component is an independent closed B-Rep shell, so Euler = 2
+  * separately; no holes / inner loops / vertex-only contacts are accepted.
+  */
+ public static final class MultiResult {
+  private final List<PolygonPrismBRep> shells;
+  private final float[] tessellation;
+  public final Operation operation;
+  public final int plane,shellCount;
+  public final double area,volume,distance;
+  private MultiResult(List<PolygonPrismBRep> bodies,Operation operation,
+                      double distance,int plane){
+   if(bodies.isEmpty()||bodies.size()>16)
+    throw new IllegalArgumentException("Número de cuerpos B-Rep no admitido");
+   this.shells=Collections.unmodifiableList(new ArrayList<>(bodies));
+   this.operation=operation;this.distance=distance;this.plane=plane;
+   shellCount=bodies.size();
+   double a=0,v=0;
+   int len=0;
+   for(PolygonPrismBRep body:bodies){
+    if(body.plane()!=plane||body.distance()!=distance)
+     throw new IllegalArgumentException("Cascarones B-Rep incompatibles");
+    a+=body.sectionArea();v+=body.volume();
+    len+=body.triangles().length;
+   }
+   if(len>18000)throw new IllegalArgumentException("Malla multisólido demasiado grande");
+   area=a;volume=v;
+   tessellation=new float[len];
+   int at=0;
+   for(PolygonPrismBRep body:bodies){
+    float[] triangle=body.triangles();
+    System.arraycopy(triangle,0,tessellation,at,triangle.length);
+    at+=triangle.length;
+   }
+  }
+  public List<PolygonPrismBRep> solids(){return shells;}
+  public float[] triangles(){return tessellation.clone();}
+ }
+
+ /** Enumerate every directed boundary contour, deterministically sorted
+  * by minimal grid vertex index; counterclockwise loops are solids,
+  * clockwise loops are HOLES and not yet representable. */
+ private static List<List<double[]>> extractMultiple(double[] xs,double[] ys,
+                                                      boolean[][] cells){
+  int nx=xs.length-1,ny=ys.length-1,width=xs.length;
+  Map<Integer,Integer> edges=new TreeMap<>();
+  for(int i=0;i<nx;i++)for(int j=0;j<ny;j++)if(cells[i][j]){
+   int bl=node(i,j,width),br=node(i+1,j,width),
+       tr=node(i+1,j+1,width),tl=node(i,j+1,width);
+   if(j==0||!cells[i][j-1])add(edges,bl,br);
+   if(i==nx-1||!cells[i+1][j])add(edges,br,tr);
+   if(j==ny-1||!cells[i][j+1])add(edges,tr,tl);
+   if(i==0||!cells[i-1][j])add(edges,tl,bl);
+  }
+  if(edges.size()<4||edges.size()>2500)
+   throw new IllegalArgumentException("El resultado B-Rep no tiene contornos válidos");
+  Set<Integer> visited=new HashSet<>();
+  ArrayList<List<double[]>> contours=new ArrayList<>();
+  for(Integer begin:edges.keySet()){
+   if(visited.contains(begin))continue;
+   ArrayList<double[]> ring=new ArrayList<>();
+   int current=begin;
+   do{
+    if(!visited.add(current))
+     throw new IllegalArgumentException("Ciclo B-Rep ambiguo");
+    ring.add(new double[]{xs[current%width],ys[current/width]});
+    Integer next=edges.get(current);
+    if(next==null)throw new IllegalArgumentException("Contorno B-Rep abierto");
+    current=next;
+   }while(current!=begin);
+   // Internal cavity rims are clockwise, distinct from outer shells.
+   for(int i=0;ring.size()>3&&i<ring.size();){
+    int n=ring.size();
+    double[] a=ring.get((i+n-1)%n),b=ring.get(i),
+             c=ring.get((i+1)%n);
+    double u=b[0]-a[0],v=b[1]-a[1],w=c[0]-b[0],z=c[1]-b[1];
+    if(Math.abs(u*z-v*w)<=EPS&&u*w+v*z>=0){
+     ring.remove(i);if(i>0)i--;
+    }else i++;
+   }
+   if(ring.size()<4||ring.size()>100)
+    throw new IllegalArgumentException("Cascarón B-Rep degenerado");
+   if(twiceArea(ring)<=EPS)
+    throw new IllegalArgumentException("Agujeros interiores B-Rep aún no admitidos");
+   contours.add(ring);
+   if(contours.size()>16)
+    throw new IllegalArgumentException("Máximo 16 componentes B-Rep");
+  }
+  if(visited.size()!=edges.size())
+   throw new IllegalArgumentException("Bordes sin componente B-Rep");
+  return contours;
+ }
+
+ private static PolygonPrismBRep makeShell(
+     PolygonPrismBRep first,PolygonPrismBRep second,
+     Operation operation,double height,List<double[]> contour){
+  String firstId=first.id(),secondId=second.id();
+  if(operation!=Operation.DIFFERENCE&&firstId.compareTo(secondId)>0){
+   String t=firstId;firstId=secondId;secondId=t;
+  }
+  StringBuilder seed=new StringBuilder(firstId).append('|').append(secondId)
+    .append('|').append(operation).append('|').append(height)
+    .append('|').append(first.plane());
+  for(double[] corner:contour)seed.append('|')
+     .append((float)corner[0]).append(',').append((float)corner[1]);
+  String id=UUID.nameUUIDFromBytes(seed.toString()
+    .getBytes(StandardCharsets.UTF_8)).toString();
+  List<String> ids=new ArrayList<>();
+  Map<String,ClosedSketchExtrusion.Segment> lines=new LinkedHashMap<>();
+  for(int i=0;i<contour.size();i++){
+   double[] a=contour.get(i),b=contour.get((i+1)%contour.size());
+   String lineId=UUID.nameUUIDFromBytes((id+"/line/"+i)
+     .getBytes(StandardCharsets.UTF_8)).toString();
+   ids.add(lineId);
+   lines.put(lineId,new ClosedSketchExtrusion.Segment(first.plane(),
+       (float)a[0],(float)a[1],(float)b[0],(float)b[1]));
+  }
+  return new LoopExtrusionFeature(id,ids.get(0),
+          first.plane(),height,ids).asBRep(lines);
+ }
+
+ /**
+  * Extended operation supporting multiple DISJOINT solid shells. It does
+  * not change the original single-shell apply() result or its persisted
+  * coordinates, preserving existing JSON history compatibility.
+  */
+ public static MultiResult applyMulti(PolygonPrismBRep first,PolygonPrismBRep second,
+                                     Operation operation){
+  if(first==null||second==null||operation==null||
+      first.plane()!=second.plane())
+   throw new IllegalArgumentException("Booleanas múltiples: plano u operación incompatibles");
+  double height=first.distance(),other=second.distance();
+  if(!Double.isFinite(height)||!Double.isFinite(other)||
+      Math.abs(height-other)>EPS*Math.max(1,Math.abs(height)))
+   throw new IllegalArgumentException("Booleanas múltiples: alturas distintas");
+  List<double[]> a=points(first),b=points(second);
+  double[] xs=coordinates(a,b,0),ys=coordinates(a,b,1);
+  boolean[][] cells=new boolean[xs.length-1][ys.length-1];
+  double area=0;
+  for(int i=0;i<xs.length-1;i++)for(int j=0;j<ys.length-1;j++){
+   double x=(xs[i]+xs[i+1])/2,y=(ys[j]+ys[j+1])/2;
+   cells[i][j]=retain(inside(a,x,y),inside(b,x,y),operation);
+   if(cells[i][j])area+=(xs[i+1]-xs[i])*(ys[j+1]-ys[j]);
+  }
+  if(area<=EPS)throw new IllegalArgumentException("Sin volumen de booleana multisólido");
+  List<List<double[]>> contour=extractMultiple(xs,ys,cells);
+  if(contour.size()==1){
+   Result old=apply(first,second,operation);
+   return new MultiResult(Collections.singletonList(old.solid),
+     operation,height,first.plane());
+  }
+  List<PolygonPrismBRep> shells=new ArrayList<>();
+  for(List<double[]> loop:contour)
+   shells.add(makeShell(first,second,operation,height,loop));
+  MultiResult result=new MultiResult(shells,operation,height,first.plane());
+  if(Math.abs(result.area-area)>1e-5*Math.max(1,area)||
+      Math.abs(result.volume-area*Math.abs(height))>
+        1e-5*Math.max(1,area*Math.abs(height)))
+   throw new IllegalArgumentException("Conservación de área/volumen multisólido fallida");
+  return result;
+ }
 }
