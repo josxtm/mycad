@@ -159,6 +159,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/TouchDragThreshold.java \
   app/src/main/java/es/josxtm/mycad/cad/CadRayPicker.java \
   app/src/main/java/es/josxtm/mycad/cad/MeshRayIndex.java \
+  app/src/main/java/es/josxtm/mycad/cad/ThreeFingerHomePolicy.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -178,7 +179,8 @@ javac -d build/box-brep-tests \
   tests/SurfaceTapPolicyTest.java \
   tests/CameraRefitPolicyTest.java \
   tests/TouchDragThresholdTest.java \
-  tests/MeshRayIndexTest.java
+  tests/MeshRayIndexTest.java \
+  tests/ThreeFingerHomePolicyTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -199,6 +201,7 @@ java -cp build/box-brep-tests SurfaceTapPolicyTest
 java -cp build/box-brep-tests CameraRefitPolicyTest
 java -cp build/box-brep-tests TouchDragThresholdTest
 java -cp build/box-brep-tests MeshRayIndexTest
+java -cp build/box-brep-tests ThreeFingerHomePolicyTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -505,6 +508,23 @@ assert "mesh.rayIndex().pick(p[0],p[1],p[2],dx,dy,dz)" in m
 assert "chosenIndex=offset+hit.triangle" in m
 assert "offset+=mesh.triangles();" in m
 print("Broad phase AABB preserva índices globales, picking visible y B-Rep: OK")
+PY
+
+# Three-finger home command cannot dispatch CAD ray picking.
+python3 - <<'PY'
+from pathlib import Path
+m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+assert "ThreeFingerHomePolicy.canStart(" in m
+assert "ThreeFingerHomePolicy.shouldReset(" in m
+assert "homePointerIds[k]=e.getPointerId(k)" in m
+assert "e.findPointerIndex(homePointerIds[k])" in m
+assert "if(suppressUntilLastUp){" in m
+assert "yaw=35;pitch=25;" in m
+assert "fitCamera();" in m
+assert m.index("if(threeFingerTracking){")<m.index("if(e.getPointerCount()>1&&faceHandleCaptured)")
+assert "twoFingerMoved=true;" in m
+assert "SurfaceTapPolicy.shouldPick(" in m
+print("Tres dedos recuperan vista 3D sin orbit/picking accidental: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
