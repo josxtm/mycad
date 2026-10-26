@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
  ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
- static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104; MeshEngine meshView; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
+ static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104; MeshEngine meshView; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
@@ -378,7 +378,7 @@ public class MainActivity extends Activity {
   faceDragEnabled=false;
   meshView.setFaceDragHandle(null,0,null);
   isolatedMeshPreview=false;
-  activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;
+  activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
   meshView.highlightFace(-1);meshView.highlightEdge(null);
   meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
  }
@@ -386,7 +386,7 @@ public class MainActivity extends Activity {
   if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
       showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=true;meshView.setVisibility(View.VISIBLE);
-  isolatedMeshPreview=true;activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;
+  isolatedMeshPreview=true;activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
   meshView.highlightFace(-1);
   meshView.setMeshes(java.util.Collections.singletonList(mesh));
   info.setText("Resultado booleano · "+mesh.triangles()+" triángulos");
@@ -934,7 +934,7 @@ public class MainActivity extends Activity {
    String prior=encode();
    ParsedDesign restored=decode(src.peek());
    src.pop();dst.push(prior);
-   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;if(meshView!=null)meshView.highlightFace(-1);
+   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);
    parts=restored.parts;sketches=restored.sketches;
    booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;
    extrusionChains=restored.chains;chainFeatures=restored.features;
@@ -945,7 +945,7 @@ public class MainActivity extends Activity {
  }
  void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
  void save(){try{getPreferences(MODE_PRIVATE).edit().putString("design",encode()).apply();updateStep();}catch(Exception e){toast("No se pudo guardar el borrador interno");}}
- void load(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
+ void load(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
  protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putString("pendingExport",pendingExport);}
 
  void addTri(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r){for(float v:p)a.add(v);for(float v:q)a.add(v);for(float v:r)a.add(v);}
@@ -974,8 +974,8 @@ public class MainActivity extends Activity {
  }
  void showGpuSurfaceSelection(int triangle,double x,double y,double z,
     double ox,double oy,double oz,double dx,double dy,double dz){
-  activeExactFaceHit=null;
-  if(isolatedMeshPreview){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;if(meshView!=null)meshView.highlightEdge(null);info.setText("Vista previa · sin selección de piezas");return;}
+  activeExactFaceHit=null;activeExactEdgeHit=null;
+  if(isolatedMeshPreview){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightEdge(null);info.setText("Vista previa · sin selección de piezas");return;}
   boolean handled=false;
   if(cadGpuMesh){
    es.josxtm.mycad.cad.PrimitiveTopologyMap map=new es.josxtm.mycad.cad.PrimitiveTopologyMap();
@@ -1045,13 +1045,14 @@ public class MainActivity extends Activity {
          solid,meshView.cameraDistance(),meshView.getHeight(),
          getResources().getDisplayMetrics().density));
      activeAnalyticEdgeId=boundary==null?null:boundary.edgeId;
+     activeExactEdgeHit=boundary;
      if(boundary!=null){
       description+=" · Arista "+boundary.edgeId.substring(boundary.edgeId.lastIndexOf('/')+1);
       if(meshView!=null)meshView.highlightEdge(
        es.josxtm.mycad.cad.PrimitiveEdgeCurve.points(solid,boundary.edgeId,64));
      }else if(meshView!=null)meshView.highlightEdge(null);
     }catch(IllegalArgumentException ignored){
-     activeAnalyticEdgeId=null;
+     activeAnalyticEdgeId=null;activeExactEdgeHit=null;
      if(meshView!=null)meshView.highlightEdge(null);
     }
     if(meshView!=null)meshView.highlightFace(hit.highlightTriangle());
@@ -1060,7 +1061,7 @@ public class MainActivity extends Activity {
    }
   }
   if(!handled){
-   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;
+   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
    if(meshView!=null){meshView.highlightFace(-1);meshView.highlightEdge(null);}
    info.setText(String.format(java.util.Locale.US,"Triángulo %d · X %.1f Y %.1f Z %.1f mm",triangle+1,x,y,z));
    selectChainTriangle(triangle);
@@ -1535,8 +1536,13 @@ public class MainActivity extends Activity {
       throw new IllegalArgumentException("Edited since selected");
      final es.josxtm.mycad.cad.PrimitiveMovePreview session=
       es.josxtm.mycad.cad.PrimitiveMovePreview.forEdge(original,edgeId);
+     // A GPU hit keeps its original geometry; the inspector uses the
+     // nominal edge midpoint/rim point because it has no touch location.
+     final es.josxtm.mycad.cad.AnalyticEdgePicker.Hit touched=activeExactEdgeHit;
      final es.josxtm.mycad.cad.PrimitiveEdgeHandle handle=
-      es.josxtm.mycad.cad.PrimitiveEdgeHandle.from(original,edgeId,axis);
+      touched!=null&&edgeId.equals(touched.edgeId)?
+       es.josxtm.mycad.cad.PrimitiveEdgeHandle.fromHit(original,touched,axis):
+       es.josxtm.mycad.cad.PrimitiveEdgeHandle.from(original,edgeId,axis);
      final double maxMotion=Math.max(2,Math.min(100,
        Math.min(original.width,Math.min(original.depth,original.height))*.8));
      faceDragEnabled=true;
@@ -1593,7 +1599,7 @@ public class MainActivity extends Activity {
             checkpoint();
             part.w=width;part.d=depth;part.h=height;
             part.x=xx;part.y=yy;part.z=zz;
-            activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;
+            activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
             save();scene.invalidate();
             toast("Arista movida · deshacer disponible");
            }catch(Exception problem){toast("Movimiento cancelado: medidas o selección inválidas");}
@@ -1697,7 +1703,7 @@ public class MainActivity extends Activity {
         checkpoint();
         part.w=ww;part.d=dd;part.h=hh;
         part.x=xx;part.y=yy;part.z=zz;
-        activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;
+        activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
         save();scene.invalidate();
         toast("Cara desplazada · deshacer disponible");
        }catch(Exception error){
@@ -1788,7 +1794,7 @@ public class MainActivity extends Activity {
       throw new IllegalArgumentException("Resultado fuera de rango");
      checkpoint();
      part.w=w;part.d=depth;part.h=h;part.x=xx;part.y=yy;part.z=zz;
-     activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;
+     activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
      save();scene.invalidate();
      toast("Geometría confirmada · deshacer disponible");
     }catch(Exception invalid){
@@ -1905,7 +1911,7 @@ public class MainActivity extends Activity {
         w<=0||d<=0||h<=0)throw new IllegalArgumentException("Cotas no válidas");
      checkpoint();
      part.w=w;part.d=d;part.h=h;part.x=x;part.y=y;part.z=z;
-     activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;
+     activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
      save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast("Arista modificada · deshacer y guardar disponibles");
@@ -1953,7 +1959,7 @@ public class MainActivity extends Activity {
        "ID: %s\nTipo: %s\nLongitud: %.3f mm\nCaras adyacentes:\n%s",
        e.id,e.kind,e.length,e.adjacentFaceIds().toString());
       // The inspector is also a precise selection path when touch tolerance is insufficient.
-      activeAnalyticEdgeId=e.id;
+      activeAnalyticEdgeId=e.id;activeExactEdgeHit=null;
       new AlertDialog.Builder(this).setTitle("Arista analítica").setMessage(details)
        .setNegativeButton("Cerrar",null)
        .setPositiveButton("Editar desplazamiento",(confirmation,which)->{
@@ -2027,7 +2033,7 @@ public class MainActivity extends Activity {
  }
  void toggleCadGpuMesh(){
   if(faceDragEnabled)finishFaceDrag();
-  activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;cadGpuMesh=!cadGpuMesh;
+  activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;cadGpuMesh=!cadGpuMesh;
   if(meshMode&&meshView!=null)renderCurrentCadMesh();
   toast(cadGpuMesh?"Visor CAD experimental · prismas y cilindros XYZ":"Visor clásico restaurado");
  }
@@ -2114,7 +2120,7 @@ public class MainActivity extends Activity {
  }
  }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AlertDialog.Builder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
  }
- void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
+ void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
  void guide(){new AlertDialog.Builder(this).setTitle("Guía · De la idea al archivo").setMessage(
  "1. NUEVO: empieza con el lienzo vacío.\n\n"+
  "2. RECTÁNGULO o CÍRCULO: introduce medidas en mm y el espesor. APLICAR crea la pieza. Por ahora se introducen medidas; no se dibuja a mano.\n\n"+
