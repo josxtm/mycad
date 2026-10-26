@@ -41,3 +41,18 @@ La CI ejecuta estas pruebas Java, integridad, tests Android y Lint sin APK.
 Este cambio no crea un kernel B-Rep general, no mejora la edición de
 mallas STL/OBJ ni garantiza todavía la ergonomía táctil. Debe validarse
 visualmente en el Nothing Phone 2a en un futuro hito 0.6.0.
+
+## Protección frente a cambios de revisión geométrica
+
+Un impacto analítico ahora conserva una **firma de la geometría de la
+primitiva** (tipo, dimensiones, traslación y rotación XYZ). Antes de reutilizar
+el punto tocado, `PrimitiveFaceHandle.fromHit` compara esa firma con el cuerpo
+actual. Así se rechaza también un impacto obsoleto cuando cambia la cara
+**opuesta** y la cara tocada permanece exactamente en el mismo lugar: comprobar
+solo la pertenencia al plano no detectaba esa edición. También se rechazan
+traslaciones y giros posteriores; una reconstrucción idéntica sigue siendo
+válida. La firma no es una versión persistente ni un identificador de
+topología general.
+
+Las regresiones cubren cambios de cara opuesta, posición y giro, además de
+la reconstrucción idéntica. Sin APK ni pruebas táctiles nuevas.
