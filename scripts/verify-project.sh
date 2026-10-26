@@ -184,7 +184,7 @@ from pathlib import Path
 src=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
 for token in (
  "void editSelectedCylinderFace()",
- "activeCylinderFaceId=hit.faceId",
+ "activeCylinderFaceId=exactFace==null?hit.faceId:exactFace;",
  "PrimitiveBRepBody analyticBody(Part part)",
  "part.w=diameter;part.d=diameter;part.h=height;",
  "partIndex>=parts.size()||parts.get(partIndex)!=part",
