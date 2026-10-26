@@ -2,6 +2,18 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Bocetos DXF 2D XY (0.6.0):** importación y exportación ASCII DXF
+en milímetros de líneas, círculos y rectángulos ortogonales (polilínea
+LWPOLYLINE cerrada de cuatro vértices). La importación valida todas las
+entidades y añade perfiles en una sola operación deshacible, sin sustituir
+el diseño original; rechaza geometría DXF no compatible y unidades
+distintas de mm (o archivos sin unidad). XZ/YZ no se proyectan ni
+exportan silenciosamente, y las piezas 3D no se convierten en DXF.
+Pruebas de ida/vuelta, unidades, errores y límites de tamaño en CI.
+No es un importador DXF completo, ni soporta splines, arcos o cotas
+DXF. Sin APK en este incremento. Véase
+[intercambio DXF limitado](CAD_DXF_SKETCH_XY.md).
+
 **Raycast independiente de la escala (0.6.0):** el selector de triángulos compara el determinante con el producto de las longitudes de sus aristas, en lugar de usar un mínimo absoluto que ocultaba caras de 1 µm. Se prueban impactos, fallos y equivalencia con el índice BVH; sin APK ni validación táctil. Véase [selección a escala](CAD_RAY_PICKING_SCALE.md).
 
 **Áreas degeneradas independientes de escala (0.6.0):** se elimina el umbral absoluto de área que rechazaba triángulos legítimos de sólidos diminutos o alargados; se detectan como degenerados solo triángulos de área exactamente nula y esquinas repetidas, manteniendo la comprobación de volumen por componente. Regresiones con tetraedros de 1 µm y altas relaciones de aspecto. Sin APK; véase [áreas a escala](CAD_MESH_SCALE_DEGENERACY.md).
