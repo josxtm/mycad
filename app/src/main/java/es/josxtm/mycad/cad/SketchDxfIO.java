@@ -194,27 +194,31 @@ public final class SketchDxfIO {
    }
    pairs.add(new Pair(code,value));
   }
-  String section="";boolean entitiesSeen=false,unitsPending=false;
+  String section="";boolean entitiesSeen=false,unitsPending=false,unitsSeen=false,headerSeen=false;
   List<Shape> output=new ArrayList<>();
   for(int i=0;i<pairs.size();){
    Pair tag=pairs.get(i);
    if("HEADER".equals(section)){
     if(unitsPending){
      if("70".equals(tag.code)){
-      int unit=(int)num(tag.value,"$INSUNITS");
-      if(!("0".equals(tag.value)||"4".equals(tag.value)))
+      if(!"4".equals(tag.value))
        throw new IllegalArgumentException("Unidades DXF incompatibles: se requieren mm");
-      unitsPending=false;
+      unitsSeen=true;unitsPending=false;
      }else if("9".equals(tag.code)||"0".equals(tag.code))
       throw new IllegalArgumentException("Valor de $INSUNITS ausente");
     }
-    if("9".equals(tag.code)&&"$INSUNITS".equals(tag.value))unitsPending=true;
+    if("9".equals(tag.code)&&"$INSUNITS".equals(tag.value)){
+     if(unitsSeen||unitsPending)
+      throw new IllegalArgumentException("Unidades DXF duplicadas");
+     unitsPending=true;
+    }
    }
    if("0".equals(tag.code)){
     if("SECTION".equals(tag.value)){
      if(i+1>=pairs.size()||!"2".equals(pairs.get(i+1).code))
       throw new IllegalArgumentException("Sección DXF incorrecta");
      section=pairs.get(i+1).value;
+     if("HEADER".equals(section))headerSeen=true;
      if("ENTITIES".equals(section))entitiesSeen=true;
      i+=2;continue;
     }
@@ -229,6 +233,9 @@ public final class SketchDxfIO {
    }
    i++;
   }
+  if(unitsPending)throw new IllegalArgumentException("Valor de $INSUNITS ausente");
+  if(!headerSeen||!unitsSeen)
+   throw new IllegalArgumentException("DXF sin unidades explícitas en milímetros ($INSUNITS=4)");
   if(!entitiesSeen||output.isEmpty())
    throw new IllegalArgumentException("DXF sin bocetos XY compatibles");
   return Collections.unmodifiableList(output);

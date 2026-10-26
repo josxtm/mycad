@@ -637,3 +637,15 @@ print("Extrusión bidireccional XY/XZ/YZ: normals, volumen y UI integrados")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
+
+# Integración Android: la validación de unidades DXF debe finalizar antes del undo/guardado.
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+block=src[src.index("void handleDxfSketchResult("):src.index("void importMesh(){")]
+assert "imported=es.josxtm.mycad.cad.SketchDxfIO.read(input);" in block
+assert block.index("SketchDxfIO.read(input)") < block.index("checkpoint();sketches.addAll(staged);")
+assert "if(sketches.size()+staged.size()>2000)" in block
+assert 'setTitle("DXF no compatible")' in block
+print("Android DXF: validar antes de modificar bocetos y conservar proyecto ante error: OK")
+PY
