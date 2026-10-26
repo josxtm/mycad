@@ -4,6 +4,14 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Asa de arista en el punto realmente tocado:** el selector conserva
+la posición exacta sobre la arista y el control de arrastre la reutiliza
+si la geometría sigue idéntica. En cilindros la normal radial gira con
+el punto tocado; el inspector mantiene un asa nominal. Pruebas Java y
+Android en CI sin APK; véase
+[anclaje táctil de aristas](CAD_BREP_EDGE_DRAG.md).
+
+
 **Selección de aristas según la cara visible:** el visor restringe la
 clasificación analítica a las aristas incidentes de la cara seleccionada
 por la malla/refinamiento analítico. Evita escoger bordes de otra cara

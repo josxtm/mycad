@@ -316,6 +316,7 @@ block=activity[activity.index("void toggleEdgeDragOnModel(){"):
 for marker in (
  "case 25:toggleEdgeDragOnModel();break;",
  "PrimitiveEdgeHandle.from(original,edgeId,axis)",
+ "PrimitiveEdgeHandle.fromHit(original,touched,axis)",
  "session.propose(first,second)",
  "meshView.previewMesh(experimentalCadMeshPreview(partIndex,proposed))",
  "session.matches(analyticBody(part))",
@@ -326,6 +327,8 @@ for marker in (
 ):
     if marker not in (block if not marker.startswith("case") else activity):
         raise SystemExit("ERROR: arrastre arista B-Rep incompleto: "+marker)
+assert "activeExactEdgeHit=boundary;" in activity
+assert "activeExactEdgeHit=null;" in activity
 assert block.index("checkpoint();")<block.index("save();scene.invalidate();")
 print("Arrastre tactil de aristas analiticas: OK")
 PY

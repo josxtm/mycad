@@ -44,6 +44,50 @@ public final class PrimitiveEdgeHandleTest {
     ok(edited.findEdge(edge.id)!=null,"Ring survives move");
    }
   }
+  // The visual handle follows the actual touched position, not a fixed
+  // midpoint or the cylinder's local +X rim point.
+  double[] touchedLine=pose.point(7,-5,0);
+  AnalyticEdgePicker.Hit boxHit=AnalyticEdgePicker.nearestEdgeOnFace(
+      box,"B/face/Z_MIN",touchedLine[0],touchedLine[1],touchedLine[2],.001);
+  ok(boxHit!=null&&boxHit.edgeId.equals("B/edge/X_0"),"Box hit edge");
+  int bottomIndex=box.findEdge(boxHit.edgeId).adjacentFaceIds()
+      .indexOf("B/face/Z_MIN");
+  PrimitiveEdgeHandle touchedBox=PrimitiveEdgeHandle.fromHit(box,boxHit,bottomIndex);
+  point(touchedBox.anchor(),touchedLine,"Off-centre touched line");
+  point(touchedBox.normal(),box.findFace("B/face/Z_MIN").outwardNormalAt(0),
+        "Touched box normal");
+  PrimitiveBRepBody identical=PrimitiveBRepBody.box("B",20,10,8,pose);
+  point(PrimitiveEdgeHandle.fromHit(identical,boxHit,bottomIndex).anchor(),
+        touchedLine,"Reconstructed identical box accepted");
+  PrimitiveBRepBody edited=box.offsetFace("B/face/Z_MAX",1);
+  rejects(()->PrimitiveEdgeHandle.fromHit(edited,boxHit,bottomIndex),
+      "Hit invalidated by opposite face edit");
+  PrimitiveBRepBody shifted=PrimitiveBRepBody.box("B",20,10,8,
+      new RigidTransform(36,-21,13,15,30,48));
+  rejects(()->PrimitiveEdgeHandle.fromHit(shifted,boxHit,bottomIndex),
+      "Hit invalidated by translation");
+  rejects(()->PrimitiveEdgeHandle.fromHit(cylinder,boxHit,0),
+      "Hit from a different body");
+
+  double[] touchedCircle=pose.point(0,10,8);
+  AnalyticEdgePicker.Hit rimHit=AnalyticEdgePicker.nearestEdgeOnFace(
+      cylinder,"C/face/CYLINDER_SIDE",
+      touchedCircle[0],touchedCircle[1],touchedCircle[2],.001);
+  ok(rimHit!=null&&rimHit.edgeId.endsWith("CYLINDER_TOP"),"Touched circular rim");
+  PrimitiveEdgeHandle touchedRim=PrimitiveEdgeHandle.fromHit(cylinder,rimHit,0);
+  point(touchedRim.anchor(),touchedCircle,"Rim anchor follows touch angle");
+  point(touchedRim.normal(),
+      cylinder.findFace("C/face/CYLINDER_SIDE").outwardNormalAt(Math.PI/2),
+      "Curved side normal follows touch angle");
+  PrimitiveEdgeHandle topRim=PrimitiveEdgeHandle.fromHit(cylinder,rimHit,1);
+  point(topRim.normal(),
+      cylinder.findFace("C/face/CYLINDER_TOP").outwardNormalAt(0),
+      "Top cap keeps its axial normal");
+  rejects(()->PrimitiveEdgeHandle.fromHit(
+      cylinder.offsetFace("C/face/CYLINDER_BOTTOM",1),rimHit,0),
+      "Rim hit invalidated by opposite cap edit");
+  rejects(()->PrimitiveEdgeHandle.fromHit(box,null,0),"Null hit");
+
   double[] defensive=x.anchor();defensive[0]=1e10;
   ok(x.anchor()[0]!=1e10,"Anchor defensive");
   float[] buf=x.gpu();buf[0]=1e10f;
