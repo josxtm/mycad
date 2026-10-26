@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Raycast analítico estable en coordenadas grandes:** la dirección del rayo se transforma solo por rotación, sin restar dos puntos mundiales de gran magnitud. Evita pérdidas de precisión al seleccionar caras B-Rep de prismas/cilindros alejados del origen; regresiones de rotación y traslación a escala de 10¹² mm. CI Java/Android, sin APK ni validación táctil.
+
 **Selección jerárquica de mallas grandes:** un árbol AABB binario sobre bloques de 64 triángulos permite descartar subárboles completos durante el raycast. Conserva índices globales y desempates; regresiones frente al raycast lineal con 96 bloques y 250 rayos deterministas. Sin APK ni pruebas de rendimiento en móvil. Véase [índice jerárquico](CAD_MESH_RAY_BVH.md).
 
 **Tres dedos → vista inicial 3D:** toque simultáneo rápido de tres dedos restablece orientación isométrica (35°/25°), centro y distancia adaptados al sólido. El gesto no se confunde con pellizco ni con selección de caras, y cancela arrastre de gizmos. Pruebas Java/CI Android, sin APK.

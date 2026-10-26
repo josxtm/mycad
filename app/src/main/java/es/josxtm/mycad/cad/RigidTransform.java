@@ -27,6 +27,20 @@ public final class RigidTransform {
   double x=x2*cy-z2*sy,z1=x2*sy+z2*cy;
   return new double[]{x,y1*cx+z1*sx,-y1*sx+z1*cx};
  }
+ /**
+  * Rotate a world-space direction into local coordinates without translation.
+  * Unlike inversePoint(origin + direction) - inversePoint(origin), this does
+  * not lose the small direction vector when the model is far from (0,0,0).
+  */
+ public double[] inverseDirection(double wx,double wy,double wz){
+  if(!Double.isFinite(wx)||!Double.isFinite(wy)||!Double.isFinite(wz))
+   throw new IllegalArgumentException("Nonfinite direction");
+  double ax=Math.toRadians(rx),ay=Math.toRadians(ry),az=Math.toRadians(rz);
+  double cx=Math.cos(ax),sx=Math.sin(ax),cy=Math.cos(ay),sy=Math.sin(ay),cz=Math.cos(az),sz=Math.sin(az);
+  double x2=wx*cz+wy*sz,y1=-wx*sz+wy*cz,z2=wz;
+  double x=x2*cy-z2*sy,z1=x2*sy+z2*cy;
+  return new double[]{x,y1*cx+z1*sx,-y1*sx+z1*cx};
+ }
  public double[][] vertices(CadKernel.Box box){
   if(box==null)throw new IllegalArgumentException("Box required");
   double[][] v=new double[8][];int n=0;
