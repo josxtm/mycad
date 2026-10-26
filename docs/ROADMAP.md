@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Nuevo imán de precisión:** movimiento de caras/aristas con arrastre libre o incrementos de 0,1 / 0,5 / 1 mm, simétrico en sentidos positivos y negativos y con límite geométrico. Preferencia local persistente; pruebas sin APK.
+
 **Prototipo de arrastre de aristas:** elegir borde B-Rep y una de sus dos normales incidentes para moverlo directamente en el visor con vista previa, confirmación y deshacer; la otra dirección permanece fija. No equivale a filetes ni deformación libre.
 
 **Prototipo de arrastre sobre sólido (sin APK):** cara B-Rep seleccionada con punto/asa proyectada al visor GPU, arrastre táctil restringido a su normal mundial, vista previa reversible, confirmación con undo/persistencia solo al aceptar. Requiere calibración táctil y visual en Nothing Phone 2a.
