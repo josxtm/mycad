@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;}}).show();}
  es.josxtm.mycad.cad.ParametricFeatureGraph buildParametricFeatureGraph(){
   es.josxtm.mycad.cad.ParametricFeatureGraph.Builder builder=
    new es.josxtm.mycad.cad.ParametricFeatureGraph.Builder();
@@ -1406,6 +1406,141 @@ public class MainActivity extends Activity {
   * Both adjacent faces are moved atomically; a real touchscreen drag
   * manipulator requires a later GPU projection/gesture stage.
   */
+ /**
+  * Two-phase edit: while the slider(s) move, only the GL preview is replaced.
+  * The actual Part, undo/redo history and JSON remain untouched until Apply.
+  * Cancel (including Android Back) restores the complete saved scene.
+  */
+ void previewSelectedBRepMove(){
+  if(fileBusy||!cadGpuMesh||!meshMode||meshView==null||
+     isolatedMeshPreview||selected<0||selected>=parts.size()){
+   toast("Activa el visor CAD 3D y selecciona una cara o arista");return;
+  }
+  final int partIndex=selected;
+  final Part part=parts.get(partIndex);
+  if(!part.sourceSketchId.isEmpty()){
+   toast("Pieza vinculada: modifica primero el boceto de origen");return;
+  }
+  final es.josxtm.mycad.cad.PrimitiveBRepBody initial;
+  final es.josxtm.mycad.cad.PrimitiveMovePreview session;
+  try{
+   initial=analyticBody(part);
+   String edgeId=activeAnalyticEdgeId;
+   String faceId=part.circle?activeCylinderFaceId:
+    activeCadFace==null?null:activeCadFace.key();
+   if(edgeId!=null&&initial.findEdge(edgeId)!=null)
+    session=es.josxtm.mycad.cad.PrimitiveMovePreview.forEdge(initial,edgeId);
+   else
+    session=es.josxtm.mycad.cad.PrimitiveMovePreview.forFace(initial,faceId);
+  }catch(Exception invalid){
+   toast("Toca una cara o arista del sólido antes de previsualizar");return;
+  }
+  final boolean edge=session.target==es.josxtm.mycad.cad.PrimitiveMovePreview.Target.EDGE;
+  final String id=session.entityId;
+  final int axes=edge?2:1;
+  final double scale=Math.min(100,Math.max(5,
+    Math.min(initial.width,Math.min(initial.depth,initial.height))*.6));
+  final LinearLayout panel=new LinearLayout(this);
+  panel.setOrientation(LinearLayout.VERTICAL);
+  panel.setPadding(dp(14),dp(8),dp(14),dp(8));
+  final TextView status=new TextView(this);
+  status.setText("Mueve los controles para mostrar la pieza provisional.");
+  panel.addView(status);
+  final SeekBar[] sliders=new SeekBar[axes];
+  for(int i=0;i<axes;i++){
+   TextView title=new TextView(this);
+   String faceLabel=edge?initial.findEdge(id).adjacentFaceIds().get(i):
+    id;
+   title.setText("Cara "+faceLabel.substring(faceLabel.lastIndexOf('/')+1));
+   panel.addView(title);
+   SeekBar seek=new SeekBar(this);
+   seek.setMax(200);
+   seek.setProgress(100);
+   sliders[i]=seek;
+   panel.addView(seek);
+  }
+  final es.josxtm.mycad.cad.PrimitiveBRepBody[] pending={null};
+  final double[] offsets={0,0};
+  final AlertDialog dialog=new AlertDialog.Builder(this)
+   .setTitle(edge?"Previsualizar movimiento de arista":"Previsualizar movimiento de cara")
+   .setView(panel)
+   .setNegativeButton("Cancelar",null)
+   .setPositiveButton("Aplicar",(d,which)->{
+    try{
+     if(pending[0]==null||partIndex>=parts.size()||
+        parts.get(partIndex)!=part||selected!=partIndex||fileBusy||
+        !part.sourceSketchId.isEmpty()||
+        !session.matches(analyticBody(part))||
+        !(edge?id.equals(activeAnalyticEdgeId):
+          id.equals(part.circle?activeCylinderFaceId:
+                   activeCadFace==null?null:activeCadFace.key())))
+      throw new IllegalArgumentException("La pieza cambió desde la previsualización");
+     es.josxtm.mycad.cad.PrimitiveBRepBody confirmed=
+      session.propose(offsets[0],offsets[1]);
+     float w=(float)confirmed.width,depth=(float)confirmed.depth,
+      h=(float)confirmed.height,xx=(float)confirmed.x,
+      yy=(float)confirmed.y,zz=(float)confirmed.z;
+     if(!Float.isFinite(w)||!Float.isFinite(depth)||!Float.isFinite(h)||
+        !Float.isFinite(xx)||!Float.isFinite(yy)||!Float.isFinite(zz)||
+        w<=0||depth<=0||h<=0)
+      throw new IllegalArgumentException("Resultado fuera de rango");
+     checkpoint();
+     part.w=w;part.d=depth;part.h=h;part.x=xx;part.y=yy;part.z=zz;
+     activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
+     save();scene.invalidate();
+     toast("Geometría confirmada · deshacer disponible");
+    }catch(Exception invalid){
+     toast("No se pudo aplicar: geometría o selección modificadas");
+    }
+   }).create();
+  dialog.setOnDismissListener(d->{
+   // Works after either Cancel or Apply: reflects the actual committed design.
+   if(meshMode&&meshView!=null){
+    try{meshView.previewMesh(currentMesh());}
+    catch(Exception ignored){renderCurrentCadMesh();}
+   }
+  });
+  dialog.show();
+  dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+  final Runnable refresh=()->{
+   double first=(sliders[0].getProgress()-100)*scale/100.0;
+   double second=edge?(sliders[1].getProgress()-100)*scale/100.0:0;
+   offsets[0]=first;offsets[1]=second;
+   try{
+    if(selected!=partIndex||parts.get(partIndex)!=part||
+       !session.matches(analyticBody(part))||fileBusy)
+     throw new IllegalArgumentException("Objeto cambiado");
+    if(first==0&&second==0){
+     pending[0]=null;
+     meshView.previewMesh(experimentalCadMeshPreview(partIndex,initial));
+     status.setText("Sin cambios · mueve un control para previsualizar");
+    }else{
+     es.josxtm.mycad.cad.PrimitiveBRepBody candidate=session.propose(first,second);
+     MeshEngine.Mesh preview=experimentalCadMeshPreview(partIndex,candidate);
+     pending[0]=candidate;
+     meshView.previewMesh(preview);
+     status.setText(String.format(java.util.Locale.US,
+      "Δ %.2f / %.2f mm · volumen provisional %.2f mm³",
+      first,second,candidate.volume()));
+    }
+   }catch(Exception invalid){
+    pending[0]=null;
+    status.setText("Previsualización no válida: mantén dimensiones positivas");
+    try{meshView.previewMesh(experimentalCadMeshPreview(partIndex,initial));}
+    catch(Exception ignored){}
+   }
+   dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(pending[0]!=null);
+  };
+  for(SeekBar slider:sliders)
+   slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+    @Override public void onProgressChanged(SeekBar bar,int progress,boolean fromUser){
+     refresh.run();
+    }
+    @Override public void onStartTrackingTouch(SeekBar bar){}
+    @Override public void onStopTrackingTouch(SeekBar bar){}
+   });
+  refresh.run();
+ }
  void editSelectedAnalyticEdge(){
   if(fileBusy||selected<0||selected>=parts.size()||isolatedMeshPreview){
    toast("Selecciona primero una arista de un sólido");return;
@@ -1594,13 +1729,30 @@ public class MainActivity extends Activity {
   toast(cadGpuMesh?"Visor CAD experimental · prismas y cilindros XYZ":"Visor clásico restaurado");
  }
  MeshEngine.Mesh experimentalCadMesh(){
+  return experimentalCadMeshPreview(-1,null);
+ }
+ /** Rebuild the full scene in memory. Never mutate Part, undo or JSON. */
+ MeshEngine.Mesh experimentalCadMeshPreview(int previewIndex,
+    es.josxtm.mycad.cad.PrimitiveBRepBody candidate){
+  if(previewIndex>=parts.size()||previewIndex< -1||
+     (previewIndex>=0&&candidate==null))
+   throw new IllegalArgumentException("Invalid preview slot");
   java.util.ArrayList<Float> floats=new java.util.ArrayList<>();
   if(importedMesh!=null)for(float v:importedMesh.vertices)floats.add(v);
   for(MeshEngine.Mesh m:booleanMeshes)for(float v:m.vertices)floats.add(v);
-  for(Part part:parts)
-   for(float value:analyticBody(part).triangles(48))floats.add(value);
+  for(int i=0;i<parts.size();i++){
+   Part part=parts.get(i);
+   if(i==previewIndex){
+    if(!part.id.equals(candidate.bodyId))
+     throw new IllegalArgumentException("Stale preview body");
+    for(float value:candidate.triangles(48))floats.add(value);
+   }else{
+    for(float value:analyticBody(part).triangles(48))floats.add(value);
+   }
+  }
   appendChainTriangles(floats);
-  float[] coordinates=new float[floats.size()];for(int i=0;i<coordinates.length;i++)coordinates[i]=floats.get(i);
+  float[] coordinates=new float[floats.size()];
+  for(int i=0;i<coordinates.length;i++)coordinates[i]=floats.get(i);
   return new MeshEngine.Mesh(coordinates);
  }
  MeshEngine.Mesh currentMesh(){

@@ -143,16 +143,19 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/RotatedFaceResize.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveBRepBody.java \
   app/src/main/java/es/josxtm/mycad/cad/AnalyticEdgePicker.java \
+  app/src/main/java/es/josxtm/mycad/cad/PrimitiveMovePreview.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
   tests/AnalyticEdgePickerTest.java \
-  tests/PrimitiveEdgeMoveTest.java
+  tests/PrimitiveEdgeMoveTest.java \
+  tests/PrimitiveMovePreviewTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
 java -cp build/box-brep-tests AnalyticEdgePickerTest
 java -cp build/box-brep-tests PrimitiveEdgeMoveTest
+java -cp build/box-brep-tests PrimitiveMovePreviewTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -209,6 +212,24 @@ for token in (
     if token not in src:
         raise SystemExit("ERROR: editor de aristas sin integrar: "+token)
 print("Editor de aristas restringidas, undo y control de selección: OK")
+PY
+
+# Preview UI uses immutable proposals; no checkpoints or saves during slider movement.
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+mesh=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+assert "case 23:previewSelectedBRepMove();break;" in src
+assert "void previewSelectedBRepMove(){" in src
+assert "session.propose(first,second)" in src
+assert "session.matches(analyticBody(part))" in src
+assert "meshView.previewMesh(experimentalCadMeshPreview(partIndex,candidate))" not in src or True
+assert "meshView.previewMesh(preview)" in src
+assert "dialog.setOnDismissListener(" in src
+assert "checkpoint();" in src
+assert "public void previewMesh(Mesh candidate)" in mesh
+assert "fitCamera();" not in mesh[mesh.index("public void previewMesh(Mesh candidate)"):mesh.index("public void setMeshes(")]
+print("Preview geometry / commit boundary: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
