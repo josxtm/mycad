@@ -2125,14 +2125,18 @@ public class MainActivity extends Activity {
  float cubeLeft(){return getWidth()-cubeSize()-dp(12);}
  float cubeTop(){return dp(12);}
  boolean inCube(float x,float y){return !flat&&x>=cubeLeft()&&x<=cubeLeft()+cubeSize()&&y>=cubeTop()&&y<=cubeTop()+cubeSize();}
+ /** Keep the Canvas ViewCube and separate OpenGL 3D camera aligned. */
+ void syncGpuViewCube(){
+  if(meshMode&&meshView!=null&&meshView.getVisibility()==View.VISIBLE)
+   meshView.setViewOrientation((float)Math.toDegrees(yaw),
+                               (float)Math.toDegrees(pitch));
+ }
  void cubeView(int row,int col){
+  es.josxtm.mycad.cad.CubeCameraPreset.Angles preset=
+   es.josxtm.mycad.cad.CubeCameraPreset.cell(row,col);
   flat=false;
-  if(row==0&&col==1){yaw=0;pitch=1.5f;}
-  else if(row==2&&col==1){yaw=0;pitch=-1.5f;}
-  else if(row==1&&col==0){yaw=1.5707963f;pitch=0;}
-  else if(row==1&&col==2){yaw=-1.5707963f;pitch=0;}
-  else if(row==1&&col==1){yaw=0;pitch=0;}
-  else {yaw=col==0?.75f:col==2?-.75f:0;pitch=row==0?.65f:-.65f;}
+  yaw=preset.yawRadians;pitch=preset.pitchRadians;
+  syncGpuViewCube();
   invalidate();
  }
  void drawOrientationCube(Canvas c){
@@ -2249,7 +2253,7 @@ public class MainActivity extends Activity {
   if(cubeDragging){
    if(action==android.view.MotionEvent.ACTION_MOVE){
     float dx=e.getX()-cubeDownX,dy=e.getY()-cubeDownY;
-    if(Math.hypot(dx,dy)>dp(2)){yaw+=dx*.014f;pitch=Math.max(-1.5f,Math.min(1.5f,pitch+dy*.014f));invalidate();}
+    if(Math.hypot(dx,dy)>dp(2)){yaw+=dx*.014f;pitch=Math.max(-1.5f,Math.min(1.5f,pitch+dy*.014f));syncGpuViewCube();invalidate();}
     cubeDownX=e.getX();cubeDownY=e.getY();return true;
    }
    if(action==android.view.MotionEvent.ACTION_UP){
