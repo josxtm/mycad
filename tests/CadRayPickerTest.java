@@ -41,6 +41,22 @@ public final class CadRayPickerTest {
   rejects(()->CadRayPicker.pick(triangles,0,0,0,Double.POSITIVE_INFINITY,0,1),"Infinite ray");
   rejects(()->CadRayPicker.pick(triangles,Double.NaN,0,0,0,0,1),"NaN origin");
   rejects(()->CadRayPicker.pick(new float[]{0,0,0},0,0,0,0,0,1),"Invalid mesh size");
+  // A 1-micrometre face has determinant ~1e-12 in mm coordinates.
+  // The former absolute threshold incorrectly returned no hit.
+  float side=1e-6f;
+  float[] microFace={0,0,0, side,0,0, 0,side,0};
+  CadRayPicker.Hit microHit=CadRayPicker.pick(microFace,
+      side*0.25,side*0.25,0.01,0,0,-1);
+  ok(microHit!=null&&microHit.triangle==0,
+     "Micrometre triangle must be selectable");
+  near(microHit.distance,0.01,"Micrometre triangle hit distance");
+  ok(CadRayPicker.pick(microFace,side*2,side*2,0.01,0,0,-1)==null,
+     "Micrometre triangle miss remains a miss");
+  CadRayPicker.Hit scaledMicro=CadRayPicker.pick(microFace,
+      side*0.25,side*0.25,0.01,0,0,-100);
+  near(scaledMicro.distance,microHit.distance,
+       "Micrometre ray direction scaling");
+
   System.out.println("CadRayPickerTest: OK");
  }
 }
