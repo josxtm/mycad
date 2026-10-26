@@ -307,7 +307,7 @@ public class MainActivity extends Activity {
    }
    if(changes!=null)for(java.util.Map.Entry<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> e:changes.entrySet())
     if(lines.containsKey(e.getKey()))lines.put(e.getKey(),e.getValue());
-   float[] geometry=recipe.regenerate(sources,lines).triangles();
+   float[] geometry=recipe.regenerateTriangles(sources,lines);
    out.put(i,new MeshEngine.Mesh(geometry));
   }
   return out;
@@ -908,7 +908,7 @@ public class MainActivity extends Activity {
   new AlertDialog.Builder(this).setTitle("Unión B-Rep · segundo prisma")
    .setMessage("Únicamente perfiles rectangulares, mismo plano y altura "+
     "firmada, con solape real. La nueva unión puede tener forma de L. "+
-    "Ambos sólidos originales permanecen; la malla resultado es independiente.")
+    "Ambos sólidos permanecen y la unión quedará vinculada a sus bocetos y alturas.")
    .setItems(choices.toArray(new String[0]),(dialog,choice)->{
     int second=candidates.get(choice);
     if(fileBusy||booleanMeshes.size()>=100||first>=booleanMeshes.size()||
@@ -935,13 +935,25 @@ public class MainActivity extends Activity {
         booleanMeshes.get(first)!=sourceMesh)
       throw new IllegalArgumentException("Los prismas fueron modificados");
      MeshEngine.Mesh newMesh=new MeshEngine.Mesh(result.triangles());
+     es.josxtm.mycad.cad.LinkedConvexIntersection linked=
+      new es.josxtm.mycad.cad.LinkedConvexIntersection(
+       java.util.UUID.randomUUID().toString(),source.id,secondSource.id,
+       es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.UNION_ORTHOGONAL);
+     java.util.LinkedHashMap<String,es.josxtm.mycad.cad.LoopExtrusionFeature> refs=
+      new java.util.LinkedHashMap<>();
+     refs.put(source.id,source);refs.put(secondSource.id,secondSource);
+     java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
+      new java.util.LinkedHashMap<>(loopSketchSegments(source,null,0,0,0,0));
+     lines.putAll(loopSketchSegments(secondSource,null,0,0,0,0));
+     if(!java.util.Arrays.equals(linked.regenerateTriangles(refs,lines),newMesh.vertices))
+      throw new IllegalArgumentException("La unión no se puede regenerar");
      checkpoint();
      booleanMeshes.add(newMesh);unionRecipes.add(null);holeRecipes.add(null);
-     loopExtrusionFeatures.add(null);intersectionRecipes.add(null);
+     loopExtrusionFeatures.add(null);intersectionRecipes.add(linked);
      save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast(String.format(java.util.Locale.US,
-      "Unión B-Rep cerrada · %.2f mm³ · malla independiente",result.volume));
+      "Unión B-Rep vinculada · %.2f mm³",result.volume));
     }catch(Exception error){
      toast("Unión B-Rep rechazada: "+error.getMessage());
     }
@@ -957,7 +969,9 @@ public class MainActivity extends Activity {
    if(i<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(i)!=null)
     names[i]+=" · contorno "+loopExtrusionFeatures.get(i).distance+" mm";
    if(i<intersectionRecipes.size()&&intersectionRecipes.get(i)!=null)
-    names[i]+=" · intersección B-Rep vinculada";
+    names[i]+=" · "+(intersectionRecipes.get(i).operation==
+      es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.UNION_ORTHOGONAL?
+      "unión B-Rep vinculada":"intersección B-Rep vinculada");
    if(drill!=null)names[i]+=" · "+
     (drill.drillDepth==0?"pasante":drill.drillDepth+" mm de profundidad");
   }
@@ -1381,7 +1395,8 @@ public class MainActivity extends Activity {
  JSONArray intersections=new JSONArray();
  for(es.josxtm.mycad.cad.LinkedConvexIntersection item:intersectionRecipes)
   intersections.put(item==null?JSONObject.NULL:new JSONObject()
-   .put("id",item.id).put("firstId",item.firstId).put("secondId",item.secondId));
+   .put("id",item.id).put("firstId",item.firstId).put("secondId",item.secondId)
+   .put("operation",item.operation.name()));
  file.put("linkedConvexIntersections",intersections);
 
  JSONArray chains=new JSONArray();
@@ -1602,9 +1617,11 @@ public class MainActivity extends Activity {
      JSONObject row=storedIntersections.getJSONObject(i);
      es.josxtm.mycad.cad.LinkedConvexIntersection recipe=
       new es.josxtm.mycad.cad.LinkedConvexIntersection(
-       row.getString("id"),row.getString("firstId"),row.getString("secondId"));
+       row.getString("id"),row.getString("firstId"),row.getString("secondId"),
+       es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.valueOf(
+        row.optString("operation","INTERSECTION")));
      if(!usedRecipes.add(recipe.id))throw new IllegalArgumentException("UUID de booleana duplicado");
-     float[] regenerated=recipe.regenerate(sourceFeatures,sourceLines).triangles();
+     float[] regenerated=recipe.regenerateTriangles(sourceFeatures,sourceLines);
      if(!java.util.Arrays.equals(regenerated,parsedMeshes.get(i).vertices))
       throw new IllegalArgumentException("Intersección distinta de su historial");
      parsedIntersections.add(recipe);
