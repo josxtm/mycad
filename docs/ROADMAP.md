@@ -2,6 +2,8 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Rechazo de componentes sin volumen (0.6.0):** el validador de sólidos comprueba el volumen orientado de cada componente de caras conectadas por aristas; una lámina coplanar de doble cara puede tener aristas emparejadas y aun así no encerrar sólido. Se rechaza la componente de volumen exactamente cero, incluso si otra componente válida aporta volumen total positivo. Se exponen contadores de componentes y componentes nulas; regresiones Java, sin APK. Véase [mallas sin volumen](CAD_MESH_ZERO_VOLUME.md).
+
 **Precisión del volumen orientado (0.6.0):** el diagnóstico de mallas calcula determinantes respecto al primer vértice de cada componente de caras conectadas por aristas y acumula aportaciones con compensación de Neumaier; regresiones de tetraedros pequeños separados a ±10 millones de mm y orientación invertida. Sin cambios en la topología ni APK; véase [volumen estable](CAD_MESH_STABLE_VOLUME.md).
 
 **Integridad topológica de mallas (incremento 0.6.0):** la validación de
