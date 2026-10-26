@@ -47,6 +47,53 @@ public final class PrimitiveFaceHandle {
    throw new IllegalArgumentException("Invalid face normal");
   return new PrimitiveFaceHandle(body.bodyId,faceId,p,direction);
  }
+ /**
+  * Place the drag gizmo at the actual analytic ray hit, rather than at a
+  * fixed +X point on cylindrical sides. Revalidates the surface against the
+  * CURRENT body so a stale selection cannot silently edit changed geometry.
+  */
+ public static PrimitiveFaceHandle fromHit(PrimitiveBRepBody body,
+                                           AnalyticPrimitiveRayPicker.Hit hit){
+  if(body==null||hit==null||!body.bodyId.equals(hit.bodyId))
+   throw new IllegalArgumentException("Hit belongs to a different body");
+  PrimitiveBRepBody.Face face=body.findFace(hit.faceId);
+  if(face==null)throw new IllegalArgumentException("Stale face hit");
+  double[] local=body.pose().inversePoint(hit.x,hit.y,hit.z);
+  double eps=1e-7*Math.max(1,Math.max(body.width,Math.max(body.depth,body.height)));
+  double lx=local[0],ly=local[1],lz=local[2];
+  boolean onSurface;
+  if(body.kind==PrimitiveBRepBody.Kind.BOX){
+   boolean inBounds=Math.abs(lx)<=body.width/2+eps&&
+     Math.abs(ly)<=body.depth/2+eps&&lz>=-eps&&lz<=body.height+eps;
+   BoxFaceSelection.Face slot=BoxFaceSelection.Face.valueOf(face.kind);
+   switch(slot){
+    case X_MIN:onSurface=Math.abs(lx+body.width/2)<=eps;break;
+    case X_MAX:onSurface=Math.abs(lx-body.width/2)<=eps;break;
+    case Y_MIN:onSurface=Math.abs(ly+body.depth/2)<=eps;break;
+    case Y_MAX:onSurface=Math.abs(ly-body.depth/2)<=eps;break;
+    case Z_MIN:onSurface=Math.abs(lz)<=eps;break;
+    case Z_MAX:onSurface=Math.abs(lz-body.height)<=eps;break;
+    default:throw new IllegalArgumentException("Unknown face");
+   }
+   onSurface&=inBounds;
+  }else{
+   double radial=Math.hypot(lx,ly),radius=body.width/2;
+   CylinderBRep.Kind slot=CylinderBRep.Kind.valueOf(face.kind);
+   switch(slot){
+    case CYLINDER_SIDE:
+     onSurface=Math.abs(radial-radius)<=eps&&lz>=-eps&&lz<=body.height+eps;
+     break;
+    case CYLINDER_BOTTOM:
+     onSurface=Math.abs(lz)<=eps&&radial<=radius+eps;break;
+    case CYLINDER_TOP:
+     onSurface=Math.abs(lz-body.height)<=eps&&radial<=radius+eps;break;
+    default:throw new IllegalArgumentException("Unknown face");
+   }
+  }
+  if(!onSurface)throw new IllegalArgumentException("Hit no longer on face");
+  double[] normal=face.outwardNormalAt(Math.atan2(ly,lx));
+  return new PrimitiveFaceHandle(body.bodyId,hit.faceId,hit.point(),normal);
+ }
  public double[] anchor(){return anchor.clone();}
  public double[] normal(){return normal.clone();}
  /** GPU input: XYZ anchor, XYZ unit normal. */
