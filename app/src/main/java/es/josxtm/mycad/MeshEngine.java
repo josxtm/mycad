@@ -232,7 +232,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    moved=false;dragging=true;return true;
   }
   if(e.getActionMasked()==android.view.MotionEvent.ACTION_MOVE&&dragging){if(Math.hypot(e.getX()-downX,e.getY()-downY)>12*getResources().getDisplayMetrics().density)moved=true;orbit(e.getX()-lastX,e.getY()-lastY);lastX=e.getX();lastY=e.getY();return true;}
-  if(e.getActionMasked()==android.view.MotionEvent.ACTION_UP){dragging=false;if(!moved&&surfaceTapListener!=null){final float x=e.getX(),y=e.getY();queueEvent(()->pickSurfaceAt(x,y));}}
+  if(e.getActionMasked()==android.view.MotionEvent.ACTION_UP){dragging=false;if(es.josxtm.mycad.cad.SurfaceTapPolicy.shouldPick(moved,surfaceRayListener!=null,surfaceTapListener!=null)){final float x=e.getX(),y=e.getY();queueEvent(()->pickSurfaceAt(x,y));}}
   return true;
  }
  private void pickSurfaceAt(float sx,float sy){

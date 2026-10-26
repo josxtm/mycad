@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Corrección crítica de picking GPU:** se restaura la selección táctil de superficies en el visor 3D cuando solo está registrado el callback moderno de rayos. El `ACTION_UP` anterior exigía por error el callback legado y podía impedir seleccionar caras y aristas. Reglas de regresión y tests Java, sin APK.
+
 **Tolerancia de aristas por profundidad del toque:** el radio de 12 dp
 se calcula con la distancia del rayo al punto 3D tocado, no solo con
 la distancia de cámara al foco. Reduce variaciones de selección entre

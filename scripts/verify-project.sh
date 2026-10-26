@@ -154,6 +154,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/CameraGestureMath.java \
   app/src/main/java/es/josxtm/mycad/cad/FloatVertexBufferCache.java \
   app/src/main/java/es/josxtm/mycad/cad/CubeCameraPreset.java \
+  app/src/main/java/es/josxtm/mycad/cad/SurfaceTapPolicy.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -169,7 +170,8 @@ javac -d build/box-brep-tests \
   tests/AnalyticPrimitiveRayPickerTest.java \
   tests/CameraGestureMathTest.java \
   tests/FloatVertexBufferCacheTest.java \
-  tests/CubeCameraPresetTest.java
+  tests/CubeCameraPresetTest.java \
+  tests/SurfaceTapPolicyTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -186,6 +188,7 @@ java -cp build/box-brep-tests AnalyticPrimitiveRayPickerTest
 java -cp build/box-brep-tests CameraGestureMathTest
 java -cp build/box-brep-tests FloatVertexBufferCacheTest
 java -cp build/box-brep-tests CubeCameraPresetTest
+java -cp build/box-brep-tests SurfaceTapPolicyTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -430,6 +433,19 @@ assert "meshView.setViewOrientation((float)Math.toDegrees(yaw)" in a
 assert "pitch=Math.max(-89,Math.min(89,pitchDegrees));" in m
 assert "syncGpuViewCube();invalidate();" in a
 print("ViewCube: pulsación y arrastre rotan también cámara GPU: OK")
+PY
+
+# Critical regression: selection must work with *only* the modern ray callback.
+python3 - <<'PY'
+from pathlib import Path
+mesh=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+activity=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+assert "SurfaceTapPolicy.shouldPick(moved,surfaceRayListener!=null,surfaceTapListener!=null)" in mesh
+assert "if(!moved&&surfaceTapListener!=null)" not in mesh
+assert "if(surfaceRayListener!=null)" in mesh
+assert "surfaceRayListener.onSurfaceRay(" in mesh
+assert activity.count("meshView.setSurfaceRayListener(")==3
+print("Selección de caras con callback moderno de rayos: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
