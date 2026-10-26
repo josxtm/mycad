@@ -33,7 +33,8 @@ public final class PrimitiveEdgeMoveTest {
   PrimitiveBRepBody.Edge e=box.findEdge(xEdge);
   ok(e!=null&&e.kind.equals("LINE"),"Selected X edge");
   ok(e.adjacentFaceIds().size()==2,"Two incident planar faces");
-  double[] originalTop=pose.point(0,0,8);
+  // Check the corner on both opposite faces (Y_MAX and Z_MAX) remains fixed.
+  double[] originalTop=pose.point(0,5,8);
   PrimitiveBRepBody both=box.offsetEdge(xEdge,3,2);
   PrimitiveBRepBody sequential=box.offsetFace(e.adjacentFaceIds().get(0),3)
                                   .offsetFace(e.adjacentFaceIds().get(1),2);
@@ -50,7 +51,7 @@ public final class PrimitiveEdgeMoveTest {
   // Z_MIN lies adjacent to X_0. Extending bottom must preserve original top.
   double bottomOffset=e.adjacentFaceIds().get(0).endsWith("/Z_MIN")?3:2;
   near(both.height,8+bottomOffset,"Axial dimension from edge");
-  same(both.pose().point(0,0,both.height),originalTop,
+  same(both.pose().point(0,both.depth/2,both.height),originalTop,
        "Top face fixed after bottom face displacement");
   PrimitiveBRepBody firstOnly=box.offsetEdge(xEdge,0,1.5);
   PrimitiveBRepBody secondOnly=box.offsetEdge(xEdge,1.5,0);
