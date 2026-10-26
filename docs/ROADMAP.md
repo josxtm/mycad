@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Cámara estable durante la edición:** al confirmar una cara/arista, deshacer, guardar o regenerar, el visor GPU actualiza triángulos sin reajustar automáticamente el centro y zoom; conserva el encuadre elegido. Al abrir otro resultado aislado o ver por primera vez un sólido sí se encuadra. Tests y CI Android, sin APK.
+
 **Corrección crítica de picking GPU:** se restaura la selección táctil de superficies en el visor 3D cuando solo está registrado el callback moderno de rayos. El `ACTION_UP` anterior exigía por error el callback legado y podía impedir seleccionar caras y aristas. Reglas de regresión y tests Java, sin APK.
 
 **Tolerancia de aristas por profundidad del toque:** el radio de 12 dp

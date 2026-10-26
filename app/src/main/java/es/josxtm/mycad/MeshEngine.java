@@ -22,6 +22,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private int program,position,modelViewProjection,colorUniform;
  private final float[] projection=new float[16],view=new float[16],mvp=new float[16];
  private float yaw=35,pitch=25,centerX,centerY,centerZ;
+ private boolean cameraHasFit=false; // GL-thread only; rearm if scene becomes empty
  private volatile float distance=300;
  /** Camera distance used for zoom-aware CAD hit tolerance in the UI thread. */
  public float cameraDistance(){return distance;}
@@ -135,7 +136,30 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    requestRender();
   });
  }
- public void setMeshes(List<Mesh> incoming){final ArrayList<Mesh> copy=new ArrayList<>(incoming);highlightedFirstTriangle=-1;queueEvent(()->{gpuTriangles.clear();meshes.clear();meshes.addAll(copy);highlightedEdgeVertices=null;fitCamera();requestRender();});}
+ /** New/open/isolated model: explicitly frame the whole scene. */
+ public void setMeshes(List<Mesh> incoming){replaceSceneMeshes(incoming,true);}
+ /** Saved editing: update triangles without resetting the user's pan or zoom. */
+ public void updateMeshesPreservingCamera(List<Mesh> incoming){
+  replaceSceneMeshes(incoming,false);
+ }
+ private void replaceSceneMeshes(List<Mesh> incoming,boolean forceFit){
+  if(incoming==null)throw new IllegalArgumentException("Missing scene meshes");
+  final ArrayList<Mesh> copy=new ArrayList<>(incoming);
+  for(Mesh item:copy)if(item==null)
+   throw new IllegalArgumentException("Null scene mesh");
+  highlightedFirstTriangle=-1;
+  queueEvent(()->{
+   gpuTriangles.clear();
+   meshes.clear();meshes.addAll(copy);
+   highlightedEdgeVertices=null;
+   boolean hasTriangles=false;
+   for(Mesh item:meshes)if(item.vertices.length>0){hasTriangles=true;break;}
+   if(es.josxtm.mycad.cad.CameraRefitPolicy.shouldFit(
+       cameraHasFit,forceFit,hasTriangles))fitCamera();
+   cameraHasFit=es.josxtm.mycad.cad.CameraRefitPolicy.rememberFitted(hasTriangles);
+   requestRender();
+  });
+ }
  /**
   * ViewCube orientation command; preserve model focus and camera distance.
   * The canvas exposes radians and the GPU camera expects degrees.
