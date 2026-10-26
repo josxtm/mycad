@@ -12,7 +12,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
- ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport,pendingDxfExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
+ ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loopExtrusionFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport,pendingDxfExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
  static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104, IMPORT_DXF=105, EXPORT_DXF=106; MeshEngine meshView; FrameLayout meshPanel; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
@@ -182,10 +182,12 @@ public class MainActivity extends Activity {
   final Sketch anchor=sketches.get(selectedSketch);
   final java.util.ArrayList<es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
    new java.util.ArrayList<>();
+  final java.util.ArrayList<String> lineIds=new java.util.ArrayList<>();
   int anchorIndex=-1;
   try{
    for(Sketch q:sketches)if(q.type==1&&q.plane==anchor.plane){
     if(q==anchor)anchorIndex=lines.size();
+    lineIds.add(q.id);
     lines.add(new es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment(
      q.plane,q.x1,q.y1,q.x2,q.y2));
    }
@@ -216,8 +218,14 @@ public class MainActivity extends Activity {
      if(result.triangles.length>18000)
       throw new IllegalArgumentException("Resultado de malla demasiado grande");
      MeshEngine.Mesh mesh=new MeshEngine.Mesh(result.triangles);
+     java.util.ArrayList<String> sources=new java.util.ArrayList<>();
+     for(int i:result.sourceIndices)sources.add(lineIds.get(i));
+     es.josxtm.mycad.cad.LoopExtrusionFeature feature=
+      new es.josxtm.mycad.cad.LoopExtrusionFeature(
+       java.util.UUID.randomUUID().toString(),anchor.id,anchor.plane,h,sources);
      checkpoint();
      booleanMeshes.add(mesh);unionRecipes.add(null);holeRecipes.add(null);
+     loopExtrusionFeatures.add(feature);
      save();scene.invalidate();
      if(!meshMode)toggleMeshView();
      else if(meshView!=null)renderCurrentCadMesh();
@@ -426,7 +434,7 @@ public class MainActivity extends Activity {
     new AlertDialog.Builder(this).setTitle("Guardar resultado booleano")
      .setMessage("Guardar una copia de la malla en el proyecto. Los dos sólidos originales se conservarán. Podrás exportar todo como STL/OBJ.")
      .setPositiveButton("Guardar malla",(confirm,which)->{
-      checkpoint();booleanMeshes.add(new MeshEngine.Mesh(triangles));unionRecipes.add(null);holeRecipes.add(null);save();
+      checkpoint();booleanMeshes.add(new MeshEngine.Mesh(triangles));unionRecipes.add(null);holeRecipes.add(null);loopExtrusionFeatures.add(null);save();
       renderCurrentCadMesh();
       info.setText("Malla booleana guardada · "+booleanMeshes.size()+" resultado(s)");
      }).setNegativeButton("Solo previsualizar",null).show();
@@ -456,23 +464,26 @@ public class MainActivity extends Activity {
   for(int i=0;i<names.length;i++){
    es.josxtm.mycad.cad.DrilledBoxRecipe drill=i<holeRecipes.size()?holeRecipes.get(i):null;
    names[i]="Malla "+(i+1)+" · "+booleanMeshes.get(i).triangles()+" triángulos";
-   if(drill!=null)names[i]+=" · "+drill.axis.name()+" · "+
+   if(i<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(i)!=null)
+    names[i]+=" · contorno "+loopExtrusionFeatures.get(i).distance+" mm";
+   if(drill!=null)names[i]+=" · "+
     (drill.drillDepth==0?"pasante":drill.drillDepth+" mm de profundidad");
   }
   new AlertDialog.Builder(this).setTitle("Resultados booleanos")
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
     new AlertDialog.Builder(this).setTitle(names[index])
-     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular"},(d,choice)->{
+     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno"},(d,choice)->{
       if(choice==0){showMeshOnly(mesh);}
       else if(choice==1){exportMeshMenuFor(mesh);}
       else if(choice==3){editFaceUnionRecipe(index);}
       else if(choice==4){editHoleRecipe(index);}
+      else if(choice==5){editLoopExtrusionDistance(index);}
       else new AlertDialog.Builder(this).setTitle("Eliminar resultado")
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
        .setPositiveButton("Eliminar",(confirm,which)->{
-        checkpoint();int removed=booleanMeshes.indexOf(mesh);booleanMeshes.remove(mesh);if(removed>=0&&removed<unionRecipes.size())unionRecipes.remove(removed);if(removed>=0&&removed<holeRecipes.size())holeRecipes.remove(removed);save();
+        checkpoint();int removed=booleanMeshes.indexOf(mesh);booleanMeshes.remove(mesh);if(removed>=0&&removed<unionRecipes.size())unionRecipes.remove(removed);if(removed>=0&&removed<holeRecipes.size())holeRecipes.remove(removed);if(removed>=0&&removed<loopExtrusionFeatures.size())loopExtrusionFeatures.remove(removed);save();
         if(meshMode&&meshView!=null)renderCurrentCadMesh();
         toast("Resultado eliminado");
        }).show();
@@ -538,7 +549,7 @@ public class MainActivity extends Activity {
         parts.remove(Math.max(boxIndex,cutterIndex));
         parts.remove(Math.min(boxIndex,cutterIndex));
         booleanMeshes.add(new MeshEngine.Mesh(surface));
-        unionRecipes.add(null);
+        loopExtrusionFeatures.add(null);unionRecipes.add(null);
         holeRecipes.add(option==2?result.cut:null);
         selected=-1;selectedSketch=-1;activeCadFace=null;
         save();scene.invalidate();
@@ -597,7 +608,7 @@ public class MainActivity extends Activity {
      if(geometry.length==0||geometry.length>18000||
       !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(geometry).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
      checkpoint();parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(geometry));
-     unionRecipes.add(null);holeRecipes.add(recipe);
+     loopExtrusionFeatures.add(null);unionRecipes.add(null);holeRecipes.add(recipe);
      selected=-1;selectedSketch=-1;activeCadFace=null;save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast("Perforación guardada · "+(recipe.drillDepth==0?"pasante":"ciega")+" · editable en Resultados booleanos");
@@ -1435,7 +1446,7 @@ public class MainActivity extends Activity {
     float[] united=BoxBooleanMesh.build(a,b,BoxBooleanMesh.Operation.UNION);
     if(united.length==0)throw new IllegalArgumentException("Empty union");
     checkpoint();
-    parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(united));holeRecipes.add(null);unionRecipes.add(new es.josxtm.mycad.cad.FaceUnionRecipe(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,face,amount));
+    parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(united));loopExtrusionFeatures.add(null);holeRecipes.add(null);unionRecipes.add(new es.josxtm.mycad.cad.FaceUnionRecipe(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,face,amount));
     selected=parts.isEmpty()?-1:Math.min(index,parts.size()-1);
     info.setText("Extrusión fusionada como malla · "+amount+" mm");
    }else{
@@ -2356,7 +2367,7 @@ public class MainActivity extends Activity {
  }
  }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AlertDialog.Builder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
  }
- void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
+ void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();loopExtrusionFeatures.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
  void guide(){new AlertDialog.Builder(this).setTitle("Guía · De la idea al archivo").setMessage(
  "1. NUEVO: empieza con el lienzo vacío.\n\n"+
  "2. RECTÁNGULO o CÍRCULO: introduce medidas en mm y el espesor. APLICAR crea la pieza. Por ahora se introducen medidas; no se dibuja a mano.\n\n"+
