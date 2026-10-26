@@ -65,6 +65,27 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
   antes de guardar la operación. El proyecto mantiene el formato
   JSON v1 y las mallas compatibles con versiones anteriores.
 
+## Primera operación booleana entre sólidos B-Rep
+
+- En **Resultados booleanos** o al pulsar dos veces una malla vinculada:
+  `Intersectar con otro contorno B-Rep`. Permite seleccionar un segundo
+  perfil cerrado extruido y calcula **la intersección volumétrica real** de
+  dos prismas con contornos convexos, incluidos triángulos y polígonos
+  oblicuos. Ambos deben estar en el mismo plano XY, XZ o YZ, extruidos
+  desde el origen hacia el mismo lado. La altura final es la menor de
+  ambas alturas, conservando el signo.
+- El núcleo ejecuta recorte de polígonos mediante semiplanos convexos,
+  simplifica vértices collineales, verifica el volumen y genera un
+  **nuevo sólido B-Rep analítico** con caras, aristas y semiaristas.
+- La app guarda su triangulación como **malla independiente** con deshacer,
+  sin borrar ni cambiar los sólidos fuente. La operación no se regenera
+  al modificar posteriormente los operandos; no se persiste el B-Rep
+  resultante como feature editable.
+- Se rechazan explícitamente perfiles cóncavos, sólidos de distintos
+  planos, extrusiones opuestas, volúmenes sin solape y polígonos
+  degenerados. Todavía no hay unión/diferencia B-Rep generales, huecos
+  interiores ni varias regiones desconectadas.
+
 ## Limitaciones importantes
 
 Las operaciones vinculadas son **solo para extrusiones generadas a
