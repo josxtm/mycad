@@ -107,10 +107,20 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
   vértices collineales y reconstrucción de **una topología B-Rep nueva**.
   Los resultados pueden ser cóncavos, en forma de **L** o cruz, y se
   comprueban sus normales, volumen y malla cerrada.
-- Esta primera versión guarda el resultado como **malla independiente**,
-  no como una operación paramétrica regenerable. Sus dos cuerpos
-  originales se conservan. El historial de intersección vinculada
-  existente no se altera.
+- La unión conserva **una receta paramétrica** con UUID de sus dos
+  extrusiones originales. Al editar un perfil, desplazar una cara
+  lateral o cambiar la altura de una de ellas, el motor intenta
+  regenerar todas las uniones afectadas **antes de confirmar** el cambio.
+  Si la modificación convierte el perfil en oblicuo, pierde el solape
+  o genera distintas alturas, se rechaza sin alterar el proyecto.
+- Su malla y la receta se conservan en el JSON v1, junto al historial
+  de deshacer y rehacer. Los proyectos antiguos sin campo de operación
+  mantienen la semántica de **INTERSECTION** por defecto; las nuevas
+  recetas utilizan **UNION_ORTHOGONAL**.
+- Igual que en la intersección vinculada, la topología B-Rep resultante
+  se regenera en memoria, pero lo que se persiste y se muestra sigue
+  siendo una malla asociada a una operación, no un cuerpo B-Rep libre
+  editable directamente por caras.
 - Se rechazan contornos oblicuos o con múltiples regiones, ausencia de
   solape volumétrico y alturas distintas, incluso si los dos sólidos
   tienen la misma dirección de extrusión.
