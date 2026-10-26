@@ -376,7 +376,7 @@ public class MainActivity extends Activity {
   if(meshView==null)return;
   isolatedMeshPreview=false;
   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
-  meshView.highlightFace(-1);
+  meshView.highlightFace(-1);meshView.highlightEdge(null);
   meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
@@ -969,7 +969,7 @@ public class MainActivity extends Activity {
    }).show();
  }
  void showGpuSurfaceSelection(int triangle,double x,double y,double z){
-  if(isolatedMeshPreview){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;info.setText("Vista previa · sin selección de piezas");return;}
+  if(isolatedMeshPreview){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;if(meshView!=null)meshView.highlightEdge(null);info.setText("Vista previa · sin selección de piezas");return;}
   boolean handled=false;
   if(cadGpuMesh){
    es.josxtm.mycad.cad.PrimitiveTopologyMap map=new es.josxtm.mycad.cad.PrimitiveTopologyMap();
@@ -1006,9 +1006,15 @@ public class MainActivity extends Activity {
       es.josxtm.mycad.cad.AnalyticEdgePicker.nearestEdge(
        solid,x,y,z,es.josxtm.mycad.cad.AnalyticEdgePicker.suggestedTolerance(solid));
      activeAnalyticEdgeId=boundary==null?null:boundary.edgeId;
-     if(boundary!=null)
+     if(boundary!=null){
       description+=" · Arista "+boundary.edgeId.substring(boundary.edgeId.lastIndexOf('/')+1);
-    }catch(IllegalArgumentException ignored){activeAnalyticEdgeId=null;}
+      if(meshView!=null)meshView.highlightEdge(
+       es.josxtm.mycad.cad.PrimitiveEdgeCurve.points(solid,boundary.edgeId,64));
+     }else if(meshView!=null)meshView.highlightEdge(null);
+    }catch(IllegalArgumentException ignored){
+     activeAnalyticEdgeId=null;
+     if(meshView!=null)meshView.highlightEdge(null);
+    }
     if(meshView!=null)meshView.highlightFace(hit.highlightTriangle());
     info.setText(String.format(java.util.Locale.US,"%s · X %.1f Y %.1f Z %.1f mm",description,x,y,z));
     handled=true;
@@ -1016,7 +1022,7 @@ public class MainActivity extends Activity {
   }
   if(!handled){
    activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
-   if(meshView!=null)meshView.highlightFace(-1);
+   if(meshView!=null){meshView.highlightFace(-1);meshView.highlightEdge(null);}
    info.setText(String.format(java.util.Locale.US,"Triángulo %d · X %.1f Y %.1f Z %.1f mm",triangle+1,x,y,z));
    selectChainTriangle(triangle);
   }
