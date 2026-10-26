@@ -88,9 +88,9 @@ public final class AnalyticPrimitiveRayPickerTest {
       "Persistent face IDs after editing");
   point(afterEdit,futurePoint,"Updated radius picked");
 
-  // Millimetre-scale rays on CAD objects with very large world coordinates:
-  // the direction must not be obtained by subtracting two huge positions.
-  RigidTransform farPose=new RigidTransform(1e12,-2e12,3e12,23,41,-37);
+  // Ray directions remain stable near the allowed 10,000 mm primitive offset.
+  // The standalone transform test also covers much larger translations.
+  RigidTransform farPose=new RigidTransform(9000,-9000,8000,23,41,-37);
   RigidTransform farRotation=new RigidTransform(0,0,0,23,41,-37);
   PrimitiveBRepBody farBox=PrimitiveBRepBody.box("FAR",20,10,8,farPose);
   double[] farEye=farPose.point(-30,0,4);
