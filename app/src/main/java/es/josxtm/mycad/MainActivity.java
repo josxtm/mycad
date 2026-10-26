@@ -1410,11 +1410,12 @@ public class MainActivity extends Activity {
     names[surfaces.size()+i]="Arista "+e.kind+" · "+
      String.format(java.util.Locale.US,"%.2f mm",e.length);
    }
-   String intro=String.format(java.util.Locale.US,
-    "Tipo: %s\nVolumen: %.2f mm³\nSuperficie: %.2f mm²\nCaras: %d · Aristas: %d\n\nElige una entidad para ver sus referencias.",
-    solid.kind,solid.volume(),solid.surfaceArea(),surfaces.size(),boundaries.size());
-   new AlertDialog.Builder(this).setTitle("Motor B-Rep · inspección analítica")
-    .setMessage(intro).setItems(names,(dialog,index)->{
+   String title=String.format(java.util.Locale.US,
+    "B-Rep %s · V %.1f mm³ · S %.1f mm²",solid.kind,
+    solid.volume(),solid.surfaceArea());
+   // On Android, Builder.setMessage() hides the ListView configured by setItems().
+   new AlertDialog.Builder(this).setTitle(title)
+    .setItems(names,(dialog,index)->{
      if(index<surfaces.size()){
       es.josxtm.mycad.cad.PrimitiveBRepBody.Face f=surfaces.get(index);
       double[] n=f.outwardNormalAt(0);
