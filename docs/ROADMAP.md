@@ -2,6 +2,22 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Primer puente paramétrico para contornos cerrados (0.6.0):**
+las mallas procedentes de extruir un bucle de líneas ahora guardan una
+receta por UUID con los IDs exactos de sus segmentos y la distancia
+firmada. La nueva opción **Resultados booleanos → Editar distancia de
+contorno** reconstruye la malla con el motor, manteniendo el ID de
+operación y la geometría original si falla. Al editar una cota o
+coordenada de cualquiera de sus líneas, se comprueban y regeneran de
+forma atómica todos los contornos afectados, deshacibles con el historial
+del proyecto. La eliminación de la línea permite conservar la malla
+como instantánea independiente o eliminar el resultado dependiente.
+Las recetas se guardan y verifican en el JSON nativo, manteniendo
+compatibilidad con archivos antiguos. **Sigue siendo una malla
+triangulada, sin caras/aristas B-Rep generales.** No equivale aún a un
+historial tipo Shapr3D para todos los tipos de geometría. Véase
+[vínculos de contornos](CAD_LOOP_PARAMETRIC_BRIDGE.md).
+
 **Validación de unidades DXF (0.6.0):** la importación de bocetos XY exige
 `$INSUNITS=4` explícito y único. Los archivos sin declaración, con unidad
 0 (sin unidad), duplicada o incompleta se rechazan antes de modificar el
