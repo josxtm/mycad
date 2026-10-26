@@ -232,7 +232,7 @@ public class MainActivity extends Activity {
       throw new IllegalArgumentException("Volumen analítico y malla discrepan");
      checkpoint();
      booleanMeshes.add(mesh);unionRecipes.add(null);holeRecipes.add(null);
-     loopExtrusionFeatures.add(feature);
+     loopExtrusionFeatures.add(feature);intersectionRecipes.add(null);
      save();scene.invalidate();
      if(!meshMode)toggleMeshView();
      else if(meshView!=null)renderCurrentCadMesh();
@@ -557,8 +557,15 @@ public class MainActivity extends Activity {
   int linkedLoops=0;
   for(es.josxtm.mycad.cad.LoopExtrusionFeature f:loopExtrusionFeatures)
    if(f!=null&&f.dependsOn(target.id))linkedLoops++;
+  int linkedBooleans=0;
+  java.util.HashSet<String> affectedIds=new java.util.HashSet<>();
+  for(es.josxtm.mycad.cad.LoopExtrusionFeature f:loopExtrusionFeatures)
+   if(f!=null&&f.dependsOn(target.id))affectedIds.add(f.id);
+  for(es.josxtm.mycad.cad.LinkedConvexIntersection f:intersectionRecipes)
+   if(f!=null&&(affectedIds.contains(f.firstId)||affectedIds.contains(f.secondId)))
+    linkedBooleans++;
   String detail="Boceto "+(index+1)+" · "+count+" pieza(s) vinculada(s), "+
-   linkedLoops+" extrusión(es) de líneas. "+
+   linkedLoops+" extrusión(es), "+linkedBooleans+" intersección(es) dependiente(s). "+
    "Puedes conservar los cuerpos como independientes o eliminarlos junto al boceto. "+
    "Ambas operaciones se pueden deshacer.";
   new AlertDialog.Builder(this).setTitle("Eliminar boceto y dependencias")
@@ -581,15 +588,26 @@ public class MainActivity extends Activity {
   final java.util.HashSet<String> retained=new java.util.HashSet<>();
   for(es.josxtm.mycad.cad.SketchDeletionPlan.BodyLink b:updated)retained.add(b.bodyId);
   final String selectedId=selected>=0&&selected<parts.size()?parts.get(selected).id:null;
+  java.util.HashSet<String> doomedSourceIds=new java.util.HashSet<>();
+  for(es.josxtm.mycad.cad.LoopExtrusionFeature f:loopExtrusionFeatures)
+   if(f!=null&&f.dependsOn(target.id))doomedSourceIds.add(f.id);
   checkpoint();
   sketches.remove(index);
   for(int i=loopExtrusionFeatures.size()-1;i>=0;i--){
    es.josxtm.mycad.cad.LoopExtrusionFeature feature=loopExtrusionFeatures.get(i);
-   if(feature==null||!feature.dependsOn(target.id))continue;
+   es.josxtm.mycad.cad.LinkedConvexIntersection booleanRecipe=intersectionRecipes.get(i);
+   boolean sourceRemoved=feature!=null&&doomedSourceIds.contains(feature.id);
+   boolean dependent=booleanRecipe!=null&&
+    (doomedSourceIds.contains(booleanRecipe.firstId)||
+     doomedSourceIds.contains(booleanRecipe.secondId));
+   if(!sourceRemoved&&!dependent)continue;
    if(mode==es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE){
     loopExtrusionFeatures.remove(i);booleanMeshes.remove(i);
-    unionRecipes.remove(i);holeRecipes.remove(i);
-   }else loopExtrusionFeatures.set(i,null);
+    unionRecipes.remove(i);holeRecipes.remove(i);intersectionRecipes.remove(i);
+   }else{
+    if(sourceRemoved)loopExtrusionFeatures.set(i,null);
+    if(dependent)intersectionRecipes.set(i,null);
+   }
   }
   if(mode==es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE){
    parts.removeIf(body->!retained.contains(body.id));
@@ -757,7 +775,7 @@ public class MainActivity extends Activity {
     new AlertDialog.Builder(this).setTitle("Guardar resultado booleano")
      .setMessage("Guardar una copia de la malla en el proyecto. Los dos sólidos originales se conservarán. Podrás exportar todo como STL/OBJ.")
      .setPositiveButton("Guardar malla",(confirm,which)->{
-      checkpoint();booleanMeshes.add(new MeshEngine.Mesh(triangles));unionRecipes.add(null);holeRecipes.add(null);loopExtrusionFeatures.add(null);save();
+      checkpoint();booleanMeshes.add(new MeshEngine.Mesh(triangles));unionRecipes.add(null);holeRecipes.add(null);loopExtrusionFeatures.add(null);intersectionRecipes.add(null);save();
       renderCurrentCadMesh();
       info.setText("Malla booleana guardada · "+booleanMeshes.size()+" resultado(s)");
      }).setNegativeButton("Solo previsualizar",null).show();
@@ -850,7 +868,7 @@ public class MainActivity extends Activity {
      checkpoint();
      booleanMeshes.add(newMesh);
      unionRecipes.add(null);holeRecipes.add(null);
-     loopExtrusionFeatures.add(null);intersectionRecipes.add(linked);
+     loopExtrusionFeatures.add(null);intersectionRecipes.add(null);intersectionRecipes.add(linked);
      save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast(String.format(java.util.Locale.US,
@@ -869,6 +887,8 @@ public class MainActivity extends Activity {
    names[i]="Malla "+(i+1)+" · "+booleanMeshes.get(i).triangles()+" triángulos";
    if(i<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(i)!=null)
     names[i]+=" · contorno "+loopExtrusionFeatures.get(i).distance+" mm";
+   if(i<intersectionRecipes.size()&&intersectionRecipes.get(i)!=null)
+    names[i]+=" · intersección B-Rep vinculada";
    if(drill!=null)names[i]+=" · "+
     (drill.drillDepth==0?"pasante":drill.drillDepth+" mm de profundidad");
   }
@@ -889,7 +909,22 @@ public class MainActivity extends Activity {
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
        .setPositiveButton("Eliminar",(confirm,which)->{
-        checkpoint();int removed=booleanMeshes.indexOf(mesh);booleanMeshes.remove(mesh);if(removed>=0&&removed<unionRecipes.size())unionRecipes.remove(removed);if(removed>=0&&removed<holeRecipes.size())holeRecipes.remove(removed);if(removed>=0&&removed<loopExtrusionFeatures.size())loopExtrusionFeatures.remove(removed);save();
+        int removed=booleanMeshes.indexOf(mesh);
+        if(removed<0){toast("La malla ya no existe");return;}
+        checkpoint();
+        es.josxtm.mycad.cad.LoopExtrusionFeature deleted=
+         removed<loopExtrusionFeatures.size()?loopExtrusionFeatures.get(removed):null;
+        booleanMeshes.remove(mesh);
+        if(removed<unionRecipes.size())unionRecipes.remove(removed);
+        if(removed<holeRecipes.size())holeRecipes.remove(removed);
+        if(removed<loopExtrusionFeatures.size())loopExtrusionFeatures.remove(removed);
+        if(removed<intersectionRecipes.size())intersectionRecipes.remove(removed);
+        if(deleted!=null)for(int i=0;i<intersectionRecipes.size();i++){
+         es.josxtm.mycad.cad.LinkedConvexIntersection dependent=intersectionRecipes.get(i);
+         if(dependent!=null&&dependent.dependsOnFeature(deleted.id))
+          intersectionRecipes.set(i,null);
+        }
+        save();
         if(meshMode&&meshView!=null)renderCurrentCadMesh();
         toast("Resultado eliminado");
        }).show();
@@ -955,7 +990,7 @@ public class MainActivity extends Activity {
         parts.remove(Math.max(boxIndex,cutterIndex));
         parts.remove(Math.min(boxIndex,cutterIndex));
         booleanMeshes.add(new MeshEngine.Mesh(surface));
-        loopExtrusionFeatures.add(null);unionRecipes.add(null);
+        loopExtrusionFeatures.add(null);intersectionRecipes.add(null);unionRecipes.add(null);
         holeRecipes.add(option==2?result.cut:null);
         selected=-1;selectedSketch=-1;activeCadFace=null;
         save();scene.invalidate();
@@ -1014,7 +1049,7 @@ public class MainActivity extends Activity {
      if(geometry.length==0||geometry.length>18000||
       !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(geometry).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
      checkpoint();parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(geometry));
-     loopExtrusionFeatures.add(null);unionRecipes.add(null);holeRecipes.add(recipe);
+     loopExtrusionFeatures.add(null);intersectionRecipes.add(null);unionRecipes.add(null);holeRecipes.add(recipe);
      selected=-1;selectedSketch=-1;activeCadFace=null;save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast("Perforación guardada · "+(recipe.drillDepth==0?"pasante":"ciega")+" · editable en Resultados booleanos");
@@ -2055,7 +2090,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     float[] united=BoxBooleanMesh.build(a,b,BoxBooleanMesh.Operation.UNION);
     if(united.length==0)throw new IllegalArgumentException("Empty union");
     checkpoint();
-    parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(united));loopExtrusionFeatures.add(null);holeRecipes.add(null);unionRecipes.add(new es.josxtm.mycad.cad.FaceUnionRecipe(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,face,amount));
+    parts.remove(index);booleanMeshes.add(new MeshEngine.Mesh(united));loopExtrusionFeatures.add(null);intersectionRecipes.add(null);holeRecipes.add(null);unionRecipes.add(new es.josxtm.mycad.cad.FaceUnionRecipe(parent.w,parent.d,parent.h,parent.x,parent.y,parent.z,face,amount));
     selected=parts.isEmpty()?-1:Math.min(index,parts.size()-1);
     info.setText("Extrusión fusionada como malla · "+amount+" mm");
    }else{
@@ -2977,7 +3012,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  }
  }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AlertDialog.Builder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
  }
- void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();loopExtrusionFeatures.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
+ void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();loopExtrusionFeatures.clear();intersectionRecipes.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
  void guide(){new AlertDialog.Builder(this).setTitle("Guía · De la idea al archivo").setMessage(
  "1. NUEVO: empieza con el lienzo vacío.\n\n"+
  "2. RECTÁNGULO o CÍRCULO: introduce medidas en mm y el espesor. APLICAR crea la pieza. Por ahora se introducen medidas; no se dibuja a mano.\n\n"+
