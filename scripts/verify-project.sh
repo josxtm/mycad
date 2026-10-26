@@ -139,10 +139,15 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/BoxBRep.java \
   app/src/main/java/es/josxtm/mycad/cad/CylinderSurface.java \
   app/src/main/java/es/josxtm/mycad/cad/CylinderBRep.java \
+  app/src/main/java/es/josxtm/mycad/cad/FaceResize.java \
+  app/src/main/java/es/josxtm/mycad/cad/RotatedFaceResize.java \
+  app/src/main/java/es/josxtm/mycad/cad/PrimitiveBRepBody.java \
   tests/BoxBRepTest.java \
-  tests/CylinderBRepTest.java
+  tests/CylinderBRepTest.java \
+  tests/PrimitiveBRepBodyTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
+java -cp build/box-brep-tests PrimitiveBRepBodyTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -151,7 +156,7 @@ src=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encodi
 for token in (
  "void editSelectedCylinderFace()",
  "activeCylinderFaceId=hit.faceId",
- "CylinderBRep.from(part.id,part.w,part.h,pose)",
+ "PrimitiveBRepBody analyticBody(Part part)",
  "part.w=diameter;part.d=diameter;part.h=height;",
  "partIndex>=parts.size()||parts.get(partIndex)!=part",
  "!part.sourceSketchId.isEmpty()",
@@ -161,6 +166,24 @@ for token in (
     if token not in src:
         raise SystemExit("ERROR: falta integración B-Rep de cilindro: "+token)
 print("Integración de selección y edición de cilindros: OK")
+PY
+
+# Integracion de B-Rep compartida: cara seleccionada => edicion => visor y undo.
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+for marker in (
+ "PrimitiveBRepBody analyticBody(Part part)",
+ "case 21:inspectSelectedAnalyticSolid();break;",
+ ".offsetFace(part.id+\"/face/\"+face.name(),delta)",
+ "analyticBody(part).offsetFace(faceId,mm)",
+ "for(float value:analyticBody(part).triangles(48))floats.add(value)",
+ "checkpoint();",
+ "activeCylinderFaceId=null;activeCadFace=null;",
+):
+    if marker not in src:
+        raise SystemExit("ERROR: B-Rep compartida no integrada: "+marker)
+print("Integracion Android de B-Rep primitiva compartida: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
