@@ -2,6 +2,8 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Áreas degeneradas independientes de escala (0.6.0):** se elimina el umbral absoluto de área que rechazaba triángulos legítimos de sólidos diminutos o alargados; se detectan como degenerados solo triángulos de área exactamente nula y esquinas repetidas, manteniendo la comprobación de volumen por componente. Regresiones con tetraedros de 1 µm y altas relaciones de aspecto. Sin APK; véase [áreas a escala](CAD_MESH_SCALE_DEGENERACY.md).
+
 **Rechazo de componentes sin volumen (0.6.0):** el validador de sólidos comprueba el volumen orientado de cada componente de caras conectadas por aristas; una lámina coplanar de doble cara puede tener aristas emparejadas y aun así no encerrar sólido. Se rechaza la componente de volumen exactamente cero, incluso si otra componente válida aporta volumen total positivo. Se exponen contadores de componentes y componentes nulas; regresiones Java, sin APK. Véase [mallas sin volumen](CAD_MESH_ZERO_VOLUME.md).
 
 **Precisión del volumen orientado (0.6.0):** el diagnóstico de mallas calcula determinantes respecto al primer vértice de cada componente de caras conectadas por aristas y acumula aportaciones con compensación de Neumaier; regresiones de tetraedros pequeños separados a ±10 millones de mm y orientación invertida. Sin cambios en la topología ni APK; véase [volumen estable](CAD_MESH_STABLE_VOLUME.md).

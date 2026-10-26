@@ -36,6 +36,36 @@ public final class TriangleMeshHealthTest {
   float[] duplicated=Arrays.copyOf(cylinder,cylinder.length+9);
   System.arraycopy(cylinder,0,duplicated,cylinder.length,9);
   require(TriangleMeshHealth.inspect(duplicated).nonManifoldEdges>0,"Duplicated triangle accepted");
+  // Positive-volume microscopic solids are legitimate geometry: the
+  // previous absolute normal^2 < 1e-16 threshold falsely rejected them.
+  for(float side:new float[]{1e-3f,1e-5f,1e-6f}){
+   float[] tiny=tetra(side);
+   TriangleMeshHealth.Report report=TriangleMeshHealth.inspect(tiny);
+   require(report.isWatertight()&&report.degenerateTriangles==0,
+     "Thin but valid tetrahedron rejected for side="+side+
+       ", degenerates="+report.degenerateTriangles);
+   double expected=Math.pow((double)side,3)/6.0;
+   require(Math.abs(report.signedVolume-expected)<=expected*2e-6,
+     "Micro-solid volume wrong for side="+side+": "+report.signedVolume);
+  }
+  // A genuinely collinear micro-triangle remains degenerate at ANY scale.
+  float micro=1e-7f;
+  float[] line={0,0,0, micro,micro,0, 2*micro,2*micro,0};
+  TriangleMeshHealth.Report collapsedLine=TriangleMeshHealth.inspect(line);
+  require(collapsedLine.degenerateTriangles==1&&!collapsedLine.isWatertight(),
+    "Small collinear triangle must still be flagged");
+  // Long + ultra-thin shape should also pass orientation/volume checks.
+  float sx=1000f,sy=1e-6f,sz=1e-6f;
+  float[] longThin=tetra(1);
+  for(int i=0;i<longThin.length;i+=3){
+   longThin[i]*=sx;longThin[i+1]*=sy;longThin[i+2]*=sz;
+  }
+  TriangleMeshHealth.Report slender=TriangleMeshHealth.inspect(longThin);
+  require(slender.isWatertight()&&slender.degenerateTriangles==0,
+    "Valid high-aspect-ratio tetrahedron marked degenerate");
+  require(Math.abs(slender.signedVolume-(double)sx*sy*sz/6.0)<1e-13,
+    "Long-thin solid volume must remain accurate");
+
   float[] first=tetra(1),second=tetra(-1);
   require(TriangleMeshHealth.inspect(first).isWatertight(),"First tetrahedron should be closed");
   require(TriangleMeshHealth.inspect(second).isWatertight(),"Second tetrahedron should be closed");

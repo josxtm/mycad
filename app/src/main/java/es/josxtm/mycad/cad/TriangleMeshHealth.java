@@ -74,7 +74,12 @@ public final class TriangleMeshHealth {
    double nx=(by-ay)*(cz-az)-(bz-az)*(cy-ay);
    double ny=(bz-az)*(cx-ax)-(bx-ax)*(cz-az);
    double nz=(bx-ax)*(cy-ay)-(by-ay)*(cx-ax);
-   if(v[0].equals(v[1])||v[1].equals(v[2])||v[2].equals(v[0])||nx*nx+ny*ny+nz*nz<1e-16)degenerates++;
+   // A fixed world-scale area threshold rejects valid sub-millimetre CAD
+   // solids (e.g. a 10 µm tetrahedron). For finite float XYZ inputs the
+   // double-precision cross product is sufficient to distinguish exactly
+   // collinear triangles without introducing an arbitrary minimum area.
+   if(v[0].equals(v[1])||v[1].equals(v[2])||v[2].equals(v[0])||
+      (nx==0.0&&ny==0.0&&nz==0.0))degenerates++;
    for(int k=0;k<3;k++){
     Vertex from=v[k],to=v[(k+1)%3];
     Edge e=new Edge(from,to);Count count=edges.get(e);
