@@ -81,7 +81,7 @@ jobs:
           java -cp build/geometry-tests ClosedSketchExtrusionTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/StoredMeshTriangleMap.java tests/StoredMeshTriangleMapTest.java
           java -cp build/geometry-tests StoredMeshTriangleMapTest
-          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LoopExtrusionFeature.java tests/LoopExtrusionFeatureTest.java
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/PolygonPrismBRep.java app/src/main/java/es/josxtm/mycad/cad/LoopExtrusionFeature.java tests/LoopExtrusionFeatureTest.java
           java -cp build/geometry-tests LoopExtrusionFeatureTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/PolygonPrismBRep.java tests/PolygonPrismBRepTest.java
           java -cp build/geometry-tests PolygonPrismBRepTest
