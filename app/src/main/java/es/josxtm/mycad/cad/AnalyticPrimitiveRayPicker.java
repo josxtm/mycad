@@ -14,12 +14,15 @@ public final class AnalyticPrimitiveRayPicker {
 
  public static final class Hit {
   public final String bodyId,faceId;
-  public final double distance,x,y,z;
-  private Hit(String bodyId,String faceId,double distance,double[] point){
+  public final double distance,x,y,z,nx,ny,nz;
+  private Hit(String bodyId,String faceId,double distance,double[] point,double[] normal){
    this.bodyId=bodyId;this.faceId=faceId;this.distance=distance;
    x=point[0];y=point[1];z=point[2];
+   nx=normal[0];ny=normal[1];nz=normal[2];
   }
   public double[] point(){return new double[]{x,y,z};}
+  /** Outward world-space unit normal at the exact hit (including curved sides). */
+  public double[] normal(){return new double[]{nx,ny,nz};}
  }
 
  private static Hit choose(Hit best,PrimitiveBRepBody body,String slot,
@@ -37,9 +40,11 @@ public final class AnalyticPrimitiveRayPicker {
          lz>=-boundaryEps&&lz<=body.height+boundaryEps;
   }else{
    double rad=body.width/2;
+   double radial=Math.hypot(lx,ly);
    valid=lz>=-boundaryEps&&lz<=body.height+boundaryEps&&
-        (slot.equals("CYLINDER_SIDE")||
-         lx*lx+ly*ly<=rad*rad+Math.max(1,rad*rad)*1e-8);
+        (slot.equals("CYLINDER_SIDE")?
+         Math.abs(radial-rad)<=1e-9*Math.max(1,rad):
+         radial<=rad+boundaryEps);
   }
   if(!valid)return best;
   double distance=t/unit;
@@ -49,8 +54,10 @@ public final class AnalyticPrimitiveRayPicker {
   if(!Double.isFinite(distance)||!Double.isFinite(p[0])||
      !Double.isFinite(p[1])||!Double.isFinite(p[2]))return best;
   String faceId=body.bodyId+"/face/"+slot;
-  if(body.findFace(faceId)==null)return best;
-  Hit next=new Hit(body.bodyId,faceId,distance,p);
+  PrimitiveBRepBody.Face face=body.findFace(faceId);
+  if(face==null)return best;
+  double[] normal=face.outwardNormalAt(Math.atan2(ly,lx));
+  Hit next=new Hit(body.bodyId,faceId,distance,p,normal);
   if(best==null||distance<best.distance-1e-8)return next;
   // Deterministic tie at a shared rim/corner; face IDs are persistent.
   if(Math.abs(distance-best.distance)<=1e-8&&
@@ -91,7 +98,10 @@ public final class AnalyticPrimitiveRayPicker {
           c=o[0]*o[0]+o[1]*o[1]-r*r;
    if(a>1e-16){
     double disc=b*b-4*a*c;
-    if(disc>=-1e-9*Math.max(1,b*b)){
+    // A broad relative epsilon can turn a near-tangent MISS into a false hit.
+    // Accept only round-off on the quadratic terms, then verify the radius.
+    double discScale=Math.max(1,Math.max(Math.abs(b*b),Math.abs(4*a*c)));
+    if(disc>=-64*Math.ulp(discScale)){
      disc=Math.max(0,disc);
      // Numerically stable quadratic roots when b is large.
      double sqrt=Math.sqrt(disc),q=-.5*(b+Math.copySign(sqrt,b));
