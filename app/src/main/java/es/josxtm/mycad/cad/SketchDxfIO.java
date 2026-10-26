@@ -97,6 +97,55 @@ public final class SketchDxfIO {
      optional(attributes,230,1)!=1)
    throw new IllegalArgumentException("Solo se admite geometría DXF en el plano XY");
  }
+ /**
+  * Reject self-intersecting closed DXF contours before the Android editor
+  * stages any sketches. Adjacent edges may share their common endpoint;
+  * nonadjacent edges may neither cross nor touch (including overlaps).
+  */
+ private static double turn(double[] a,double[] b,double[] c){
+  return (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+ }
+ private static boolean onEdge(double[] a,double[] b,double[] p){
+  return turn(a,b,p)==0&&p[0]>=Math.min(a[0],b[0])&&
+    p[0]<=Math.max(a[0],b[0])&&p[1]>=Math.min(a[1],b[1])&&
+    p[1]<=Math.max(a[1],b[1]);
+ }
+ private static boolean edgesMeet(double[] a,double[] b,double[] c,double[] d){
+  double abC=turn(a,b,c),abD=turn(a,b,d),
+         cdA=turn(c,d,a),cdB=turn(c,d,b);
+  if((abC==0&&onEdge(a,b,c))||(abD==0&&onEdge(a,b,d))||
+     (cdA==0&&onEdge(c,d,a))||(cdB==0&&onEdge(c,d,b)))
+   return true;
+  return ((abC>0&&abD<0)||(abC<0&&abD>0))&&
+         ((cdA>0&&cdB<0)||(cdA<0&&cdB>0));
+ }
+ private static void validateSimpleContour(List<double[]> corners){
+  int n=corners.size();
+  double[] origin=corners.get(0);
+  double twiceArea=0,minX=Double.POSITIVE_INFINITY,maxX=Double.NEGATIVE_INFINITY;
+  double minY=Double.POSITIVE_INFINITY,maxY=Double.NEGATIVE_INFINITY;
+  for(int i=0;i<n;i++){
+   double[] a=corners.get(i),b=corners.get((i+1)%n);
+   if(Math.abs(a[0])>100000||Math.abs(a[1])>100000)
+    throw new IllegalArgumentException("Vértice DXF fuera de rango");
+   if(Math.hypot(b[0]-a[0],b[1]-a[1])<1e-6)
+    throw new IllegalArgumentException("Arista DXF degenerada");
+   twiceArea+=turn(origin,a,b);
+   minX=Math.min(minX,a[0]);maxX=Math.max(maxX,a[0]);
+   minY=Math.min(minY,a[1]);maxY=Math.max(maxY,a[1]);
+  }
+  double extent=Math.max(maxX-minX,maxY-minY);
+  if(Math.abs(twiceArea)<=1e-12*extent*extent)
+   throw new IllegalArgumentException("Polilínea DXF sin superficie");
+  for(int i=0;i<n;i++){
+   double[] a=corners.get(i),b=corners.get((i+1)%n);
+   for(int j=i+1;j<n;j++){
+    if(j==i+1||(i==0&&j==n-1))continue;
+    if(edgesMeet(a,b,corners.get(j),corners.get((j+1)%n)))
+     throw new IllegalArgumentException("Polilínea DXF autointersectada");
+   }
+  }
+ }
  private static void add(List<Shape> output,Shape shape){
   if(output.size()>=MAX_SHAPES)throw new IllegalArgumentException("Demasiados bocetos DXF");
   output.add(shape);
@@ -136,6 +185,7 @@ public final class SketchDxfIO {
    }
    if(waitingX!=null||corners.size()!=(int)declared)
     throw new IllegalArgumentException("Polilínea DXF con vértices incompletos");
+   validateSimpleContour(corners);
    double loX=Double.POSITIVE_INFINITY,loY=Double.POSITIVE_INFINITY;
    double hiX=Double.NEGATIVE_INFINITY,hiY=Double.NEGATIVE_INFINITY;
    for(double[] point:corners){

@@ -672,5 +672,8 @@ assert "imported=es.josxtm.mycad.cad.SketchDxfIO.read(input);" in block
 assert block.index("SketchDxfIO.read(input)") < block.index("checkpoint();sketches.addAll(staged);")
 assert "if(sketches.size()+staged.size()>2000)" in block
 assert 'setTitle("DXF no compatible")' in block
-print("Android DXF: validar antes de modificar bocetos y conservar proyecto ante error: OK")
+parser=Path("app/src/main/java/es/josxtm/mycad/cad/SketchDxfIO.java").read_text(encoding="utf-8")
+assert "validateSimpleContour(corners);" in parser
+assert parser.index("validateSimpleContour(corners);") < parser.index("if(rectangle){")
+print("Android DXF: validar contornos antes de modificar bocetos y conservar proyecto ante error: OK")
 PY
