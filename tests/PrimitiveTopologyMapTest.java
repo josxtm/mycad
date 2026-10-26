@@ -40,12 +40,12 @@ public final class PrimitiveTopologyMapTest {
   limit.addBox(0,"last-valid",lastStart);
   yes(limit.resolve(Integer.MAX_VALUE)!=null,"Last addressable triangle resolves");
   yes(limit.resolve(lastStart-1)==null,"Triangle before final range stays unmapped");
+  PrimitiveTopologyMap overflow=new PrimitiveTopologyMap();
   invalid=false;
-  try{limit.addBox(1,"too-large",Integer.MAX_VALUE);}catch(IllegalArgumentException e){invalid=true;}
+  try{overflow.addBox(0,"too-large",Integer.MAX_VALUE);}catch(IllegalArgumentException e){invalid=true;}
   yes(invalid,"Reject ranges whose end exceeds addressable triangle indices");
-  PrimitiveTopologyMap retried=new PrimitiveTopologyMap();
-  retried.addBox(0,"too-large",Integer.MAX_VALUE-11);
-  yes(retried.resolve(Integer.MAX_VALUE)!=null,"Retry rejected overflow ID on valid range");
+  overflow.addBox(0,"too-large",Integer.MAX_VALUE-11);
+  yes(overflow.resolve(Integer.MAX_VALUE)!=null,"Retry rejected overflow ID on valid range");
   CadFaceReference ref=new CadFaceReference(0,bodyA,BoxFaceSelection.Face.X_MIN);
   yes(ref.isValidFor(2,bodyA)&&!ref.isValidFor(2,bodyB),"Stale index protection");
   yes(ref.key().equals(bodyA+"/face/X_MIN"),"Stable reference key");
