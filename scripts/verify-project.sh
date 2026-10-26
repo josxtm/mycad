@@ -869,7 +869,7 @@ for key in (
 creation=main[main.index("void intersectLinkedLoopMeshes("):main.index("void unionLinkedRectangularMeshes(")]
 assert "loopExtrusionFeatures.add(null);intersectionRecipes.add(linked);" in creation
 assert "loopExtrusionFeatures.add(null);intersectionRecipes.add(null);intersectionRecipes.add(linked)" not in main
-union=main[main.index("void unionLinkedRectangularMeshes("):main.index("void booleanMeshManager()")]
+union=main[main.index("void unionLinkedRectangularMeshes("):main.index("void subtractLinkedRectangularMeshes(")]
 assert union.index("OrthogonalPrismBRepUnion.union(a,b)") < union.index("checkpoint();")
 assert union.count("intersectionRecipes.add(linked);")==1
 for key in ("Non", "loopExtrusionFeatures"):
@@ -897,8 +897,34 @@ for k in (
 ):
  assert k in a,k
 assert "this(id,firstId,secondId,Operation.INTERSECTION);" in feature
-assert "Operation { INTERSECTION, UNION_ORTHOGONAL }" in feature
+assert "Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL }" in feature
 assert "OrthogonalPrismBRepUnion.union(" in feature
 assert "LinkedOrthogonalUnionTest" in workflow
 print("Unión B-Rep vinculada: JSON v1, undo, regeneración y pruebas: OK")
+PY
+
+# Restricted B-Rep subtract must remain watertight, single-shell and
+# source-dependent. No holes, no multi-shell results.
+python3 - <<'PY'
+from pathlib import Path
+main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+core=Path("app/src/main/java/es/josxtm/mycad/cad/OrthogonalPrismBRepUnion.java").read_text(encoding="utf-8")
+feature=Path("app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java").read_text(encoding="utf-8")
+flow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+block=main[main.index("void subtractLinkedRectangularMeshes("):main.index("void booleanMeshManager()")]
+for key in (
+ "OrthogonalPrismBRepUnion.difference(a,b)",
+ "LinkedConvexIntersection.Operation.DIFFERENCE_ORTHOGONAL",
+ "linked.regenerateTriangles(refs,lines)",
+ "loopExtrusionFeatures.add(null);intersectionRecipes.add(linked);",
+):
+ assert key in block,key
+assert block.index("OrthogonalPrismBRepUnion.difference(a,b)")<block.index("checkpoint();")
+assert block.count("intersectionRecipes.add(linked);")==1
+assert "if(choice==10){subtractLinkedRectangularMeshes(index);}" in main
+assert "if(option==6){subtractLinkedRectangularMeshes(index);return;}" in main
+assert "outline(a,b,true)" in core and "visited.size()!=successors.size()" in core
+assert "OrthogonalPrismBRepDifferenceTest" in flow
+assert "OrthogonalPrismBRepUnion.difference(" in feature
+print("Resta B-Rep ortogonal: validación de sólidos con un contorno, UI y receta UUID: OK")
 PY
