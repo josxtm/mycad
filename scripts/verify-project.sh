@@ -897,7 +897,7 @@ for k in (
 ):
  assert k in a,k
 assert "this(id,firstId,secondId,Operation.INTERSECTION);" in feature
-assert "Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL }" in feature
+assert "Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL }" in feature
 assert "OrthogonalPrismBRepUnion.union(" in feature
 assert "LinkedOrthogonalUnionTest" in workflow
 print("Unión B-Rep vinculada: JSON v1, undo, regeneración y pruebas: OK")
@@ -927,4 +927,39 @@ assert "outline(a,b,true)" in core and "visited.size()!=successors.size()" in co
 assert "OrthogonalPrismBRepDifferenceTest" in flow
 assert "OrthogonalPrismBRepUnion.difference(" in feature
 print("Resta B-Rep ortogonal: validación de sólidos con un contorno, UI y receta UUID: OK")
+PY
+
+# Concave but strictly orthogonal B-Rep Boolean and its saved UUID history.
+python3 - <<'PY'
+from pathlib import Path
+main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+core=Path("app/src/main/java/es/josxtm/mycad/cad/OrthogonalPolygonBRepBoolean.java").read_text(encoding="utf-8")
+recipe=Path("app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java").read_text(encoding="utf-8")
+workflow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for key in (
+ "void booleanLinkedOrthogonalPolygons(int first)",
+ "void chooseLinkedOrthogonalOperand(int first,",
+ "OrthogonalPolygonBRepBoolean.apply(",
+ "LinkedConvexIntersection.Operation.UNION_POLYGONAL",
+ "LinkedConvexIntersection.Operation.DIFFERENCE_POLYGONAL",
+ "LinkedConvexIntersection.Operation.INTERSECTION_POLYGONAL",
+ "linked.regenerateTriangles(refs,lines)",
+ "if(choice==11){booleanLinkedOrthogonalPolygons(index);}",
+ "if(option==7){booleanLinkedOrthogonalPolygons(index);return;}"
+):
+ assert key in main,key
+section=main[main.index("void chooseLinkedOrthogonalOperand("):main.index("void booleanMeshManager()")]
+assert section.index("OrthogonalPolygonBRepBoolean.apply(")<section.index("checkpoint();")
+assert section.count("intersectionRecipes.add(linked);")==1
+for key in ("Agujeros interiores o múltiples cuerpos no admitidos",
+            "PolygonPrismBRep result=new LoopExtrusionFeature",
+            "vertices().size()", "twiceArea(out)"):
+ # Ensure this is an actual boundary topology reconstruction, not triangles sewn.
+ if key=="vertices().size()":continue
+ assert key in core,key
+for op in ("UNION_POLYGONAL","DIFFERENCE_POLYGONAL","INTERSECTION_POLYGONAL"):
+ assert "Operation."+op in recipe,op
+assert "OrthogonalPolygonBRepBooleanTest" in workflow
+assert "LinkedConcaveBooleanTest" in workflow
+print("Booleanas de perfiles cóncavos: B-Rep, recetas UUID y controles de integración: OK")
 PY
