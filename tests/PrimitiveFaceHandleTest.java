@@ -72,6 +72,24 @@ public final class PrimitiveFaceHandleTest {
          "Box off-center touch anchor");
   rejects(()->PrimitiveFaceHandle.fromHit(
    box.offsetFace("box/face/X_MIN",3),boxHit),"Stale box face hit");
+  // Moving the opposite face preserves this hit on X_MIN, but it MUST NOT
+  // preserve an old editing anchor from a previous geometric revision.
+  PrimitiveBRepBody oppositeEdit=box.offsetFace("box/face/X_MAX",2);
+  double[] stillOnFace=oppositeEdit.pose().inversePoint(boxHit.x,boxHit.y,boxHit.z);
+  near(stillOnFace[0],-oppositeEdit.width/2,"Old hit still on unchanged face");
+  rejects(()->PrimitiveFaceHandle.fromHit(oppositeEdit,boxHit),
+          "Opposite face edit invalidates hit snapshot");
+  PrimitiveBRepBody translated=PrimitiveBRepBody.box("box",20,10,8,
+    new RigidTransform(pose.tx,pose.ty+1,pose.tz,pose.rx,pose.ry,pose.rz));
+  rejects(()->PrimitiveFaceHandle.fromHit(translated,boxHit),
+          "Translated body invalidates hit snapshot");
+  PrimitiveBRepBody rotated=PrimitiveBRepBody.box("box",20,10,8,
+    new RigidTransform(pose.tx,pose.ty,pose.tz,pose.rx,pose.ry,pose.rz+1));
+  rejects(()->PrimitiveFaceHandle.fromHit(rotated,boxHit),
+          "Rotated body invalidates hit snapshot");
+  PrimitiveBRepBody restored=PrimitiveBRepBody.box("box",20,10,8,pose);
+  vector(PrimitiveFaceHandle.fromHit(restored,boxHit).anchor(),boxPoint,
+         "Identical regenerated geometry may reuse hit");
   PrimitiveFaceHandle extended=PrimitiveFaceHandle.from(
     cyl.offsetFace("cyl/face/CYLINDER_TOP",2),"cyl/face/CYLINDER_TOP");
   vector(extended.anchor(),pose.point(0,0,10),"Regenerated top");
