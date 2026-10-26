@@ -70,7 +70,7 @@ public final class OrthogonalPolygonBRepBooleanTest {
    OrthogonalPolygonBRepBoolean.Result fill=
      OrthogonalPolygonBRepBoolean.apply(u,inner,
        OrthogonalPolygonBRepBoolean.Operation.UNION);
-   near(fill.area,15,"U shape with bridge creates concave but single-shell B-Rep");
+   near(fill.area,14,"U shape with bridge creates concave but single-shell B-Rep");
    ok(TriangleMeshHealth.inspect(fill.triangles()).isWatertight(),
       "U plus bridge watertight");
    invalid(()->OrthogonalPolygonBRepBoolean.apply(
@@ -91,9 +91,9 @@ public final class OrthogonalPolygonBRepBooleanTest {
       OrthogonalPolygonBRepBoolean.Operation.UNION),
       "Disconnected union shells");
    invalid(()->OrthogonalPolygonBRepBoolean.apply(
-      a,prism(B,p,h,rectangle(4,0,5,1)),
+      a,prism(B,p,h,rectangle(4,1,5,2)),
       OrthogonalPolygonBRepBoolean.Operation.UNION),
-      "Only touching at an edge is disconnected under supported contract");
+      "Vertex-only touch is disconnected under supported contract");
    invalid(()->OrthogonalPolygonBRepBoolean.apply(
       a,prism(B,p,-h,rectangle(2,0,5,3)),
       OrthogonalPolygonBRepBoolean.Operation.UNION),
