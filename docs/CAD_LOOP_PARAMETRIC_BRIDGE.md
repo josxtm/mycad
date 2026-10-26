@@ -97,6 +97,27 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
   degenerados. Todavía no hay unión/diferencia B-Rep generales, huecos
   interiores ni varias regiones desconectadas.
 
+## Unión B-Rep de dos prismas rectangulares
+
+- **Unir dos prismas B-Rep rectangulares**, disponible desde el visor 3D
+  o Resultados. Requiere dos perfiles rectangulares cerrados con
+  **mismo plano y la misma altura firmada**, solapados con volumen.
+- La unión se calcula mediante descomposición de una cuadrícula
+  ortogonal, reconocimiento de la frontera exterior, eliminación de
+  vértices collineales y reconstrucción de **una topología B-Rep nueva**.
+  Los resultados pueden ser cóncavos, en forma de **L** o cruz, y se
+  comprueban sus normales, volumen y malla cerrada.
+- Esta primera versión guarda el resultado como **malla independiente**,
+  no como una operación paramétrica regenerable. Sus dos cuerpos
+  originales se conservan. El historial de intersección vinculada
+  existente no se altera.
+- Se rechazan contornos oblicuos o con múltiples regiones, ausencia de
+  solape volumétrico y alturas distintas, incluso si los dos sólidos
+  tienen la misma dirección de extrusión.
+- Corrección de integridad: crear una intersección paramétrica existente
+  agrega ahora exactamente **una** receta al listado de booleanas,
+  evitando duplicar su entrada y desalinear el proyecto JSON.
+
 ## Limitaciones importantes
 
 Las operaciones vinculadas son **solo para extrusiones generadas a

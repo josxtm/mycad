@@ -849,3 +849,33 @@ block=a[a.index("void stageLinkedIntersectionRebuild(") if "void stageLinkedInte
 assert "recipe.regenerate(sources,lines).triangles()" in block
 print("Intersección B-Rep vinculada: guardado, undo y regeneración enlazados: OK")
 PY
+
+# The union is a NEW analytic watertight shell, not mesh stitching. Guard
+# the regression which used to append TWO linked intersection slots for
+# one Boolean result and broke JSON array alignment.
+python3 - <<'PY'
+from pathlib import Path
+main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+kernel=Path("app/src/main/java/es/josxtm/mycad/cad/OrthogonalPrismBRepUnion.java").read_text(encoding="utf-8")
+flow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for key in (
+ "void unionLinkedRectangularMeshes(int first)",
+ "OrthogonalPrismBRepUnion.union(a,b)",
+ "if(choice==9){unionLinkedRectangularMeshes(index);}",
+ "if(option==5){unionLinkedRectangularMeshes(index);return;}",
+ "loopExtrusionFeatures.add(null);intersectionRecipes.add(null);",
+ "linked.regenerate(refs,lines).triangles()",
+): assert key in main,key
+creation=main[main.index("void intersectLinkedLoopMeshes("):main.index("void unionLinkedRectangularMeshes(")]
+assert "loopExtrusionFeatures.add(null);intersectionRecipes.add(linked);" in creation
+assert "loopExtrusionFeatures.add(null);intersectionRecipes.add(null);intersectionRecipes.add(linked)" not in main
+union=main[main.index("void unionLinkedRectangularMeshes("):main.index("void booleanMeshManager()")]
+assert union.index("OrthogonalPrismBRepUnion.union(a,b)") < union.index("checkpoint();")
+assert union.count("intersectionRecipes.add(null);")==1
+for key in ("Non", "loopExtrusionFeatures"):
+ pass
+assert "new LoopExtrusionFeature(resultId,ids.get(0)" in kernel
+assert "Math.abs(h-other)" in kernel
+assert "OrthogonalPrismBRepUnionTest" in flow
+print("Unión ortogonal B-Rep: transacción, malla independiente y arrays alineados: OK")
+PY
