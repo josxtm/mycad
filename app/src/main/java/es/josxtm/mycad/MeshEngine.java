@@ -133,6 +133,24 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  }
  private SurfaceTapListener surfaceTapListener;
  private SurfaceRayListener surfaceRayListener;
+ /** Notify the Canvas ViewCube after a gesture changes GPU camera heading. */
+ public interface CameraOrientationListener {
+  void onCameraOrientation(float yawDegrees,float pitchDegrees);
+ }
+ private CameraOrientationListener cameraOrientationListener;
+ public void setCameraOrientationListener(CameraOrientationListener listener){
+  cameraOrientationListener=listener;
+ }
+ private void publishCameraOrientation(){
+  final CameraOrientationListener receiver=cameraOrientationListener;
+  if(receiver==null)return;
+  final float currentYaw=yaw,currentPitch=pitch;
+  // Canvas is a UI View; notifications from the EGL thread must use UI.
+  post(()->{
+   if(cameraOrientationListener==receiver)
+    receiver.onCameraOrientation(currentYaw,currentPitch);
+  });
+ }
  public void setSurfaceTapListener(SurfaceTapListener listener){surfaceTapListener=listener;}
  public void setSurfaceRayListener(SurfaceRayListener listener){surfaceRayListener=listener;}
  public MeshEngine(Context context){super(context);setEGLContextClientVersion(3);setRenderer(this);setRenderMode(RENDERMODE_WHEN_DIRTY);}
@@ -179,17 +197,23 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  public void setViewOrientation(float yawDegrees,float pitchDegrees){
   if(!Float.isFinite(yawDegrees)||!Float.isFinite(pitchDegrees))
    throw new IllegalArgumentException("Invalid ViewCube orientation");
-  yaw=yawDegrees;
-  pitch=Math.max(-89,Math.min(89,pitchDegrees));
+  yaw=es.josxtm.mycad.cad.CameraOrientationSync.yawDegrees(yawDegrees);
+  pitch=es.josxtm.mycad.cad.CameraOrientationSync.pitchDegrees(pitchDegrees);
   requestRender();
  }
- public void orbit(float dx,float dy){yaw+=dx*.35f;pitch=Math.max(-89,Math.min(89,pitch+dy*.35f));requestRender();}
+ public void orbit(float dx,float dy){
+  yaw=es.josxtm.mycad.cad.CameraOrientationSync.yawDegrees(yaw+dx*.35f);
+  pitch=es.josxtm.mycad.cad.CameraOrientationSync.pitchDegrees(pitch+dy*.35f);
+  publishCameraOrientation();
+  requestRender();
+ }
  public void zoom(float factor){distance=Math.max(.1f,Math.min(100000f,distance/factor));requestRender();}
  /** Three quick fingers reset camera to the initial 3D isometric view. */
  private void homeCamera(){
   queueEvent(()->{
    yaw=35;pitch=25;
    fitCamera();
+   publishCameraOrientation();
    boolean hasGeometry=false;
    for(Mesh mesh:meshes)if(mesh.vertices.length>0){hasGeometry=true;break;}
    cameraHasFit=hasGeometry;
