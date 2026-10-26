@@ -33,6 +33,30 @@ public final class EdgeScreenToleranceTest {
   double tinyLimit=EdgeScreenTolerance.compute(tiny,1e6,100,3);
   near(tinyLimit,.036,"Tiny cylinder's edge tolerance bounded by geometry");
   ok(tinyLimit<max,"Small parts do not select distant edges");
+  // Perspective touch tolerance follows the actual hit depth, not the
+  // distance to the scene's focus (which can be far from the touched body).
+  double hitNear=EdgeScreenTolerance.computeAtHit(
+      box,0,0,0,0,0,40,800,2);
+  double hitFar=EdgeScreenTolerance.computeAtHit(
+      box,0,0,0,0,0,160,800,2);
+  ok(hitNear<hitFar,"Further body has larger mm target at fixed pixel size");
+  near(hitNear,EdgeScreenTolerance.compute(box,40,800,2),
+       "Hit depth equals reference model-space perspective");
+  near(hitFar,EdgeScreenTolerance.compute(box,160,800,2),
+       "Distant hit depth uses actual touched geometry");
+  near(EdgeScreenTolerance.computeAtHit(box,10,-3,8,10,-3,48,800,2),
+       hitNear,"Translation of ray origin and hit does not change tolerance");
+  near(EdgeScreenTolerance.computeAtHit(box,0,0,0,30,40,0,800,2),
+       EdgeScreenTolerance.compute(box,50,800,2),
+       "Slanted ray uses physical near-plane to hit distance");
+  rejects(()->EdgeScreenTolerance.computeAtHit(
+      box,0,0,0,0,0,0,800,2),"Coincident origin and hit");
+  rejects(()->EdgeScreenTolerance.computeAtHit(
+      box,Double.NaN,0,0,0,0,10,800,2),"NaN ray origin");
+  rejects(()->EdgeScreenTolerance.computeAtHit(
+      box,0,0,0,Double.POSITIVE_INFINITY,0,10,800,2),"Infinite hit");
+  rejects(()->EdgeScreenTolerance.computeAtHit(
+      box,0,0,0,0,0,10,0,2),"Zero viewport at hit");
   rejects(()->EdgeScreenTolerance.compute(null,100,100,2),"No body");
   rejects(()->EdgeScreenTolerance.compute(box,Double.NaN,100,2),"NaN camera");
   rejects(()->EdgeScreenTolerance.compute(box,0,100,2),"Zero camera distance");

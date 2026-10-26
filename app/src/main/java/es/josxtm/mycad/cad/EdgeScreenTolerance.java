@@ -10,6 +10,26 @@ package es.josxtm.mycad.cad;
  */
 public final class EdgeScreenTolerance {
  private EdgeScreenTolerance(){}
+ /**
+  * Use the actual 3D touch point instead of the camera's distance to the
+  * scene focus. This matters when bodies sit in front of/behind the focus:
+  * two equally sized parts at different depths should have different
+  * model-space touch radii for the same 12dp target.
+  *
+  * The ray starts at the GL near plane, so its distance to the hit is a
+  * perspective-depth approximation (slightly larger off axis), not an
+  * exact projected curve/pixel distance.
+  */
+ public static double computeAtHit(PrimitiveBRepBody body,
+                                   double ox,double oy,double oz,
+                                   double hx,double hy,double hz,
+                                   int viewportHeightPx,double displayDensity){
+  if(!Double.isFinite(ox)||!Double.isFinite(oy)||!Double.isFinite(oz)||
+     !Double.isFinite(hx)||!Double.isFinite(hy)||!Double.isFinite(hz))
+   throw new IllegalArgumentException("Invalid surface hit");
+  double depth=Math.hypot(hx-ox,Math.hypot(hy-oy,hz-oz));
+  return compute(body,depth,viewportHeightPx,displayDensity);
+ }
  public static double compute(PrimitiveBRepBody body,double cameraDistance,
                               int viewportHeightPx,double displayDensity){
   if(body==null||!Double.isFinite(cameraDistance)||cameraDistance<=0||

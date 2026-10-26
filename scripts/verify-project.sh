@@ -280,10 +280,11 @@ python3 - <<'PY'
 from pathlib import Path
 a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
 m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
-assert "EdgeScreenTolerance.compute(" in a
-assert "meshView.cameraDistance(),meshView.getHeight()" in a
-assert "private volatile float distance=300;" in m
-print("Tolerancia tactil dependiente del zoom: OK")
+assert "EdgeScreenTolerance.computeAtHit(" in a
+assert "solid,ox,oy,oz,x,y,z,meshView.getHeight()" in a
+assert "final double ox=p[0],oy=p[1],oz=p[2];" in m
+assert "surfaceRayListener.onSurfaceRay(triangle,x,y,z,ox,oy,oz,dx,dy,dz)" in m
+print("Tolerancia tactil por profundidad real del impacto: OK")
 PY
 
 # On-model drag must not save until the confirmation callback.
