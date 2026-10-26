@@ -911,7 +911,7 @@ main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encod
 core=Path("app/src/main/java/es/josxtm/mycad/cad/OrthogonalPrismBRepUnion.java").read_text(encoding="utf-8")
 feature=Path("app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java").read_text(encoding="utf-8")
 flow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
-block=main[main.index("void subtractLinkedRectangularMeshes("):main.index("void booleanMeshManager()")]
+block=main[main.index("void subtractLinkedRectangularMeshes("):main.index("void booleanLinkedOrthogonalPolygons(")]
 for key in (
  "OrthogonalPrismBRepUnion.difference(a,b)",
  "LinkedConvexIntersection.Operation.DIFFERENCE_ORTHOGONAL",
