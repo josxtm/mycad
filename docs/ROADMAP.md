@@ -6,6 +6,8 @@
 
 **Tres dedos → vista inicial 3D:** toque simultáneo rápido de tres dedos restablece orientación isométrica (35°/25°), centro y distancia adaptados al sólido. El gesto no se confunde con pellizco ni con selección de caras, y cancela arrastre de gizmos. Pruebas Java/CI Android, sin APK.
 
+**Picking de mallas por cercanía:** el índice AABB visita antes los bloques más próximos al rayo y evita comprobar triángulos de bloques posteriores cuando ya hay un impacto más cercano. Conserva empates por índice de triángulo; pruebas de igualdad y rayos pseudoaleatorios. Sin APK.
+
 **Selección de mallas grandes acelerada:** el raycast agrupa los triángulos en bloques de 64 con cotas 3D cacheadas; se comprueban por rayos solo los bloques atravesados, sin alterar el triángulo global, el cuerpo visible ni las referencias B-Rep. Pruebas comparativas Java frente al motor previo, Gradle/Lint, sin APK.
 
 **Toques CAD sin giro accidental:** el visor GPU ya no rota la cámara por el pequeño temblor del dedo al seleccionar una cara/arista; el giro empieza al superar 12dp. Se comprueba también la posición final de `ACTION_UP` para no confundir un arrastre con un toque. Tests Java y CI Android sin APK.
