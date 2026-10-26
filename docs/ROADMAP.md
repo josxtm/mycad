@@ -2,6 +2,8 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Extrusión en ambas direcciones (0.6.0):** acepta alturas positivas y negativas sobre los planos XY, XZ e YZ, con tapa y paredes orientadas correctamente, volumen geométrico positivo y salida STL/OBJ idéntica salvo dirección. No añade parametricidad ni agujeros. Pruebas Java y Android CI; sin APK hasta hito.
+
 **Extrusión de contornos cerrados con líneas (0.6.0):** permite
 seleccionar una línea del boceto y detectar su circuito conectado de
 segmentos rectos en XY, XZ o YZ. Triangulación por recorte de orejas

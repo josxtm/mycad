@@ -200,8 +200,9 @@ public class MainActivity extends Activity {
   entry.setSingleLine(true);entry.setText("20");
   entry.setSelectAllOnFocus(true);
   new AlertDialog.Builder(this).setTitle("Extruir contorno de líneas")
-   .setMessage("Altura positiva en mm. Se creará una malla 3D cerrada, "+
-     "también para perfiles cóncavos. No será una pieza B-Rep paramétrica; "+
+   .setMessage("Distancia en mm (+ hacia delante, − hacia atrás). "+
+     "Se creará una malla 3D cerrada, también para perfiles cóncavos. "+
+     "No será una pieza B-Rep paramétrica; "+
      "editar después las líneas no actualizará esta malla.")
    .setView(entry).setNegativeButton("Cancelar",null)
    .setPositiveButton("Crear malla 3D",(dialog,which)->{

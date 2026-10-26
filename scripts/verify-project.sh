@@ -622,4 +622,18 @@ assert "ClosedSketchExtrusionTest" in w
 print("Extrusión de contornos: menús, visibilidad GPU y agujeros rechazados: OK")
 PY
 
+# Bidirectional closed-sketch extrusion must keep outside normals and signed input.
+python3 - <<'PY'
+from pathlib import Path
+e=Path("app/src/main/java/es/josxtm/mycad/cad/ClosedSketchExtrusion.java").read_text(encoding="utf-8")
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+t=Path("tests/ClosedSketchExtrusionTest.java").read_text(encoding="utf-8")
+assert "Math.abs(height)>10000" in e
+assert "if(height<0)for(int i=0;i<mesh.length;i+=9)" in e
+assert "area2*Math.abs(height)/2" in e
+assert "Reverse concave L plane" in t
+assert "Distancia en mm (+ hacia delante" in a
+print("Extrusión bidireccional XY/XZ/YZ: normals, volumen y UI integrados")
+PY
+
 echo "Comprobaciones básicas del proyecto: OK"

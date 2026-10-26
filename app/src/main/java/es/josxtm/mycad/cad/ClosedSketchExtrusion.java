@@ -126,7 +126,7 @@ public final class ClosedSketchExtrusion {
  public static Result extrude(List<Segment> lines,int selected,double height){
   if(lines==null||lines.isEmpty()||lines.size()>MAX_LINES||
      selected<0||selected>=lines.size()||lines.get(selected)==null||
-     !ok(height)||height<=0||height>10000)
+     !ok(height)||height==0||Math.abs(height)>10000)
    throw new IllegalArgumentException("Perfil o altura de extrusión inválidos");
   int plane=lines.get(selected).plane;
   ArrayList<Vertex> points=new ArrayList<>();
@@ -247,9 +247,18 @@ public final class ClosedSketchExtrusion {
   }
   float[] mesh=new float[geometry.size()];
   for(int i=0;i<mesh.length;i++)mesh[i]=geometry.get(i);
+  // The same caps and walls can be used in both normal directions, but
+  // the outward winding must reverse when the extrusion goes backwards.
+  if(height<0)for(int i=0;i<mesh.length;i+=9){
+   for(int k=0;k<3;k++){
+    float tmp=mesh[i+3+k];
+    mesh[i+3+k]=mesh[i+6+k];
+    mesh[i+6+k]=tmp;
+   }
+  }
   TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(mesh);
   if(!health.isWatertight()||health.signedVolume<=0)
    throw new IllegalArgumentException("La extrusión no produce una malla cerrada válida");
-  return new Result(mesh,plane,component.size(),area2/2,area2*height/2);
+  return new Result(mesh,plane,component.size(),area2/2,area2*Math.abs(height)/2);
  }
 }
