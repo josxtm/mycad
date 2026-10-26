@@ -601,4 +601,25 @@ assert 'Entidad DXF no compatible:' in d
 print("Intercambio DXF: importación atómica, dimensiones y aviso de planos: OK")
 PY
 
+# Closed concave profiles must be accessible from the sketch menu and
+# visible immediately in GPU 3D, even when the editor was in 2D mode.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+s=Path("app/src/main/java/es/josxtm/mycad/cad/ClosedSketchExtrusion.java").read_text(encoding="utf-8")
+w=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for marker in (
+ '"Extruir contorno cerrado de líneas (malla)"',
+ "if(choice==8){extrudeSelectedLineLoop();return;}",
+ "ClosedSketchExtrusion.extrude(lines,selectedLine,h)",
+ "booleanMeshes.add(mesh);unionRecipes.add(null);holeRecipes.add(null);",
+ "if(!meshMode)toggleMeshView();",
+):
+    assert marker in a,marker
+assert "insideOrBoundary(a,contour,points,eps)" in s
+assert "if(component.contains(i))continue;" in s
+assert "ClosedSketchExtrusionTest" in w
+print("Extrusión de contornos: menús, visibilidad GPU y agujeros rechazados: OK")
+PY
+
 echo "Comprobaciones básicas del proyecto: OK"
