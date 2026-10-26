@@ -1,10 +1,10 @@
 # Estado de compilación MyCAD
 
 - **Resultado:** success
-- **Número de ejecución:** 382
-- **Commit compilado:** c4d70ec1b6da6be96f8e45cb5c8b638680839f90
-- **Fecha UTC:** 2026-10-26 07:08:03 UTC
-- **Enlace:** https://github.com/josxtm/mycad/actions/runs/40283732690
+- **Número de ejecución:** 385
+- **Commit compilado:** 514cdc90d988f2a12a62cfc77a7638cebc69533b
+- **Fecha UTC:** 2026-10-26 08:20:32 UTC
+- **Enlace:** https://github.com/josxtm/mycad/actions/runs/40291371457
 
 ## Comprobaciones
 - Integridad: success
