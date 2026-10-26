@@ -65,6 +65,33 @@ public final class TriangleMeshHealthTest {
   require(inward.isWatertight()&&Math.abs(inward.signedVolume+1.0/6.0)<1e-12,
     "Signed volume must preserve orientation: "+inward.signedVolume);
 
+  // Disconnected closed shells can be separated by 20 million millimetres.
+  // Each shell needs its own local volume origin, not the first mesh vertex.
+  float[] distant=new float[first.length*3];
+  System.arraycopy(first,0,distant,0,first.length);
+  for(int shell=1;shell<3;shell++){
+   int start=shell*first.length;
+   System.arraycopy(first,0,distant,start,first.length);
+   float offset=shell==1?10000000f:-10000000f;
+   for(int k=start;k<start+first.length;k+=3){
+    distant[k]+=offset;distant[k+1]+=offset;distant[k+2]+=offset;
+   }
+  }
+  TriangleMeshHealth.Report shells=TriangleMeshHealth.inspect(distant);
+  require(shells.isWatertight(),"Three disconnected tetrahedra should be closed");
+  require(Math.abs(shells.signedVolume-0.5)<1e-12,
+    "Disconnected shells must sum to 1/2 mm3: "+shells.signedVolume);
+  float[] mixed=distant.clone();
+  for(int i=first.length;i<2*first.length;i+=9)
+   for(int k=0;k<3;k++){
+    float tmp=mixed[i+3+k];
+    mixed[i+3+k]=mixed[i+6+k];
+    mixed[i+6+k]=tmp;
+   }
+  TriangleMeshHealth.Report mixedReport=TriangleMeshHealth.inspect(mixed);
+  require(mixedReport.isWatertight()&&Math.abs(mixedReport.signedVolume-1.0/6.0)<1e-12,
+    "Oppositely oriented distant shell must cancel exactly: "+mixedReport.signedVolume);
+
   float[] pinched=Arrays.copyOf(first,first.length+second.length);
   System.arraycopy(second,0,pinched,first.length,second.length);
   TriangleMeshHealth.Report pinch=TriangleMeshHealth.inspect(pinched);

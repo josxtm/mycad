@@ -42,7 +42,7 @@ public final class TriangleMeshHealth {
   }
   public int hashCode(){return a.hashCode()*31+b.hashCode();}
  }
- private static final class Count {int uses,orientation,firstA,firstB;}
+ private static final class Count {int uses,orientation,firstA,firstB,firstTriangle;}
  /** Each triangle corner has a separate node. Joining corners only across shared
   * edges exposes disconnected face fans at a vertex (pinched/non-manifold shells). */
  private static int root(int[] parent,int i){
@@ -58,12 +58,11 @@ public final class TriangleMeshHealth {
   Map<Edge,Count> edges=new HashMap<>();
   int[] parent=new int[mesh.length/3];
   for(int j=0;j<parent.length;j++)parent[j]=j;
-  // Translate the tetrahedral volume origin near the mesh. Absolute-world
-  // determinants lose low bits when a small solid is far from (0,0,0).
-  double anchorX=mesh.length==0?0:mesh[0];
-  double anchorY=mesh.length==0?0:mesh[1];
-  double anchorZ=mesh.length==0?0:mesh[2];
-  int degenerates=0;double volume=0,volumeCorrection=0;
+  // Independently track face-connected shells. A vertex contact alone must
+  // not combine the volume origins of two disconnected shells.
+  int[] faceParent=new int[mesh.length/9];
+  for(int j=0;j<faceParent.length;j++)faceParent[j]=j;
+  int degenerates=0;
   for(int i=0;i<mesh.length;i+=9){
    Vertex[] v={new Vertex(mesh,i),new Vertex(mesh,i+3),new Vertex(mesh,i+6)};
    double ax=mesh[i],ay=mesh[i+1],az=mesh[i+2];
@@ -73,27 +72,20 @@ public final class TriangleMeshHealth {
    double ny=(bz-az)*(cx-ax)-(bx-ax)*(cz-az);
    double nz=(bx-ax)*(cy-ay)-(by-ay)*(cx-ax);
    if(v[0].equals(v[1])||v[1].equals(v[2])||v[2].equals(v[0])||nx*nx+ny*ny+nz*nz<1e-16)degenerates++;
-   double rax=ax-anchorX,ray=ay-anchorY,raz=az-anchorZ;
-   double rbx=bx-anchorX,rby=by-anchorY,rbz=bz-anchorZ;
-   double rcx=cx-anchorX,rcy=cy-anchorY,rcz=cz-anchorZ;
-   double contribution=(rax*(rby*rcz-rbz*rcy)
-     +ray*(rbz*rcx-rbx*rcz)+raz*(rbx*rcy-rby*rcx))/6.0;
-   // Neumaier compensation retains small contributions across many faces.
-   double next=volume+contribution;
-   if(Math.abs(volume)>=Math.abs(contribution))
-    volumeCorrection+=(volume-next)+contribution;
-   else volumeCorrection+=(contribution-next)+volume;
-   volume=next;
    for(int k=0;k<3;k++){
     Vertex from=v[k],to=v[(k+1)%3];
     Edge e=new Edge(from,to);Count count=edges.get(e);
     int cornerA=i/3+(from.compareTo(to)<0?k:(k+1)%3);
     int cornerB=i/3+(from.compareTo(to)<0?(k+1)%3:k);
     if(count==null){
-     count=new Count();count.firstA=cornerA;count.firstB=cornerB;edges.put(e,count);
-    }else if(count.uses==1){
-     join(parent,count.firstA,cornerA);
-     join(parent,count.firstB,cornerB);
+     count=new Count();count.firstA=cornerA;count.firstB=cornerB;
+     count.firstTriangle=i/9;edges.put(e,count);
+    }else{
+     join(faceParent,count.firstTriangle,i/9);
+     if(count.uses==1){
+      join(parent,count.firstA,cornerA);
+      join(parent,count.firstB,cornerB);
+     }
     }
     count.uses++;count.orientation+=from.compareTo(to)<0?1:-1;
    }
@@ -117,6 +109,34 @@ public final class TriangleMeshHealth {
    Integer previousB=firstFan.putIfAbsent(edge.b,b);
    if(previousA!=null&&previousA!=a)splitVertices.add(edge.a);
    if(previousB!=null&&previousB!=b)splitVertices.add(edge.b);
+  }
+  // Compute each edge-connected shell around its own local origin. Using a
+  // single anchor for a multi-body scene reintroduces catastrophic cancellation
+  // when a tiny shell is millions of millimetres from the first shell.
+  // Each accumulator stores [anchor XYZ, Neumaier sum, correction].
+  Map<Integer,double[]> shellVolumes=new HashMap<>();
+  for(int i=0;i<mesh.length;i+=9){
+   int shell=root(faceParent,i/9);
+   double[] acc=shellVolumes.get(shell);
+   if(acc==null){
+    acc=new double[]{mesh[i],mesh[i+1],mesh[i+2],0,0};
+    shellVolumes.put(shell,acc);
+   }
+   double ax=mesh[i]-acc[0],ay=mesh[i+1]-acc[1],az=mesh[i+2]-acc[2];
+   double bx=mesh[i+3]-acc[0],by=mesh[i+4]-acc[1],bz=mesh[i+5]-acc[2];
+   double cx=mesh[i+6]-acc[0],cy=mesh[i+7]-acc[1],cz=mesh[i+8]-acc[2];
+   double term=(ax*(by*cz-bz*cy)+ay*(bz*cx-bx*cz)+az*(bx*cy-by*cx))/6.0;
+   double next=acc[3]+term;
+   if(Math.abs(acc[3])>=Math.abs(term))acc[4]+=(acc[3]-next)+term;
+   else acc[4]+=(term-next)+acc[3];
+   acc[3]=next;
+  }
+  double volume=0,volumeCorrection=0;
+  for(double[] acc:shellVolumes.values()){
+   double term=acc[3]+acc[4],next=volume+term;
+   if(Math.abs(volume)>=Math.abs(term))volumeCorrection+=(volume-next)+term;
+   else volumeCorrection+=(term-next)+volume;
+   volume=next;
   }
   return new Report(mesh.length/9,boundary,nonManifold,splitVertices.size(),reversed,degenerates,volume+volumeCorrection);
  }
