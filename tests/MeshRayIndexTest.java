@@ -83,6 +83,35 @@ public final class MeshRayIndexTest {
   System.arraycopy(tri,0,ties,64*9,9);
   ray(ties,new MeshRayIndex(ties),0,0,0,0,0,1,"Stable equal-depth tie");
 
+  // A large mesh forces a multi-level spatial hierarchy. All 96 leaves
+  // retain global triangle indices, even though spatial sorting reorders them.
+  float[] large=new float[96*64*9];
+  for(int i=0;i<96*64;i++){
+   int chunk=i/64;
+   // Reverse spatial order relative to source triangle IDs.
+   float x=50+(95-chunk)*6;
+   int at=i*9;
+   large[at]=x;large[at+1]=-2;large[at+2]=0;
+   large[at+3]=x;large[at+4]=2;large[at+5]=0;
+   large[at+6]=x;large[at+7]=0;large[at+8]=4;
+  }
+  MeshRayIndex hierarchy=new MeshRayIndex(large);
+  if(hierarchy.chunks()!=96)throw new AssertionError("Hierarchy leaf count");
+  ray(large,hierarchy,0,0,1,1,0,0,"Hierarchy nearest hit reverse ordering");
+  ray(large,hierarchy,700,0,1,-1,0,0,"Hierarchy reverse ray");
+  ray(large,hierarchy,0,50,1,1,0,0,"Hierarchy broad miss");
+  ray(large,hierarchy,400,0,1,0,0,1,"Hierarchy parallel miss");
+  Random hierarchyRandom=new Random(604026L);
+  for(int i=0;i<250;i++){
+   double ox=hierarchyRandom.nextDouble()*800-100;
+   double oy=hierarchyRandom.nextDouble()*10-5;
+   double oz=hierarchyRandom.nextDouble()*10-3;
+   double dx=hierarchyRandom.nextDouble()*2-1;
+   double dy=hierarchyRandom.nextDouble()*2-1;
+   double dz=hierarchyRandom.nextDouble()*2-1;
+   ray(large,hierarchy,ox,oy,oz,dx,dy,dz,"Hierarchy random "+i);
+  }
+
   // Regress the accelerated broad phase against the exact baseline
   // for deterministic randomized rays (hits, misses, diagonal directions).
   Random random=new Random(20261026L);
