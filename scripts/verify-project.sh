@@ -501,7 +501,9 @@ i=Path("app/src/main/java/es/josxtm/mycad/cad/MeshRayIndex.java").read_text(enco
 m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
 assert "static Hit pickRange(" in p
 assert "best=new Hit(i/9,t,hx,hy,hz);" in p
-assert "CadRayPicker.pickRange(triangles,block.first,block.end" in i
+assert "CadRayPicker.pickRange(triangles,node.block.first,node.block.end" in i
+assert "root=build(blocks.clone(),0,blocks.length);" in i
+assert "PriorityQueue<Candidate>" in i
 assert "private static final int CHUNK_TRIANGLES=64;" in i
 assert "private es.josxtm.mycad.cad.MeshRayIndex pickIndex;" in m
 assert "mesh.rayIndex().pick(p[0],p[1],p[2],dx,dy,dz)" in m
