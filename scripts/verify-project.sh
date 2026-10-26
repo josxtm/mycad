@@ -142,6 +142,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/FaceResize.java \
   app/src/main/java/es/josxtm/mycad/cad/RotatedFaceResize.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveBRepBody.java \
+  app/src/main/java/es/josxtm/mycad/cad/PrimitiveMassProperties.java \
   app/src/main/java/es/josxtm/mycad/cad/AnalyticEdgePicker.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveMovePreview.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveEdgeCurve.java \
@@ -164,6 +165,7 @@ javac -d build/box-brep-tests \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
+  tests/PrimitiveMassPropertiesTest.java \
   tests/AnalyticEdgePickerTest.java \
   tests/PrimitiveEdgeMoveTest.java \
   tests/PrimitiveMovePreviewTest.java \
@@ -186,6 +188,7 @@ javac -d build/box-brep-tests \
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
+java -cp build/box-brep-tests PrimitiveMassPropertiesTest
 java -cp build/box-brep-tests AnalyticEdgePickerTest
 java -cp build/box-brep-tests PrimitiveEdgeMoveTest
 java -cp build/box-brep-tests PrimitiveMovePreviewTest
@@ -574,6 +577,28 @@ assert "rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep)" not in s
 assert "setSurfaceRayListener(" in pane
 assert "setCameraOrientationListener(" in pane
 print("ViewCube 3x3 funcional, táctil y visible sobre visor GPU: OK")
+PY
+
+# Mass properties must remain read-only and accessible in the Android UI.
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+assert "case 27:showPrimitiveMassProperties();break;" in src
+start=src.index("void showPrimitiveMassProperties(){")
+end=src.index("void inspectSelectedAnalyticSolid(){",start)
+code=src[start:end]
+for marker in (
+ "PrimitiveMassProperties.of(body,rho)",
+ "mass.centroidMm()",
+ "mass.inertiaGramsMm2()",
+ "mass.massGrams",
+ "physicalDensityGcm3",
+ ".replace(',','.')",
+):
+    assert marker in code,marker
+assert "checkpoint();" not in code and "save();" not in code
+assert "part.w=" not in code and "part.h=" not in code
+print("Propiedades físicas analíticas sin cambios en geometría ni historial: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"

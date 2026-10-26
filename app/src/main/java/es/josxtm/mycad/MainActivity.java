@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)","Arrastrar cara directamente en 3D","Arrastrar arista directamente en 3D","Precisión de arrastre (imán)"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;case 24:toggleFaceDragOnModel();break;case 25:toggleEdgeDragOnModel();break;case 26:chooseDragPrecision();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)","Arrastrar cara directamente en 3D","Arrastrar arista directamente en 3D","Precisión de arrastre (imán)","Propiedades físicas de la pieza"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;case 24:toggleFaceDragOnModel();break;case 25:toggleEdgeDragOnModel();break;case 26:chooseDragPrecision();break;case 27:showPrimitiveMassProperties();break;}}).show();}
  es.josxtm.mycad.cad.ParametricFeatureGraph buildParametricFeatureGraph(){
   es.josxtm.mycad.cad.ParametricFeatureGraph.Builder builder=
    new es.josxtm.mycad.cad.ParametricFeatureGraph.Builder();
@@ -1920,6 +1920,58 @@ public class MainActivity extends Activity {
      toast("Arista modificada · deshacer y guardar disponibles");
     }catch(Exception problem){
      toast("Edición de arista rechazada: comprueba cotas y selección");
+    }
+   }).show();
+ }
+ /** Pure analytic estimate for a homogeneous box/cylinder, without editing. */
+ void showPrimitiveMassProperties(){
+  if(selected<0||selected>=parts.size()){
+   toast("Selecciona primero un prisma o cilindro");return;
+  }
+  final Part chosen=parts.get(selected);
+  final es.josxtm.mycad.cad.PrimitiveBRepBody body;
+  try{body=analyticBody(chosen);}
+  catch(Exception invalid){toast("Pieza no válida para cálculo analítico");return;}
+  android.widget.EditText density=new android.widget.EditText(this);
+  density.setSingleLine(true);
+  density.setInputType(android.text.InputType.TYPE_CLASS_NUMBER|
+                       android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+  density.setSelectAllOnFocus(true);
+  density.setText(String.format(java.util.Locale.US,"%.3f",
+   getPreferences(MODE_PRIVATE).getFloat("physicalDensityGcm3",7.85f)));
+  new AlertDialog.Builder(this).setTitle("Densidad de la pieza (g/cm³)")
+   .setMessage("Valor de referencia: 2,700 aluminio; 7,850 acero. "+
+               "Solo se calcula el sólido seleccionado, suponiendo material macizo y homogéneo.")
+   .setView(density)
+   .setNegativeButton("Cancelar",null)
+   .setPositiveButton("Calcular",(dialog,button)->{
+    try{
+     double rho=Double.parseDouble(density.getText().toString().trim()
+                                  .replace(',','.'));
+     es.josxtm.mycad.cad.PrimitiveMassProperties mass=
+      es.josxtm.mycad.cad.PrimitiveMassProperties.of(body,rho);
+     double[] c=mass.centroidMm();
+     double[][] t=mass.inertiaGramsMm2();
+     String details=String.format(java.util.Locale.US,
+       "Cuerpo: %s\n"+
+       "Densidad: %.3f g/cm³\n"+
+       "Volumen: %.3f mm³\n"+
+       "Superficie: %.3f mm²\n"+
+       "Masa estimada: %.3f g\n"+
+       "Centro de masa mundial:\nX %.3f mm · Y %.3f mm · Z %.3f mm\n\n"+
+       "Inercia respecto al centro de masa (g·mm²):\n"+
+       "Ixx %.3f · Iyy %.3f · Izz %.3f\n"+
+       "Ixy %.3f · Ixz %.3f · Iyz %.3f\n\n"+
+       "Modelo macizo homogéneo. No incluye huecos booleanos ni mallas importadas.",
+       mass.bodyId,mass.densityGramsPerCm3,mass.volumeMm3,mass.areaMm2,
+       mass.massGrams,c[0],c[1],c[2],
+       t[0][0],t[1][1],t[2][2],t[0][1],t[0][2],t[1][2]);
+     getPreferences(MODE_PRIVATE).edit()
+      .putFloat("physicalDensityGcm3",(float)rho).apply();
+     new AlertDialog.Builder(this).setTitle("Propiedades físicas B-Rep")
+      .setMessage(details).setPositiveButton("Cerrar",null).show();
+    }catch(Exception invalid){
+     toast("Densidad inválida: introduce un valor positivo en g/cm³");
     }
    }).show();
  }
