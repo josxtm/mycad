@@ -446,7 +446,7 @@ python3 - <<'PY'
 from pathlib import Path
 mesh=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
 activity=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
-assert "SurfaceTapPolicy.shouldPick(moved,surfaceRayListener!=null,surfaceTapListener!=null)" in mesh
+assert "SurfaceTapPolicy.shouldPick(moved,surfaceRayListener!=null,surfaceTapListener!=null)" in "".join(mesh.split())
 assert "if(!moved&&surfaceTapListener!=null)" not in mesh
 assert "if(surfaceRayListener!=null)" in mesh
 assert "surfaceRayListener.onSurfaceRay(" in mesh
