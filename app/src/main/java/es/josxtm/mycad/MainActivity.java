@@ -223,6 +223,13 @@ public class MainActivity extends Activity {
      es.josxtm.mycad.cad.LoopExtrusionFeature feature=
       new es.josxtm.mycad.cad.LoopExtrusionFeature(
        java.util.UUID.randomUUID().toString(),anchor.id,anchor.plane,h,sources);
+     // Validate and construct real analytic topology BEFORE undo/JSON commit.
+     java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment>
+      sourceMap=new java.util.LinkedHashMap<>();
+     for(int i:result.sourceIndices)sourceMap.put(lineIds.get(i),lines.get(i));
+     es.josxtm.mycad.cad.PolygonPrismBRep analytic=feature.asBRep(sourceMap);
+     if(Math.abs(analytic.volume()-result.volume)>1e-5*Math.max(1,result.volume))
+      throw new IllegalArgumentException("Volumen analítico y malla discrepan");
      checkpoint();
      booleanMeshes.add(mesh);unionRecipes.add(null);holeRecipes.add(null);
      loopExtrusionFeatures.add(feature);
@@ -274,6 +281,32 @@ public class MainActivity extends Activity {
  /** Navigate from a touched 3D linked mesh back to its original 2D line.
   * No sketch or solid is changed here; the ordinary sketch editor validates
   * dependencies before committing any subsequent coordinate edit. */
+
+ /** Inspect true polygon-loop topology, distinct from STL triangles. */
+ void inspectLoopBRep(int index){
+  if(fileBusy||index<0||index>=loopExtrusionFeatures.size()||
+     loopExtrusionFeatures.get(index)==null){
+   toast("Este resultado no tiene contorno B-Rep");return;
+  }
+  try{
+   es.josxtm.mycad.cad.LoopExtrusionFeature recipe=loopExtrusionFeatures.get(index);
+   es.josxtm.mycad.cad.PolygonPrismBRep bRep=recipe.asBRep(
+     loopSketchSegments(recipe,null,0,0,0,0));
+   new AlertDialog.Builder(this).setTitle("Topología B-Rep · contorno "+(index+1))
+    .setMessage("Sólido analítico con caras planas y contorno cóncavo. "+
+     "La malla visible sigue siendo una representación triangulada.\\n\\n"+
+     "Caras: "+bRep.faces().size()+"\\n"+
+     "Aristas: "+bRep.edges().size()+"\\n"+
+     "Vértices: "+bRep.vertices().size()+"\\n"+
+     "Semiaristas: "+bRep.halfEdges().size()+"\\n"+
+     String.format(java.util.Locale.US,"Volumen: %.3f mm³\\nSuperficie: %.3f mm²",
+                   bRep.volume(),bRep.surfaceArea())+
+     "\\n\\nIDs estables por boceto. Aún sin booleanas B-Rep generales, "+
+     "redondeos ni agujeros internos.")
+    .setPositiveButton("Cerrar",null).show();
+  }catch(Exception error){toast("No se pudo construir topología: "+error.getMessage());}
+ }
+
  void editLoopSourceSketch(int meshIndex){
   if(fileBusy||meshIndex<0||meshIndex>=loopExtrusionFeatures.size()||
      meshIndex>=booleanMeshes.size()||
@@ -588,13 +621,14 @@ public class MainActivity extends Activity {
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
     new AlertDialog.Builder(this).setTitle(names[index])
-     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno","Editar perfil original del contorno"},(d,choice)->{
+     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno","Editar perfil original del contorno","Inspeccionar topología B-Rep"},(d,choice)->{
       if(choice==0){showMeshOnly(mesh);}
       else if(choice==1){exportMeshMenuFor(mesh);}
       else if(choice==3){editFaceUnionRecipe(index);}
       else if(choice==4){editHoleRecipe(index);}
       else if(choice==5){editLoopExtrusionDistance(index);}
       else if(choice==6){editLoopSourceSketch(index);}
+      else if(choice==7){inspectLoopBRep(index);}
       else new AlertDialog.Builder(this).setTitle("Eliminar resultado")
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
@@ -1270,7 +1304,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
      loopExtrusionFeatures.get(index)!=null;
   String[] options=linked?
    new String[]{"Editar distancia de extrusión","Editar perfil original",
-      "Ver solo esta malla","Exportar a STL/OBJ","Gestionar resultados"}:
+      "Inspeccionar topología B-Rep","Ver solo esta malla",
+      "Exportar a STL/OBJ","Gestionar resultados"}:
    new String[]{"Ver solo esta malla","Exportar a STL/OBJ",
       "Gestionar resultados"};
   new AlertDialog.Builder(this)
@@ -1282,7 +1317,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     if(linked){
      if(option==0){editLoopExtrusionDistance(index);return;}
      if(option==1){editLoopSourceSketch(index);return;}
-     option-=2;
+     if(option==2){inspectLoopBRep(index);return;}
+     option-=3;
     }
     if(option==0)showMeshOnly(original);
     else if(option==1)exportMeshMenuFor(original);

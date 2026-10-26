@@ -32,6 +32,24 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
 - La carga rechaza UUID duplicados, referencias huérfanas o una malla
   que no coincida con su receta reconstruida.
 
+## Primera etapa del núcleo B-Rep poligonal
+
+- Cada contorno cerrado de líneas, incluidos perfiles cóncavos, puede
+  reconstruirse como `PolygonPrismBRep` con **2N vértices, 3N aristas
+  compartidas, N+2 caras planas y 6N semiaristas dirigidas**, para N
+  segmentos de origen. La malla STL sigue siendo únicamente la vista.
+- Las semiaristas enlazan cara, arista, vértice de origen y destino,
+  gemela, anterior y siguiente. Se validan las parejas de orientación
+  opuesta y la característica de Euler V−E+F=2.
+- Los IDs de las caras laterales derivan del UUID del segmento fuente,
+  y las aristas y vértices de sus vínculos, de modo que conservar el
+  contorno conserva identidades aun tras cambiar coordenadas/altura.
+- Se admite extrusión hacia ambos lados en XY/XZ/YZ. La pantalla de
+  resultados y la selección GPU permiten **Inspeccionar topología B-Rep**.
+- Crear un contorno ahora verifica su nuevo sólido B-Rep en memoria
+  antes de guardar la operación. El proyecto mantiene el formato
+  JSON v1 y las mallas compatibles con versiones anteriores.
+
 ## Limitaciones importantes
 
 Las operaciones vinculadas son **solo para extrusiones generadas a
