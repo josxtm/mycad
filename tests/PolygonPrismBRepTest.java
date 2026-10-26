@@ -122,6 +122,7 @@ public final class PolygonPrismBRepTest {
   Map<String,ClosedSketchExtrusion.Segment> changed=polygon(0,concave,false,false);
   changed.put(IDS[0],new ClosedSketchExtrusion.Segment(0,0,0,4,0));
   changed.put(IDS[1],new ClosedSketchExtrusion.Segment(0,4,0,4,1));
+  changed.put(IDS[2],new ClosedSketchExtrusion.Segment(0,4,1,1,1));
   PolygonPrismBRep moved=PolygonPrismBRep.from(feature(0,5,6),changed);
   close(moved.volume(),30,"edited profile volume");
   for(PolygonPrismBRep.Edge edge:a.edges())
