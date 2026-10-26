@@ -57,9 +57,14 @@ public final class MeshRayIndex {
  }
  public int chunks(){return blocks.length;}
 
- private static boolean intersects(Block block,double[] origin,double[] dir,
-                                   double closest){
-  double enter=0,exit=closest;
+ private static final class Candidate {
+  final Block block;
+  final double entry;
+  Candidate(Block block,double entry){this.block=block;this.entry=entry;}
+ }
+ /** Distance to the conservative AABB, or NaN if the ray misses. */
+ private static double entryDistance(Block block,double[] origin,double[] dir){
+  double enter=0,exit=Double.POSITIVE_INFINITY;
   for(int i=0;i<3;i++){
    // Conservative padding prevents losing a hit at an exact shared edge
    // through floating-point cancellation in the slab calculation.
@@ -67,16 +72,16 @@ public final class MeshRayIndex {
       Math.max(Math.abs(block.lower[i]),Math.abs(block.upper[i])));
    double lo=block.lower[i]-padding,hi=block.upper[i]+padding;
    if(Math.abs(dir[i])<1e-15){
-    if(origin[i]<lo||origin[i]>hi)return false;
+    if(origin[i]<lo||origin[i]>hi)return Double.NaN;
    }else{
     double a=(lo-origin[i])/dir[i],b=(hi-origin[i])/dir[i];
     if(a>b){double tmp=a;a=b;b=tmp;}
     enter=Math.max(enter,a);
     exit=Math.min(exit,b);
-    if(enter>exit)return false;
+    if(enter>exit)return Double.NaN;
    }
   }
-  return exit>0;
+  return exit>0?enter:Double.NaN;
  }
  public CadRayPicker.Hit pick(double ox,double oy,double oz,
                               double dx,double dy,double dz){
@@ -87,13 +92,28 @@ public final class MeshRayIndex {
   if(!Double.isFinite(len)||len<1e-10)
    throw new IllegalArgumentException("Invalid ray direction");
   double[] o={ox,oy,oz},d={dx/len,dy/len,dz/len};
-  CadRayPicker.Hit best=null;
+  // Visit nearer chunks first, so the first hit usually eliminates distant
+  // chunks before their exact triangles need testing. Candidate allocation
+  // happens on a tap, never during OpenGL frame rendering.
+  ArrayList<Candidate> candidates=new ArrayList<>(blocks.length);
   for(Block block:blocks){
-   if(!intersects(block,o,d,best==null?Double.POSITIVE_INFINITY:best.distance))
-    continue;
+   double entry=entryDistance(block,o,d);
+   if(!Double.isNaN(entry))candidates.add(new Candidate(block,entry));
+  }
+  candidates.sort((a,b)->{
+   int byDistance=Double.compare(a.entry,b.entry);
+   return byDistance!=0?byDistance:Integer.compare(a.block.first,b.block.first);
+  });
+  CadRayPicker.Hit best=null;
+  for(Candidate candidate:candidates){
+   // Conservative padded bounds guarantee entry <= any exact hit distance.
+   if(best!=null&&candidate.entry>best.distance)break;
+   Block block=candidate.block;
    CadRayPicker.Hit hit=CadRayPicker.pickRange(triangles,block.first,block.end,
                                              ox,oy,oz,dx,dy,dz);
-   if(hit!=null&&(best==null||hit.distance<best.distance))best=hit;
+   // Preserve the original first-triangle tie rule even after reordering.
+   if(hit!=null&&(best==null||hit.distance<best.distance||
+      hit.distance==best.distance&&hit.triangle<best.triangle))best=hit;
   }
   return best;
  }

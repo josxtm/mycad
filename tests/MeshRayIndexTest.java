@@ -75,6 +75,26 @@ public final class MeshRayIndexTest {
   MeshRayIndex ringIndex=new MeshRayIndex(ring);
   ray(ring,ringIndex,40,3,100,0,0,-1,"Rotated cylinder cap");
   ray(ring,ringIndex,100,3,-10,-1,0,0,"Rotated cylinder side");
+  // Two chunks contain the same face at exactly the same depth:
+  // traversal order must not change the globally first triangle.
+  float[] ties=new float[65*9];
+  float[] tri={-1,-1,10,1,-1,10,0,1,10};
+  System.arraycopy(tri,0,ties,0,9);
+  System.arraycopy(tri,0,ties,64*9,9);
+  ray(ties,new MeshRayIndex(ties),0,0,0,0,0,1,"Stable equal-depth tie");
+
+  // Regress the accelerated broad phase against the exact baseline
+  // for deterministic randomized rays (hits, misses, diagonal directions).
+  Random random=new Random(20261026L);
+  for(int i=0;i<300;i++){
+   double ox=random.nextDouble()*700-200;
+   double oy=random.nextDouble()*20-10;
+   double oz=random.nextDouble()*20-10;
+   double dx=random.nextDouble()*2-1;
+   double dy=random.nextDouble()*2-1;
+   double dz=random.nextDouble()*2-1;
+   ray(damaged,damagedIndex,ox,oy,oz,dx,dy,dz,"Randomized "+i);
+  }
   reject(()->new MeshRayIndex(null),"Null mesh");
   reject(()->new MeshRayIndex(new float[8]),"Unaligned triangle array");
   reject(()->index.pick(0,0,0,0,0,0),"Zero direction");
