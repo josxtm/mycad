@@ -170,6 +170,30 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
 - No se anuncia soporte de agujeros, operación Booleana general de 3D
   rotado/curvo ni selección de caras del resultado derivado.
 
+## Primer soporte B-Rep para varias piezas separadas
+
+- Nuevo modo **Booleanas B-Rep de varios sólidos** al seleccionar un
+  contorno vinculado desde el visor o el gestor de resultados. Ejecuta
+  unión, resta o intersección de perfiles ortogonales del mismo plano
+  XY/XZ/YZ y misma altura firmada.
+- La topología se representa con **uno o varios sólidos B-Rep analíticos**:
+  cada componente tiene sus propias caras, aristas y semiaristas cerradas,
+  sin recurrir a triángulos cosidos artificialmente. Se verifican
+  independencia de componentes, Euler por cada sólido y volumen total.
+- Una sola malla de resultado **agrupa las varias piezas** para verlas,
+  exportarlas y conservarlas en JSON con deshacer. La receta UUID
+  `UNION_MULTISHELL`, `DIFFERENCE_MULTISHELL` o
+  `INTERSECTION_MULTISHELL` regenera todos los componentes al cambiar
+  los bocetos y alturas compatibles de sus dos extrusiones fuente.
+- Esta modalidad acepta una unión de perfiles disjuntos, y una resta
+  que divide un sólido en dos cuerpos. Los formatos antiguos de recetas
+  mantienen su comportamiento y sus mallas exactas.
+- **Agujeros interiores no admitidos:** los ciclos de perímetro internos
+  se detectan por orientación y se rechazan, al igual que puntos de
+  contacto no-manifold y más de 16 componentes.
+- La UI expone el conjunto como un resultado con varias carcasas; aún
+  no permite editar individualmente las caras de las piezas derivadas.
+
 ## Limitaciones importantes
 
 Las operaciones vinculadas son **solo para extrusiones generadas a

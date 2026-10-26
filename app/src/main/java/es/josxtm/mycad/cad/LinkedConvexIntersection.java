@@ -9,7 +9,7 @@ import java.util.*;
  * Rebuild is read-only and can be committed transactionally.
  */
 public final class LinkedConvexIntersection {
- public enum Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL }
+ public enum Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL, UNION_MULTISHELL, DIFFERENCE_MULTISHELL, INTERSECTION_MULTISHELL }
  public final String id,firstId,secondId;
  public final Operation operation;
 
@@ -61,6 +61,16 @@ public final class LinkedConvexIntersection {
   LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
   if(a==null||b==null||!firstId.equals(a.id)||!secondId.equals(b.id))
    throw new IllegalArgumentException("Se eliminó un sólido de la unión");
+  if(operation==Operation.UNION_MULTISHELL||
+     operation==Operation.DIFFERENCE_MULTISHELL||
+     operation==Operation.INTERSECTION_MULTISHELL){
+   OrthogonalPolygonBRepBoolean.Operation op=
+     operation==Operation.UNION_MULTISHELL?OrthogonalPolygonBRepBoolean.Operation.UNION:
+     operation==Operation.DIFFERENCE_MULTISHELL?OrthogonalPolygonBRepBoolean.Operation.DIFFERENCE:
+       OrthogonalPolygonBRepBoolean.Operation.INTERSECTION;
+   return OrthogonalPolygonBRepBoolean.applyMulti(
+     a.asBRep(lines),b.asBRep(lines),op).triangles();
+  }
   if(operation==Operation.UNION_POLYGONAL||
      operation==Operation.DIFFERENCE_POLYGONAL||
      operation==Operation.INTERSECTION_POLYGONAL){

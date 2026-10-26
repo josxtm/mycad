@@ -103,6 +103,10 @@ jobs:
           java -cp build/geometry-tests OrthogonalPolygonBRepBooleanTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedConcaveBooleanTest.java
           java -cp build/geometry-tests LinkedConcaveBooleanTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/OrthogonalPolygonBRepBoolean.java tests/OrthogonalMultiShellBRepBooleanTest.java
+          java -cp build/geometry-tests OrthogonalMultiShellBRepBooleanTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedMultiShellBooleanTest.java
+          java -cp build/geometry-tests LinkedMultiShellBooleanTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/DxfContourExtrusionIntegrationTest.java
           java -cp build/geometry-tests DxfContourExtrusionIntegrationTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/BlindCircularHoleTest.java
