@@ -157,6 +157,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/SurfaceTapPolicy.java \
   app/src/main/java/es/josxtm/mycad/cad/CameraRefitPolicy.java \
   app/src/main/java/es/josxtm/mycad/cad/TouchDragThreshold.java \
+  app/src/main/java/es/josxtm/mycad/cad/CadRayPicker.java \
   app/src/main/java/es/josxtm/mycad/cad/MeshRayIndex.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
