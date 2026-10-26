@@ -9,6 +9,11 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
 
 - **Resultados booleanos → Editar distancia de contorno:** regenera la
   misma operación con una nueva altura positiva o negativa.
+- **Visor GPU 3D → tocar dos veces una malla de contorno:** el primer
+  toque selecciona la malla y marca el triángulo; el segundo abre las
+  acciones de editar distancia, aislar la malla, exportarla a STL/OBJ
+  o consultar el gestor. Las mallas importadas y otras mallas guardadas
+  se identifican sin confundirlas con prismas y cilindros.
 - **Editar boceto → cambiar coordenadas o acotar longitud:** reconstruye
   primero en memoria *todos* los resultados de contornos que dependen
   de la línea. Si un circuito deja de ser válido, el cambio no se guarda;
