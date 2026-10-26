@@ -1089,12 +1089,20 @@ public class MainActivity extends Activity {
   if(serialized!=null){
    if(serialized.length()!=parsedMeshes.size())
     throw new IOException("Extrusiones de contornos desalineadas");
+   java.util.HashSet<String> requiredLineIds=new java.util.HashSet<>();
+   for(int i=0;i<serialized.length();i++)if(!serialized.isNull(i)){
+    JSONArray ids=serialized.getJSONObject(i).getJSONArray("lineIds");
+    for(int j=0;j<ids.length();j++)requiredLineIds.add(ids.getString(j));
+   }
    java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> source=
     new java.util.LinkedHashMap<>();
-   for(Sketch q:parsedSketches)if(q.type==1){
-    if(source.put(q.id,new es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment(
-     q.plane,q.x1,q.y1,q.x2,q.y2))!=null)
-     throw new IOException("Líneas con IDs duplicados");
+   for(Sketch q:parsedSketches)if(requiredLineIds.contains(q.id)){
+    if(q.type!=1)throw new IOException("Referencia a boceto no lineal");
+    try{
+     if(source.put(q.id,new es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment(
+      q.plane,q.x1,q.y1,q.x2,q.y2))!=null)
+      throw new IOException("Líneas con IDs duplicados");
+    }catch(IllegalArgumentException e){throw new IOException("Boceto vinculado inválido",e);}
    }
    java.util.HashSet<String> seenFeatures=new java.util.HashSet<>();
    for(int i=0;i<serialized.length();i++){
