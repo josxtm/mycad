@@ -960,6 +960,83 @@ public class MainActivity extends Activity {
    }).setNegativeButton("Cancelar",null).show();
  }
 
+ void subtractLinkedRectangularMeshes(int first){
+  if(fileBusy||first<0||first>=booleanMeshes.size()||
+     first>=loopExtrusionFeatures.size()||
+     loopExtrusionFeatures.get(first)==null||booleanMeshes.size()>=100){
+   toast("Selecciona un contorno B-Rep; máximo 100 mallas");return;
+  }
+  final es.josxtm.mycad.cad.LoopExtrusionFeature source=
+   loopExtrusionFeatures.get(first);
+  final MeshEngine.Mesh sourceMesh=booleanMeshes.get(first);
+  java.util.ArrayList<Integer> candidates=new java.util.ArrayList<>();
+  java.util.ArrayList<String> choices=new java.util.ArrayList<>();
+  for(int i=0;i<loopExtrusionFeatures.size()&&i<booleanMeshes.size();i++){
+   es.josxtm.mycad.cad.LoopExtrusionFeature other=loopExtrusionFeatures.get(i);
+   if(i==first||other==null||other.plane!=source.plane||
+      Math.abs(other.distance-source.distance)>
+       1e-6*Math.max(1,Math.abs(source.distance)))continue;
+   candidates.add(i);
+   choices.add("Contorno "+(i+1)+" · "+other.distance+" mm");
+  }
+  if(candidates.isEmpty()){
+   toast("Se necesitan dos prismas de perfil rectangular con igual altura");return;
+  }
+  new AlertDialog.Builder(this).setTitle("Resta B-Rep · seleccionar cortador")
+   .setMessage("Únicamente perfiles rectangulares, mismo plano y altura "+
+    "firmada, con solape real. La diferencia puede tener forma de L; se rechazan agujeros o cuerpos separados. "+
+    "El sólido original y el cortador se conservan; la resta queda vinculada.")
+   .setItems(choices.toArray(new String[0]),(dialog,choice)->{
+    int second=candidates.get(choice);
+    if(fileBusy||booleanMeshes.size()>=100||first>=booleanMeshes.size()||
+       second>=booleanMeshes.size()||second>=loopExtrusionFeatures.size()||
+       loopExtrusionFeatures.get(first)!=source||
+       booleanMeshes.get(first)!=sourceMesh){
+     toast("El proyecto cambió; vuelve a elegir los prismas");return;
+    }
+    final es.josxtm.mycad.cad.LoopExtrusionFeature secondSource=
+     loopExtrusionFeatures.get(second);
+    final MeshEngine.Mesh secondMesh=booleanMeshes.get(second);
+    try{
+     if(secondSource==null)
+      throw new IllegalArgumentException("Falta el segundo contorno");
+     es.josxtm.mycad.cad.PolygonPrismBRep a=
+      source.asBRep(loopSketchSegments(source,null,0,0,0,0));
+     es.josxtm.mycad.cad.PolygonPrismBRep b=
+      secondSource.asBRep(loopSketchSegments(secondSource,null,0,0,0,0));
+     es.josxtm.mycad.cad.OrthogonalPrismBRepUnion.Result result=
+      es.josxtm.mycad.cad.OrthogonalPrismBRepUnion.difference(a,b);
+     if(loopExtrusionFeatures.get(second)!=secondSource||
+        booleanMeshes.get(second)!=secondMesh||
+        loopExtrusionFeatures.get(first)!=source||
+        booleanMeshes.get(first)!=sourceMesh)
+      throw new IllegalArgumentException("Los prismas fueron modificados");
+     MeshEngine.Mesh newMesh=new MeshEngine.Mesh(result.triangles());
+     es.josxtm.mycad.cad.LinkedConvexIntersection linked=
+      new es.josxtm.mycad.cad.LinkedConvexIntersection(
+       java.util.UUID.randomUUID().toString(),source.id,secondSource.id,
+       es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.DIFFERENCE_ORTHOGONAL);
+     java.util.LinkedHashMap<String,es.josxtm.mycad.cad.LoopExtrusionFeature> refs=
+      new java.util.LinkedHashMap<>();
+     refs.put(source.id,source);refs.put(secondSource.id,secondSource);
+     java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
+      new java.util.LinkedHashMap<>(loopSketchSegments(source,null,0,0,0,0));
+     lines.putAll(loopSketchSegments(secondSource,null,0,0,0,0));
+     if(!java.util.Arrays.equals(linked.regenerateTriangles(refs,lines),newMesh.vertices))
+      throw new IllegalArgumentException("La unión no se puede regenerar");
+     checkpoint();
+     booleanMeshes.add(newMesh);unionRecipes.add(null);holeRecipes.add(null);
+     loopExtrusionFeatures.add(null);intersectionRecipes.add(linked);
+     save();scene.invalidate();
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     toast(String.format(java.util.Locale.US,
+      "Resta B-Rep vinculada · %.2f mm³",result.volume));
+    }catch(Exception error){
+     toast("Resta B-Rep rechazada: "+error.getMessage());
+    }
+   }).setNegativeButton("Cancelar",null).show();
+ }
+
  void booleanMeshManager(){
   if(booleanMeshes.isEmpty()){toast("No hay resultados booleanos guardados");return;}
   String[] names=new String[booleanMeshes.size()];
@@ -971,7 +1048,9 @@ public class MainActivity extends Activity {
    if(i<intersectionRecipes.size()&&intersectionRecipes.get(i)!=null)
     names[i]+=" · "+(intersectionRecipes.get(i).operation==
       es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.UNION_ORTHOGONAL?
-      "unión B-Rep vinculada":"intersección B-Rep vinculada");
+      "unión B-Rep vinculada":intersectionRecipes.get(i).operation==
+      es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.DIFFERENCE_ORTHOGONAL?
+      "resta B-Rep vinculada":"intersección B-Rep vinculada");
    if(drill!=null)names[i]+=" · "+
     (drill.drillDepth==0?"pasante":drill.drillDepth+" mm de profundidad");
   }
@@ -979,7 +1058,7 @@ public class MainActivity extends Activity {
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
     new AlertDialog.Builder(this).setTitle(names[index])
-     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno","Editar perfil original del contorno","Inspeccionar topología B-Rep","Intersectar con otro contorno B-Rep","Unir dos prismas B-Rep rectangulares"},(d,choice)->{
+     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno","Editar perfil original del contorno","Inspeccionar topología B-Rep","Intersectar con otro contorno B-Rep","Unir dos prismas B-Rep rectangulares","Restar otro prisma B-Rep rectangular"},(d,choice)->{
       if(choice==0){showMeshOnly(mesh);}
       else if(choice==1){exportMeshMenuFor(mesh);}
       else if(choice==3){editFaceUnionRecipe(index);}
@@ -989,6 +1068,7 @@ public class MainActivity extends Activity {
       else if(choice==7){inspectLoopBRep(index);}
       else if(choice==8){intersectLinkedLoopMeshes(index);}
       else if(choice==9){unionLinkedRectangularMeshes(index);}
+      else if(choice==10){subtractLinkedRectangularMeshes(index);}
       else new AlertDialog.Builder(this).setTitle("Eliminar resultado")
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
@@ -1749,7 +1829,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    new String[]{"Editar cara B-Rep seleccionada","Editar distancia de extrusión",
       "Editar perfil original","Inspeccionar topología B-Rep",
       "Intersectar con otro contorno B-Rep","Unir dos prismas B-Rep rectangulares",
-      "Ver solo esta malla","Exportar a STL/OBJ","Gestionar resultados"}:
+      "Restar otro prisma B-Rep rectangular","Ver solo esta malla",
+      "Exportar a STL/OBJ","Gestionar resultados"}:
    new String[]{"Ver solo esta malla","Exportar a STL/OBJ",
       "Gestionar resultados"};
   new AlertDialog.Builder(this)
@@ -1765,7 +1846,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
      if(option==3){inspectLoopBRep(index);return;}
      if(option==4){intersectLinkedLoopMeshes(index);return;}
      if(option==5){unionLinkedRectangularMeshes(index);return;}
-     option-=6;
+     if(option==6){subtractLinkedRectangularMeshes(index);return;}
+     option-=7;
     }
     if(option==0)showMeshOnly(original);
     else if(option==1)exportMeshMenuFor(original);
