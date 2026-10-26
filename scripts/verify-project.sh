@@ -692,7 +692,7 @@ for marker in (
  "selectedStoredMeshObject==actual",
  "if(index>=booleanMeshes.size()||booleanMeshes.get(index)!=original)",
  "editLoopExtrusionDistance(index);return;",
- "if(secondTap)showStoredMeshTouchActions(index,actual);",
+ "if(secondTap)showStoredMeshTouchActions(index,actual,faceId);",
  "clearStoredMeshSelection();",
 ):
     assert marker in a,marker
