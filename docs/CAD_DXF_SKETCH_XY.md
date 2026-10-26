@@ -21,7 +21,15 @@ Rechaza importaciones con entidades no soportadas, geometría fuera
 del plano XY, polilíneas abiertas, arcos DXF (bulge), anchuras/grosores
 no nulos, vértices degenerados, ausencia o duplicación de $INSUNITS
 y unidades distintas de milímetros (incluido el código 0, sin unidad). Los polígonos cerrados no rectangulares se conservan como
-líneas; no se convierten erróneamente en rectángulos. Los polígonos
+líneas; no se convierten erróneamente en rectángulos.
+
+**Validación adicional de contornos (0.6.0):** las LWPOLYLINE cerradas
+se comprueban antes de crear bocetos: se rechazan aristas cruzadas,
+contactos entre aristas no adyacentes, vértices repetidos no consecutivos
+y polígonos sin superficie. Los perfiles cóncavos simples siguen siendo
+válidos. La comprobación es O(n²), limitada a 2000 vértices, y evita
+importar un perfil que no puede extruirse correctamente. No añade
+soporte para agujeros ni reemplaza la validación de la malla 3D. Los polígonos
 con agujeros, autointersecciones o ramas todavía no pueden extruirse.
 Esto evita pérdidas parciales silenciosas.
 
