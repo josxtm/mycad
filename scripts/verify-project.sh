@@ -146,6 +146,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveMovePreview.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveEdgeCurve.java \
   app/src/main/java/es/josxtm/mycad/cad/EdgeScreenTolerance.java \
+  app/src/main/java/es/josxtm/mycad/cad/PrimitiveFaceHandle.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -153,7 +154,8 @@ javac -d build/box-brep-tests \
   tests/PrimitiveEdgeMoveTest.java \
   tests/PrimitiveMovePreviewTest.java \
   tests/PrimitiveEdgeCurveTest.java \
-  tests/EdgeScreenToleranceTest.java
+  tests/EdgeScreenToleranceTest.java \
+  tests/PrimitiveFaceHandleTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -162,6 +164,7 @@ java -cp build/box-brep-tests PrimitiveEdgeMoveTest
 java -cp build/box-brep-tests PrimitiveMovePreviewTest
 java -cp build/box-brep-tests PrimitiveEdgeCurveTest
 java -cp build/box-brep-tests EdgeScreenToleranceTest
+java -cp build/box-brep-tests PrimitiveFaceHandleTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -260,6 +263,27 @@ assert "EdgeScreenTolerance.compute(" in a
 assert "meshView.cameraDistance(),meshView.getHeight()" in a
 assert "private volatile float distance=300;" in m
 print("Tolerancia tactil dependiente del zoom: OK")
+PY
+
+# On-model drag must not save until the confirmation callback.
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+mesh=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+begin=src.index("void toggleFaceDragOnModel(){")
+end=src.index("void previewSelectedBRepMove(){",begin)
+drag=src[begin:end]
+assert "case 24:toggleFaceDragOnModel();break;" in src
+assert "PrimitiveFaceHandle.from(original,id)" in drag
+assert "session.propose(deltaMm,0)" in drag
+assert "meshView.previewMesh(experimentalCadMeshPreview(partIndex,proposal))" in drag
+assert drag.index('setPositiveButton("Aplicar"')<drag.index("checkpoint();")
+assert drag.index("checkpoint();")<drag.index("save();scene.invalidate();")
+assert "finishFaceDrag()" in drag and "void finishFaceDrag(){" in src
+assert "public void setFaceDragHandle(float[] anchorNormal" in mesh
+assert "faceHandleCaptured=true" in mesh
+assert "GLES30.glDrawArrays(GLES30.GL_LINES,0,2)" in mesh
+print("Arrastre directo de cara B-Rep: vinculación y confirmación protegidas")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
