@@ -45,16 +45,21 @@ public final class PrimitiveTopologyMap {
   add(partIndex,bodyId,firstTriangle,segments*4,segments,true);
  }
  private void add(int i,String id,int start,int count,int segments,boolean cylinder){
+  // Validate first: a failed registration must not reserve a body ID.
+  // Triangle indices are Java ints; the exclusive upper bound may be MAX_VALUE + 1.
+  long nextEnd=(long)start+count;
   if(i<0||id==null||id.trim().isEmpty()||start<0||count<=0||
-     !bodyIds.add(id)||(!ranges.isEmpty()&&start<end))
+     nextEnd>(long)Integer.MAX_VALUE+1||bodyIds.contains(id)||
+     (!ranges.isEmpty()&&start<end))
     throw new IllegalArgumentException("Invalid or overlapping body topology");
   ranges.add(new BodyRange(i,start,count,segments,id,cylinder));
-  end=(long)start+count;
+  bodyIds.add(id);
+  end=nextEnd;
  }
  public Hit resolve(int globalTriangle){
   if(globalTriangle<0)return null;
   for(BodyRange range:ranges){
-   if(globalTriangle<range.start||globalTriangle>=range.start+range.count)continue;
+   if(globalTriangle<range.start||((long)globalTriangle)>=(long)range.start+range.count)continue;
    int local=globalTriangle-range.start;
    if(!range.cylinder){
     BoxFaceSelection.Face face=BoxFaceSelection.faceForTriangle(local);

@@ -30,6 +30,22 @@ public final class PrimitiveTopologyMapTest {
   yes(invalid,"Reject duplicate body ID");
   invalid=false;try{m.addBox(2,"new-body",20);}catch(IllegalArgumentException e){invalid=true;}
   yes(invalid,"Reject overlap");
+  // Overlap must not poison the body ID registry: retry at the first free triangle.
+  m.addBox(2,"new-body",221);
+  yes(m.resolve(221)!=null&&"new-body".equals(m.resolve(221).bodyId),
+      "Retry same body ID after rejected overlap");
+  // Boundary arithmetic must remain valid for the largest representable triangle.
+  PrimitiveTopologyMap limit=new PrimitiveTopologyMap();
+  int lastStart=Integer.MAX_VALUE-11;
+  limit.addBox(0,"last-valid",lastStart);
+  yes(limit.resolve(Integer.MAX_VALUE)!=null,"Last addressable triangle resolves");
+  yes(limit.resolve(lastStart-1)==null,"Triangle before final range stays unmapped");
+  PrimitiveTopologyMap overflow=new PrimitiveTopologyMap();
+  invalid=false;
+  try{overflow.addBox(0,"too-large",Integer.MAX_VALUE);}catch(IllegalArgumentException e){invalid=true;}
+  yes(invalid,"Reject ranges whose end exceeds addressable triangle indices");
+  overflow.addBox(0,"too-large",Integer.MAX_VALUE-11);
+  yes(overflow.resolve(Integer.MAX_VALUE)!=null,"Retry rejected overflow ID on valid range");
   CadFaceReference ref=new CadFaceReference(0,bodyA,BoxFaceSelection.Face.X_MIN);
   yes(ref.isValidFor(2,bodyA)&&!ref.isValidFor(2,bodyB),"Stale index protection");
   yes(ref.key().equals(bodyA+"/face/X_MIN"),"Stable reference key");
