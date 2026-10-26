@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Optimización GPU de navegación:** los buffers directos de triángulos se preparan una vez por malla y se reutilizan en cada fotograma de órbita/zoom. Se invalidan al cambiar la escena, previsualizar o recuperar contexto EGL; tests Java de memoria/cursor y verificación Android sin APK.
+
 **Navegación multitáctil mejorada:** dos dedos permiten zoom por separación y desplazamiento del foco 3D por el punto medio; un dedo conserva la órbita. Se cancela un manipulador si comienza multitáctil. Matemática XYZ probada sin Android; sensibilidad pendiente de dispositivo.
 
 **Picking B-Rep analítico:** intersección exacta de rayos con seis caras de prismas y superficies cilíndricas/tapas, incluso bajo rotaciones XYZ. La malla determina primero el cuerpo visible y el rayo refina el punto y la cara cuando la aproximación coincide; no es picking B-Rep general. Pruebas Java y CI Android sin APK.

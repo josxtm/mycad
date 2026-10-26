@@ -152,6 +152,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/AnalyticSceneMesh.java \
   app/src/main/java/es/josxtm/mycad/cad/AnalyticPrimitiveRayPicker.java \
   app/src/main/java/es/josxtm/mycad/cad/CameraGestureMath.java \
+  app/src/main/java/es/josxtm/mycad/cad/FloatVertexBufferCache.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -165,7 +166,8 @@ javac -d build/box-brep-tests \
   tests/DragPrecisionTest.java \
   tests/AnalyticSceneMeshTest.java \
   tests/AnalyticPrimitiveRayPickerTest.java \
-  tests/CameraGestureMathTest.java
+  tests/CameraGestureMathTest.java \
+  tests/FloatVertexBufferCacheTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -180,6 +182,7 @@ java -cp build/box-brep-tests DragPrecisionTest
 java -cp build/box-brep-tests AnalyticSceneMeshTest
 java -cp build/box-brep-tests AnalyticPrimitiveRayPickerTest
 java -cp build/box-brep-tests CameraGestureMathTest
+java -cp build/box-brep-tests FloatVertexBufferCacheTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -392,6 +395,19 @@ for marker in (
     if marker not in src:
         raise SystemExit("ERROR: navegación multitáctil CAD incompleta: "+marker)
 print("Navegación de dos dedos con zoom y pan; gesto de edición protegido: OK")
+PY
+
+# Regressions: orbiting no longer allocates full native vertex arrays per frame.
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+render=src[src.index("onDrawFrame("):]
+assert "FloatBuffer buf=gpuTriangles.triangles(mesh,mesh.vertices);" in render
+assert "ByteBuffer.allocateDirect(mesh.vertices.length*4)" not in render
+assert src.count("gpuTriangles.clear();")>=3
+assert "gpuTriangles.clear();meshes.clear();meshes.addAll(copy)" in src
+assert "gpuTriangles.clear();\n   meshes.clear();meshes.add(snapshot)" in src
+print("Render 3D: buffers directos reutilizados y liberados al reemplazar escena: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
