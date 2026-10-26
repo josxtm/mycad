@@ -16,3 +16,7 @@ Este incremento introduce `PrimitiveBRepBody` como **fachada geométrica Java pu
 ## Limitación fundamental
 
 No es B-Rep general: no resuelve aristas compartidas después de booleanas, trimado de superficies, filetes, chaflanes, vaciado, ni importación STEP. Faltan raycasting preciso de aristas y controladores táctiles completos. La prueba funcional en teléfono todavía está pendiente.
+
+## Integridad del mapa de triángulos (0.6.0)
+
+El registro de rangos de `PrimitiveTopologyMap` valida solapamientos, UUID duplicados y límites de `int` **antes** de reservar el identificador del cuerpo. Una operación rechazada no modifica el mapa y puede reintentarse con el mismo UUID en un rango válido. Los límites exclusivos se calculan con `long` para evitar desbordamientos al seleccionar el último triángulo direccionable (`Integer.MAX_VALUE`). `PrimitiveTopologyMapTest` cubre estos rechazos, reintentos y el extremo del rango; no cambia la geometría ni genera APK.
