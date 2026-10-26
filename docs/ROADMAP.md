@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Selección jerárquica de mallas grandes:** un árbol AABB binario sobre bloques de 64 triángulos permite descartar subárboles completos durante el raycast. Conserva índices globales y desempates; regresiones frente al raycast lineal con 96 bloques y 250 rayos deterministas. Sin APK ni pruebas de rendimiento en móvil. Véase [índice jerárquico](CAD_MESH_RAY_BVH.md).
+
 **Tres dedos → vista inicial 3D:** toque simultáneo rápido de tres dedos restablece orientación isométrica (35°/25°), centro y distancia adaptados al sólido. El gesto no se confunde con pellizco ni con selección de caras, y cancela arrastre de gizmos. Pruebas Java/CI Android, sin APK.
 
 **Picking de mallas por cercanía:** el índice AABB visita antes los bloques más próximos al rayo y evita comprobar triángulos de bloques posteriores cuando ya hay un impacto más cercano. Conserva empates por índice de triángulo; pruebas de igualdad y rayos pseudoaleatorios. Sin APK.
