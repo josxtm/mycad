@@ -419,7 +419,7 @@ render=src[src.index("onDrawFrame("):]
 assert "FloatBuffer buf=gpuTriangles.triangles(mesh,mesh.vertices);" in render
 assert "ByteBuffer.allocateDirect(mesh.vertices.length*4)" not in render
 assert src.count("gpuTriangles.clear();")>=3
-assert "gpuTriangles.clear();meshes.clear();meshes.addAll(copy)" in src
+assert "gpuTriangles.clear();\n   meshes.clear();meshes.addAll(copy);" in src
 assert "gpuTriangles.clear();\n   meshes.clear();meshes.add(snapshot)" in src
 print("Render 3D: buffers directos reutilizados y liberados al reemplazar escena: OK")
 PY
