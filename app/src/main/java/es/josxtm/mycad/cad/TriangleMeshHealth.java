@@ -58,7 +58,12 @@ public final class TriangleMeshHealth {
   Map<Edge,Count> edges=new HashMap<>();
   int[] parent=new int[mesh.length/3];
   for(int j=0;j<parent.length;j++)parent[j]=j;
-  int degenerates=0;double volume=0;
+  // Translate the tetrahedral volume origin near the mesh. Absolute-world
+  // determinants lose low bits when a small solid is far from (0,0,0).
+  double anchorX=mesh.length==0?0:mesh[0];
+  double anchorY=mesh.length==0?0:mesh[1];
+  double anchorZ=mesh.length==0?0:mesh[2];
+  int degenerates=0;double volume=0,volumeCorrection=0;
   for(int i=0;i<mesh.length;i+=9){
    Vertex[] v={new Vertex(mesh,i),new Vertex(mesh,i+3),new Vertex(mesh,i+6)};
    double ax=mesh[i],ay=mesh[i+1],az=mesh[i+2];
@@ -68,7 +73,17 @@ public final class TriangleMeshHealth {
    double ny=(bz-az)*(cx-ax)-(bx-ax)*(cz-az);
    double nz=(bx-ax)*(cy-ay)-(by-ay)*(cx-ax);
    if(v[0].equals(v[1])||v[1].equals(v[2])||v[2].equals(v[0])||nx*nx+ny*ny+nz*nz<1e-16)degenerates++;
-   volume+=(ax*(by*cz-bz*cy)+ay*(bz*cx-bx*cz)+az*(bx*cy-by*cx))/6;
+   double rax=ax-anchorX,ray=ay-anchorY,raz=az-anchorZ;
+   double rbx=bx-anchorX,rby=by-anchorY,rbz=bz-anchorZ;
+   double rcx=cx-anchorX,rcy=cy-anchorY,rcz=cz-anchorZ;
+   double contribution=(rax*(rby*rcz-rbz*rcy)
+     +ray*(rbz*rcx-rbx*rcz)+raz*(rbx*rcy-rby*rcx))/6.0;
+   // Neumaier compensation retains small contributions across many faces.
+   double next=volume+contribution;
+   if(Math.abs(volume)>=Math.abs(contribution))
+    volumeCorrection+=(volume-next)+contribution;
+   else volumeCorrection+=(contribution-next)+volume;
+   volume=next;
    for(int k=0;k<3;k++){
     Vertex from=v[k],to=v[(k+1)%3];
     Edge e=new Edge(from,to);Count count=edges.get(e);
@@ -103,6 +118,6 @@ public final class TriangleMeshHealth {
    if(previousA!=null&&previousA!=a)splitVertices.add(edge.a);
    if(previousB!=null&&previousB!=b)splitVertices.add(edge.b);
   }
-  return new Report(mesh.length/9,boundary,nonManifold,splitVertices.size(),reversed,degenerates,volume);
+  return new Report(mesh.length/9,boundary,nonManifold,splitVertices.size(),reversed,degenerates,volume+volumeCorrection);
  }
 }
