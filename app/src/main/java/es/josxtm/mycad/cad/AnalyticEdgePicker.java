@@ -71,6 +71,21 @@ public final class AnalyticEdgePicker {
    throw new IllegalArgumentException("Unknown or foreign analytic face");
   return nearest(body,faceId,wx,wy,wz,tolerance);
  }
+ /**
+  * Select a boundary edge from an accepted exact ray/surface intersection.
+  * Unlike a loose face ID + mesh point, the hit carries the source geometry:
+  * stale or foreign hits cannot anchor a gizmo to the wrong primitive pose.
+  * The mesh-only fallback remains available through nearestEdgeOnFace.
+  */
+ public static Hit nearestEdgeOnSurfaceHit(PrimitiveBRepBody body,
+                                           AnalyticPrimitiveRayPicker.Hit surfaceHit,
+                                           double tolerance){
+  if(body==null||surfaceHit==null||!surfaceHit.matchesGeometry(body)||
+     body.findFace(surfaceHit.faceId)==null)
+   throw new IllegalArgumentException("Stale or foreign surface hit");
+  return nearest(body,surfaceHit.faceId,surfaceHit.x,surfaceHit.y,
+                 surfaceHit.z,tolerance);
+ }
  private static Hit nearest(PrimitiveBRepBody body,String faceId,
                             double wx,double wy,double wz,double tolerance){
   if(body==null||!Double.isFinite(wx)||!Double.isFinite(wy)||

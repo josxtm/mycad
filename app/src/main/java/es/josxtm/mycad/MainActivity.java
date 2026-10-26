@@ -1037,13 +1037,20 @@ public class MainActivity extends Activity {
      String visibleFace=exactFace!=null?exactFace:
       (hit.kind==es.josxtm.mycad.cad.PrimitiveTopologyMap.Kind.BOX?
        hit.bodyId+"/face/"+hit.boxFace.name():hit.faceId);
-     es.josxtm.mycad.cad.AnalyticEdgePicker.Hit boundary=
-      es.josxtm.mycad.cad.AnalyticEdgePicker.nearestEdgeOnFace(
-       solid,visibleFace,x,y,z,meshView==null?
+     double edgeTolerance=meshView==null?
        es.josxtm.mycad.cad.AnalyticEdgePicker.suggestedTolerance(solid):
        es.josxtm.mycad.cad.EdgeScreenTolerance.compute(
          solid,meshView.cameraDistance(),meshView.getHeight(),
-         getResources().getDisplayMetrics().density));
+         getResources().getDisplayMetrics().density);
+     // Prefer a validated analytic surface hit: its geometry snapshot
+     // prevents a stale ray from selecting an edge after moving a solid.
+     // Preserve the triangle/face fallback for imported/faceted hits.
+     es.josxtm.mycad.cad.AnalyticEdgePicker.Hit boundary=
+      activeExactFaceHit!=null?
+       es.josxtm.mycad.cad.AnalyticEdgePicker.nearestEdgeOnSurfaceHit(
+        solid,activeExactFaceHit,edgeTolerance):
+       es.josxtm.mycad.cad.AnalyticEdgePicker.nearestEdgeOnFace(
+        solid,visibleFace,x,y,z,edgeTolerance);
      activeAnalyticEdgeId=boundary==null?null:boundary.edgeId;
      activeExactEdgeHit=boundary;
      if(boundary!=null){
