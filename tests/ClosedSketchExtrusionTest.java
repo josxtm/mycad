@@ -19,7 +19,7 @@ public final class ClosedSketchExtrusionTest {
                            double expectedArea,int expectedLines,String name){
   ClosedSketchExtrusion.Result r=ClosedSketchExtrusion.extrude(input,index,h);
   near(r.area,expectedArea,name+" area");
-  near(r.volume,expectedArea*h,name+" volume");
+  near(r.volume,expectedArea*Math.abs(h),name+" volume");
   check(r.usedLines==expectedLines,name+" line count");
   check(r.triangles.length==(4*expectedLines-4)*9,name+" triangle count");
   TriangleMeshHealth.Report report=TriangleMeshHealth.inspect(r.triangles);
@@ -36,6 +36,19 @@ public final class ClosedSketchExtrusionTest {
    List<ClosedSketchExtrusion.Segment> plane=new ArrayList<>();
    for(ClosedSketchExtrusion.Segment e:l)plane.add(line(p,e.ax,e.ay,e.bx,e.by));
    valid(plane,2,7,5,6,"Concave L plane "+p);
+   valid(plane,2,-7,5,6,"Reverse concave L plane "+p);
+   // XY height maps to Z, XZ maps to Y, YZ maps to X.
+   int extrusionAxis=p==0?2:p==1?1:0;
+   ClosedSketchExtrusion.Result negative=ClosedSketchExtrusion.extrude(plane,2,-7);
+   double min=Double.POSITIVE_INFINITY,max=Double.NEGATIVE_INFINITY;
+   for(int k=extrusionAxis;k<negative.triangles.length;k+=3){
+    min=Math.min(min,negative.triangles[k]);
+    max=Math.max(max,negative.triangles[k]);
+   }
+   near(min,-7,"Reverse volume min along axis "+p);
+   near(max,0,"Reverse volume max along axis "+p);
+   check(TriangleMeshHealth.inspect(negative.triangles).signedVolume>0,
+         "Reverse extrusion outward triangle normals "+p);
   }
   // Component-based selection: ignore a disconnected closed triangle, do
   // not accidentally fuse two separate solids into one body.
@@ -75,7 +88,7 @@ public final class ClosedSketchExtrusionTest {
    line(0,4,4,0,4),line(0,0,4,0,0),line(0,0,0,4,4));
   invalid(spur,0,2,"Branch diagonal");
   invalid(l,0,0,"Zero height");
-  invalid(l,0,-1,"Negative height");
+  invalid(l,0,-20000,"Negative too tall");
   invalid(l,0,20000,"Too tall");
   invalid(l,-1,1,"Missing selection");
   invalid(l,100,1,"Selection outside scene");
