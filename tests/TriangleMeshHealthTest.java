@@ -92,6 +92,27 @@ public final class TriangleMeshHealthTest {
   require(mixedReport.isWatertight()&&Math.abs(mixedReport.signedVolume-1.0/6.0)<1e-12,
     "Oppositely oriented distant shell must cancel exactly: "+mixedReport.signedVolume);
 
+  // A doubled planar triangle has exactly two incident faces per edge,
+  // opposite edge directions and no degenerate triangles, but no 3D interior.
+  float[] flat={0,0,0, 1,0,0, 0,1,0, 0,1,0, 1,0,0, 0,0,0};
+  TriangleMeshHealth.Report collapsed=TriangleMeshHealth.inspect(flat);
+  require(collapsed.boundaryEdges==0&&collapsed.nonManifoldEdges==0&&
+    collapsed.reversedEdges==0&&collapsed.degenerateTriangles==0,
+    "Flat double-sided sheet should pass traditional edge checks");
+  require(collapsed.shells==1&&collapsed.zeroVolumeShells==1&&!collapsed.isWatertight(),
+    "Zero-volume closed sheet must not pass solid validation");
+  // One valid shell cannot mask a separate collapsed shell.
+  float[] separatedFlat=flat.clone();
+  for(int k=0;k<separatedFlat.length;k+=3)separatedFlat[k]+=10;
+  float[] withFlat=Arrays.copyOf(first,first.length+separatedFlat.length);
+  System.arraycopy(separatedFlat,0,withFlat,first.length,separatedFlat.length);
+  TriangleMeshHealth.Report mixedValidity=TriangleMeshHealth.inspect(withFlat);
+  require(mixedValidity.shells==2&&mixedValidity.zeroVolumeShells==1&&
+    !mixedValidity.isWatertight()&&Math.abs(mixedValidity.signedVolume-1.0/6.0)<1e-12,
+    "Collapsed shell must be detected even alongside a valid tetrahedron");
+  require(shells.shells==3&&shells.zeroVolumeShells==0,
+    "Separated solid tetrahedra should retain three nonzero shells");
+
   float[] pinched=Arrays.copyOf(first,first.length+second.length);
   System.arraycopy(second,0,pinched,first.length,second.length);
   TriangleMeshHealth.Report pinch=TriangleMeshHealth.inspect(pinched);
