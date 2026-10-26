@@ -18,7 +18,10 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private final List<Mesh> meshes=new ArrayList<>();
  private int program,position,modelViewProjection,colorUniform;
  private final float[] projection=new float[16],view=new float[16],mvp=new float[16];
- private float yaw=35,pitch=25,distance=300,centerX,centerY,centerZ;
+ private float yaw=35,pitch=25,centerX,centerY,centerZ;
+ private volatile float distance=300;
+ /** Camera distance used for zoom-aware CAD hit tolerance in the UI thread. */
+ public float cameraDistance(){return distance;}
  private float lastX,lastY,downX,downY; private boolean dragging,moved;
  private volatile int highlightedFirstTriangle=-1;
  private float[] highlightedEdgeVertices=null;

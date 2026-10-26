@@ -1004,7 +1004,11 @@ public class MainActivity extends Activity {
      es.josxtm.mycad.cad.PrimitiveBRepBody solid=analyticBody(chosen);
      es.josxtm.mycad.cad.AnalyticEdgePicker.Hit boundary=
       es.josxtm.mycad.cad.AnalyticEdgePicker.nearestEdge(
-       solid,x,y,z,es.josxtm.mycad.cad.AnalyticEdgePicker.suggestedTolerance(solid));
+       solid,x,y,z,meshView==null?
+       es.josxtm.mycad.cad.AnalyticEdgePicker.suggestedTolerance(solid):
+       es.josxtm.mycad.cad.EdgeScreenTolerance.compute(
+         solid,meshView.cameraDistance(),meshView.getHeight(),
+         getResources().getDisplayMetrics().density));
      activeAnalyticEdgeId=boundary==null?null:boundary.edgeId;
      if(boundary!=null){
       description+=" · Arista "+boundary.edgeId.substring(boundary.edgeId.lastIndexOf('/')+1);
