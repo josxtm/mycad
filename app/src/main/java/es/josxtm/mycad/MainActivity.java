@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
  ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
- static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104; MeshEngine meshView; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
+ static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104; MeshEngine meshView; FrameLayout meshPanel; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
@@ -354,21 +354,9 @@ public class MainActivity extends Activity {
     BoxBooleanMesh.Operation operation=choice==0?BoxBooleanMesh.Operation.UNION:choice==1?BoxBooleanMesh.Operation.INTERSECTION:BoxBooleanMesh.Operation.DIFFERENCE;
     float[] triangles=BoxBooleanMesh.build(a,b,operation);
     if(triangles.length==0){toast("El resultado es vacío");return;}
-    if(meshView==null){
-     meshView=new MeshEngine(this);
-     meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
-      showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
-     meshView.setCameraOrientationListener((heading,elevation)->{
-      if(scene!=null){
-       float[] radians=es.josxtm.mycad.cad.CameraOrientationSync.sceneRadians(
-        heading,elevation);
-       scene.yaw=radians[0];scene.pitch=radians[1];
-       scene.invalidate();
-      }
-     });
-     rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));
-    }
+    ensureMeshView();
     meshMode=true;meshView.setVisibility(View.VISIBLE);
+  meshPanel.setVisibility(View.VISIBLE);
     isolatedMeshPreview=true;activeCadFace=null;meshView.highlightFace(-1);
     meshView.setMeshes(java.util.Collections.singletonList(new MeshEngine.Mesh(triangles)));
     info.setText("Previsualización booleana · "+(triangles.length/9)+" triángulos");
@@ -391,17 +379,9 @@ public class MainActivity extends Activity {
   meshView.updateMeshesPreservingCamera(java.util.Collections.singletonList(currentMesh()));
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
-  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
-      showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
-     meshView.setCameraOrientationListener((heading,elevation)->{
-      if(scene!=null){
-       float[] radians=es.josxtm.mycad.cad.CameraOrientationSync.sceneRadians(
-        heading,elevation);
-       scene.yaw=radians[0];scene.pitch=radians[1];
-       scene.invalidate();
-      }
-     });rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
+  ensureMeshView();
   meshMode=true;meshView.setVisibility(View.VISIBLE);
+  meshPanel.setVisibility(View.VISIBLE);
   isolatedMeshPreview=true;activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
   meshView.highlightFace(-1);
   meshView.setMeshes(java.util.Collections.singletonList(mesh));
@@ -2095,18 +2075,75 @@ public class MainActivity extends Activity {
   * in normal viewing, CAD face selection, STL/OBJ export and live previews.
   */
  MeshEngine.Mesh currentMesh(){return experimentalCadMesh();}
+ /**
+  * Put a functional 3x3 ViewCube ON TOP of the actual OpenGL viewport, rather
+  * than only on the separate canvas view which GPU users cannot touch.
+  * Outside the 123dp corner cube, all gestures still reach MeshEngine.
+  */
+ void ensureMeshView(){
+  if(meshView!=null)return;
+  meshView=new MeshEngine(this);
+  meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
+    showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
+  meshView.setCameraOrientationListener((heading,elevation)->{
+   if(scene!=null){
+    float[] rad=es.josxtm.mycad.cad.CameraOrientationSync.sceneRadians(
+      heading,elevation);
+    scene.yaw=rad[0];scene.pitch=rad[1];scene.invalidate();
+   }
+  });
+  meshPanel=new FrameLayout(this);
+  meshPanel.addView(meshView,new FrameLayout.LayoutParams(
+    ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
+  android.widget.GridLayout cube=new android.widget.GridLayout(this);
+  cube.setColumnCount(3);cube.setRowCount(3);
+  cube.setPadding(dp(3),dp(3),dp(3),dp(3));
+  cube.setBackgroundColor(Color.argb(230,29,44,63));
+  cube.setElevation(dp(5));
+  final String[][] labels={
+   {"ISO","SUP","ISO"},
+   {"IZQ","FREN","DER"},
+   {"ISO","INF","ISO"}
+  };
+  for(int row=0;row<3;row++)for(int col=0;col<3;col++){
+   final int whichRow=row,whichCol=col;
+   TextView key=new TextView(this);
+   key.setText(labels[row][col]);
+   key.setTextSize(10f);
+   key.setTextColor(Color.WHITE);
+   key.setGravity(Gravity.CENTER);
+   key.setContentDescription("ViewCube "+labels[row][col]);
+   android.graphics.drawable.GradientDrawable shape=
+     new android.graphics.drawable.GradientDrawable();
+   shape.setColor(Color.rgb(52,73,97));
+   shape.setStroke(dp(1),Color.rgb(124,151,179));
+   shape.setCornerRadius(dp(3));
+   key.setBackground(shape);
+   key.setOnClickListener(tap->{
+    if(scene!=null)scene.cubeView(whichRow,whichCol);
+    else{
+     es.josxtm.mycad.cad.CubeCameraPreset.Angles preset=
+       es.josxtm.mycad.cad.CubeCameraPreset.cell(whichRow,whichCol);
+     meshView.setViewOrientation(preset.yawDegrees(),preset.pitchDegrees());
+    }
+   });
+   android.widget.GridLayout.LayoutParams cell=
+     new android.widget.GridLayout.LayoutParams(
+       android.widget.GridLayout.spec(row),android.widget.GridLayout.spec(col));
+   cell.width=dp(39);cell.height=dp(39);
+   cube.addView(key,cell);
+  }
+  FrameLayout.LayoutParams location=new FrameLayout.LayoutParams(
+    dp(123),dp(123),Gravity.TOP|Gravity.RIGHT);
+  location.topMargin=dp(6);location.rightMargin=dp(6);
+  meshPanel.addView(cube,location);
+  rootLayout.addView(meshPanel,rootLayout.indexOfChild(nextStep),
+    new LinearLayout.LayoutParams(-1,dp(240)));
+ }
  void toggleMeshView(){
-  if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
-      showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
-     meshView.setCameraOrientationListener((heading,elevation)->{
-      if(scene!=null){
-       float[] radians=es.josxtm.mycad.cad.CameraOrientationSync.sceneRadians(
-        heading,elevation);
-       scene.yaw=radians[0];scene.pitch=radians[1];
-       scene.invalidate();
-      }
-     });rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
+  ensureMeshView();
   meshMode=!meshMode;meshView.setVisibility(meshMode?View.VISIBLE:View.GONE);
+  meshPanel.setVisibility(meshMode?View.VISIBLE:View.GONE);
   if(meshMode){renderCurrentCadMesh();toast("Visor GPU: arrastra para girar");}
  }
  void importMesh(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");try{startActivityForResult(i,IMPORT_MESH);}catch(Exception e){toast("No se pudo abrir el selector");}}

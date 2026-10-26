@@ -552,4 +552,28 @@ assert "CameraOrientationSync.pitchDegrees(pitch+dy*.35f)" in m
 print("ViewCube muestra la orientación de órbita GPU y vista inicial: OK")
 PY
 
+# GPU viewport has an on-screen 3x3 ViewCube; invisible old Canvas-only cube
+# was not touchable when the OpenGL panel was active.
+python3 - <<'PY'
+from pathlib import Path
+s=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+start=s.index("void ensureMeshView(){")
+end=s.index("void toggleMeshView(){",start)
+pane=s[start:end]
+assert s.count("ensureMeshView();")==3
+assert "meshPanel=new FrameLayout(this);" in pane
+assert "meshPanel.addView(meshView,new FrameLayout.LayoutParams(" in pane
+assert "cube.setColumnCount(3);cube.setRowCount(3);" in pane
+assert "new android.widget.GridLayout.LayoutParams(" in pane
+assert "cube.addView(key,cell);" in pane
+assert "key.setOnClickListener(tap->{" in pane
+assert "scene.cubeView(whichRow,whichCol);" in pane
+assert "rootLayout.addView(meshPanel,rootLayout.indexOfChild(nextStep)" in pane
+assert s.count("meshPanel.setVisibility(")==3
+assert "rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep)" not in s
+assert "setSurfaceRayListener(" in pane
+assert "setCameraOrientationListener(" in pane
+print("ViewCube 3x3 funcional, táctil y visible sobre visor GPU: OK")
+PY
+
 echo "Comprobaciones básicas del proyecto: OK"
