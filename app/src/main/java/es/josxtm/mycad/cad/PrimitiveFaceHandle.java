@@ -56,6 +56,10 @@ public final class PrimitiveFaceHandle {
                                            AnalyticPrimitiveRayPicker.Hit hit){
   if(body==null||hit==null||!body.bodyId.equals(hit.bodyId))
    throw new IllegalArgumentException("Hit belongs to a different body");
+  // A face can remain at the same world point after editing ANOTHER face.
+  // Reject that stale selection as well, even if it still lies on the plane.
+  if(!hit.matchesGeometry(body))
+   throw new IllegalArgumentException("Hit was computed for older geometry");
   PrimitiveBRepBody.Face face=body.findFace(hit.faceId);
   if(face==null)throw new IllegalArgumentException("Stale face hit");
   double[] local=body.pose().inversePoint(hit.x,hit.y,hit.z);
