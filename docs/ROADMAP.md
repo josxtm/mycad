@@ -4,6 +4,12 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Tolerancia de aristas por profundidad del toque:** el radio de 12 dp
+se calcula con la distancia del rayo al punto 3D tocado, no solo con
+la distancia de cámara al foco. Reduce variaciones de selección entre
+piezas cercanas y lejanas de una misma escena; pruebas Java y Android
+en CI, sin APK. Véase [tolerancia visual](CAD_BREP_EDGE_SCREEN_TOLERANCE.md).
+
 **Selección de aristas vinculada al rayo exacto:** el visor pasa el impacto
 analítico completo al selector de bordes y este comprueba que la geometría
 original (cuerpo, dimensiones y pose XYZ) siga siendo válida. Se conserva

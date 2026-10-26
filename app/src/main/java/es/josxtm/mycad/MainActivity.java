@@ -1039,8 +1039,8 @@ public class MainActivity extends Activity {
        hit.bodyId+"/face/"+hit.boxFace.name():hit.faceId);
      double edgeTolerance=meshView==null?
        es.josxtm.mycad.cad.AnalyticEdgePicker.suggestedTolerance(solid):
-       es.josxtm.mycad.cad.EdgeScreenTolerance.compute(
-         solid,meshView.cameraDistance(),meshView.getHeight(),
+       es.josxtm.mycad.cad.EdgeScreenTolerance.computeAtHit(
+         solid,ox,oy,oz,x,y,z,meshView.getHeight(),
          getResources().getDisplayMetrics().density);
      // Prefer a validated analytic surface hit: its geometry snapshot
      // prevents a stale ray from selecting an edge after moving a solid.
