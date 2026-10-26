@@ -576,4 +576,29 @@ assert "setCameraOrientationListener(" in pane
 print("ViewCube 3x3 funcional, táctil y visible sobre visor GPU: OK")
 PY
 
+# DXF is only a limited XY sketch bridge: require a visible user confirmation
+# when exporting a project containing sketches from other planes.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+d=Path("app/src/main/java/es/josxtm/mycad/cad/SketchDxfIO.java").read_text(encoding="utf-8")
+w=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for marker in (
+ "case 27:importDxfSketches();break;",
+ "case 28:exportDxfSketches();break;",
+ "if(request==IMPORT_DXF||request==EXPORT_DXF)",
+ "SketchDxfIO.read(input)",
+ "checkpoint();sketches.addAll(staged);",
+ "if(sketches.size()+staged.size()>2000)",
+ 'if(excluded>0)',
+ '"Exportación DXF limitada a XY"',
+ "if(q.plane==0)",
+):
+    assert marker in a,marker
+assert 'java -cp build/geometry-tests SketchDxfIOTest' in w
+assert 'MAX_BYTES=2*1024*1024' in d
+assert 'Entidad DXF no compatible:' in d
+print("Intercambio DXF: importación atómica, dimensiones y aviso de planos: OK")
+PY
+
 echo "Comprobaciones básicas del proyecto: OK"
