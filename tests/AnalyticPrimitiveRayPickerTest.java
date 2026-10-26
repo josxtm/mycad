@@ -88,6 +88,23 @@ public final class AnalyticPrimitiveRayPickerTest {
       "Persistent face IDs after editing");
   point(afterEdit,futurePoint,"Updated radius picked");
 
+  // Ray directions remain stable near the allowed 10,000 mm primitive offset.
+  // The standalone transform test also covers much larger translations.
+  RigidTransform farPose=new RigidTransform(9000,-9000,8000,23,41,-37);
+  RigidTransform farRotation=new RigidTransform(0,0,0,23,41,-37);
+  PrimitiveBRepBody farBox=PrimitiveBRepBody.box("FAR",20,10,8,farPose);
+  double[] farEye=farPose.point(-30,0,4);
+  double[] farDirection=farRotation.point(1,0,0);
+  AnalyticPrimitiveRayPicker.Hit farHit=ray(farBox,farEye,farDirection);
+  yes(farHit!=null&&farHit.faceId.equals("FAR/face/X_MIN"),
+      "Large-coordinate rotated box face remains selectable");
+  yes(Math.abs(farHit.distance-20)<0.01,"Large-coordinate ray distance");
+  double[] farExpected=farPose.point(-10,0,4);
+  yes(Math.abs(farHit.x-farExpected[0])<0.01&&
+      Math.abs(farHit.y-farExpected[1])<0.01&&
+      Math.abs(farHit.z-farExpected[2])<0.01,
+      "Large-coordinate ray world-space hit point");
+
   bad(()->AnalyticPrimitiveRayPicker.pick(null,0,0,0,1,0,0),"Null solid");
   bad(()->AnalyticPrimitiveRayPicker.pick(box,0,0,0,0,0,0),"Null direction");
   bad(()->AnalyticPrimitiveRayPicker.pick(box,0,0,Double.NaN,1,0,0),"NaN coordinate");

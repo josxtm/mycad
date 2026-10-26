@@ -19,6 +19,16 @@ public final class RigidTransformTest {
     double[] local=pose.inversePoint(world[0],world[1],world[2]);
     near(local[0],3,"Inverse X");near(local[1],-7,"Inverse Y");near(local[2],11,"Inverse Z");
    }
+  RigidTransform far=new RigidTransform(1e12,-2e12,3e12,23,41,-37);
+  RigidTransform rotation=new RigidTransform(0,0,0,23,41,-37);
+  double[] direction=rotation.point(0.2,-0.7,0.4);
+  double[] back=far.inverseDirection(direction[0],direction[1],direction[2]);
+  near(back[0],0.2,"Inverse direction X at large translation");
+  near(back[1],-0.7,"Inverse direction Y at large translation");
+  near(back[2],0.4,"Inverse direction Z at large translation");
+  boolean badDirection=false;
+  try{far.inverseDirection(Double.NaN,0,0);}catch(IllegalArgumentException ok){badDirection=true;}
+  check(badDirection,"Reject nonfinite direction");
   boolean bad=false;try{new RigidTransform(Double.NaN,0,0,0,0,0);}catch(IllegalArgumentException ok){bad=true;}check(bad,"Reject NaN");
   System.out.println("RigidTransformTest: OK");
  }

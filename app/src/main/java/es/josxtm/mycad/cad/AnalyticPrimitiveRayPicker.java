@@ -93,9 +93,11 @@ public final class AnalyticPrimitiveRayPicker {
   double unit=Math.hypot(dx,Math.hypot(dy,dz));
   if(!Double.isFinite(unit)||unit<1e-10)
    throw new IllegalArgumentException("Degenerate ray direction");
-  double[] o=body.pose().inversePoint(ox,oy,oz);
-  double[] end=body.pose().inversePoint(ox+dx/unit,oy+dy/unit,oz+dz/unit);
-  double[] dir={end[0]-o[0],end[1]-o[1],end[2]-o[2]};
+  RigidTransform pose=body.pose();
+  double[] o=pose.inversePoint(ox,oy,oz);
+  // Rotate the unit ray directly: subtracting two inverse-transformed
+  // world points loses direction precision for distant CAD coordinates.
+  double[] dir=pose.inverseDirection(dx/unit,dy/unit,dz/unit);
   double[] worldOrigin={ox,oy,oz};
   double[] worldDir={dx/unit,dy/unit,dz/unit};
   // The local ray is effectively unit length, but explicitly convert t to
