@@ -148,6 +148,28 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
 - Se mantienen los originales; la vista del resultado es una malla
   triangulada vinculada, no todavía una B-Rep general editable por caras.
 
+## Booleanas con perfiles ortogonales cóncavos
+
+- La nueva opción **Booleanas de perfiles ortogonales (cóncavos)** del
+  visor 3D y Resultados permite elegir unión, resta o intersección y un
+  segundo sólido. Admite perfiles cerrados de segmentos horizontales y
+  verticales, aunque sean **L, U, cruces u otras formas cóncavas**.
+- Ambos sólidos deben compartir plano de boceto XY/XZ/YZ y tener la misma
+  altura firmada. La operación genera un nuevo **sólido B-Rep analítico**
+  con caras y semiaristas, verifica la conservación de área y volumen, y
+  expone una malla triangulada cerrada para el visor.
+- Los resultados **no** pueden contener agujeros interiores ni múltiples
+  componentes desconectados: si existen, se rechaza la operación con un
+  error explícito antes del guardado. También rechaza perfiles oblicuos.
+- Cada unión, resta o intersección mantiene una receta por UUID del
+  origen (operaciones `UNION_POLYGONAL`, `DIFFERENCE_POLYGONAL` e
+  `INTERSECTION_POLYGONAL`) que se regenera al modificar un boceto,
+  altura o cara lateral. Deshacer, borrado y archivo JSON v1 preservan los
+  vínculos. Las operaciones ortogonales rectangulares anteriores siguen
+  cargando y regenerándose con su algoritmo previo.
+- No se anuncia soporte de agujeros, operación Booleana general de 3D
+  rotado/curvo ni selección de caras del resultado derivado.
+
 ## Limitaciones importantes
 
 Las operaciones vinculadas son **solo para extrusiones generadas a
