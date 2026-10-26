@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Selección de mallas grandes acelerada:** el raycast agrupa los triángulos en bloques de 64 con cotas 3D cacheadas; se comprueban por rayos solo los bloques atravesados, sin alterar el triángulo global, el cuerpo visible ni las referencias B-Rep. Pruebas comparativas Java frente al motor previo, Gradle/Lint, sin APK.
+
 **Toques CAD sin giro accidental:** el visor GPU ya no rota la cámara por el pequeño temblor del dedo al seleccionar una cara/arista; el giro empieza al superar 12dp. Se comprueba también la posición final de `ACTION_UP` para no confundir un arrastre con un toque. Tests Java y CI Android sin APK.
 
 **Cámara estable durante la edición:** al confirmar una cara/arista, deshacer, guardar o regenerar, el visor GPU actualiza triángulos sin reajustar automáticamente el centro y zoom; conserva el encuadre elegido. Al abrir otro resultado aislado o ver por primera vez un sólido sí se encuadra. Tests y CI Android, sin APK.

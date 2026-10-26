@@ -12,8 +12,14 @@ import java.io.*;
 public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Renderer {
  public static final class Mesh {
   public final float[] vertices; // xyz triangles
-  public Mesh(float[] v){if(v.length%9!=0)throw new IllegalArgumentException("Triangle data required");vertices=v;}
+  private es.josxtm.mycad.cad.MeshRayIndex pickIndex;
+  public Mesh(float[] v){if(v==null||v.length%9!=0)throw new IllegalArgumentException("Triangle data required");vertices=v;}
   public int triangles(){return vertices.length/9;}
+  /** Lazy GL-thread ray broad phase: built once per immutable mesh instance. */
+  public es.josxtm.mycad.cad.MeshRayIndex rayIndex(){
+   if(pickIndex==null)pickIndex=new es.josxtm.mycad.cad.MeshRayIndex(vertices);
+   return pickIndex;
+  }
  }
  private final List<Mesh> meshes=new ArrayList<>();
  /** Renderer-thread cache: reused across orbit/zoom frames; discarded on scene change. */
@@ -295,7 +301,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   es.josxtm.mycad.cad.CadRayPicker.Hit chosen=null;int offset=0,chosenIndex=-1;
   for(Mesh mesh:meshes){
    es.josxtm.mycad.cad.CadRayPicker.Hit hit=
-    es.josxtm.mycad.cad.CadRayPicker.pick(mesh.vertices,p[0],p[1],p[2],dx,dy,dz);
+    mesh.rayIndex().pick(p[0],p[1],p[2],dx,dy,dz);
    if(hit!=null&&(chosen==null||hit.distance<chosen.distance)){chosen=hit;chosenIndex=offset+hit.triangle;}
    offset+=mesh.triangles();
   }
