@@ -16,6 +16,9 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   public int triangles(){return vertices.length/9;}
  }
  private final List<Mesh> meshes=new ArrayList<>();
+ /** Renderer-thread cache: reused across orbit/zoom frames; discarded on scene change. */
+ private final es.josxtm.mycad.cad.FloatVertexBufferCache gpuTriangles=
+  new es.josxtm.mycad.cad.FloatVertexBufferCache();
  private int program,position,modelViewProjection,colorUniform;
  private final float[] projection=new float[16],view=new float[16],mvp=new float[16];
  private float yaw=35,pitch=25,centerX,centerY,centerZ;
@@ -125,13 +128,14 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   if(candidate==null)throw new IllegalArgumentException("Missing preview mesh");
   final Mesh snapshot=new Mesh(candidate.vertices.clone());
   queueEvent(()->{
+   gpuTriangles.clear();
    meshes.clear();meshes.add(snapshot);
    highlightedEdgeVertices=null;
    highlightedFirstTriangle=-1;
    requestRender();
   });
  }
- public void setMeshes(List<Mesh> incoming){final ArrayList<Mesh> copy=new ArrayList<>(incoming);highlightedFirstTriangle=-1;queueEvent(()->{meshes.clear();meshes.addAll(copy);highlightedEdgeVertices=null;fitCamera();requestRender();});}
+ public void setMeshes(List<Mesh> incoming){final ArrayList<Mesh> copy=new ArrayList<>(incoming);highlightedFirstTriangle=-1;queueEvent(()->{gpuTriangles.clear();meshes.clear();meshes.addAll(copy);highlightedEdgeVertices=null;fitCamera();requestRender();});}
  public void orbit(float dx,float dy){yaw+=dx*.35f;pitch=Math.max(-89,Math.min(89,pitch+dy*.35f));requestRender();}
  public void zoom(float factor){distance=Math.max(.1f,Math.min(100000f,distance/factor));requestRender();}
  @Override public boolean onTouchEvent(android.view.MotionEvent e){
@@ -260,6 +264,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   float span=Math.max(bounds[3]-bounds[0],Math.max(bounds[4]-bounds[1],bounds[5]-bounds[2]));distance=Math.max(10,span*2.5f);
  }
  @Override public void onSurfaceCreated(javax.microedition.khronos.opengles.GL10 gl,javax.microedition.khronos.egl.EGLConfig cfg){
+  gpuTriangles.clear(); // EGL context recreation invalidates renderer-owned resources.
   GLES30.glEnable(GLES30.GL_DEPTH_TEST);GLES30.glEnable(GLES30.GL_CULL_FACE);
   int v=shader(GLES30.GL_VERTEX_SHADER,"#version 300 es\nlayout(location=0) in vec3 aPosition;uniform mat4 uMVP;void main(){gl_Position=uMVP*vec4(aPosition,1.0);gl_PointSize=15.0;}");
   int f=shader(GLES30.GL_FRAGMENT_SHADER,"#version 300 es\nprecision mediump float;uniform vec4 uColor;out vec4 fragColor;void main(){fragColor=uColor;}");
@@ -277,8 +282,8 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   GLES30.glEnableVertexAttribArray(0);
   int triangleOffset=0;
   for(Mesh mesh:meshes){
-   FloatBuffer buf=ByteBuffer.allocateDirect(mesh.vertices.length*4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-   buf.put(mesh.vertices).position(0);
+   // No native allocations per frame: keep a direct buffer per immutable mesh.
+   FloatBuffer buf=gpuTriangles.triangles(mesh,mesh.vertices);
    GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buf);
    GLES30.glUniform4f(colorUniform,.3f,.78f,.84f,1);
    GLES30.glDrawArrays(GLES30.GL_TRIANGLES,0,mesh.vertices.length/3);
