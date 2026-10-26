@@ -35,6 +35,12 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private float lastX,lastY,downX,downY; private boolean dragging,moved;
  private boolean pinchActive=false;
  private float lastPinchSpan,lastPinchMidX,lastPinchMidY;
+ private boolean twoFingerMoved=false,threeFingerTracking=false;
+ private boolean threeFingerEligible=false,suppressUntilLastUp=false;
+ private long firstTouchTimeMs=0;
+ private final int[] homePointerIds=new int[3];
+ private final float[] homeStartX=new float[3],homeStartY=new float[3];
+ private double homeMaxTravel=0;
 
  private volatile int highlightedFirstTriangle=-1;
  private float[] highlightedEdgeVertices=null;
@@ -179,8 +185,78 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  }
  public void orbit(float dx,float dy){yaw+=dx*.35f;pitch=Math.max(-89,Math.min(89,pitch+dy*.35f));requestRender();}
  public void zoom(float factor){distance=Math.max(.1f,Math.min(100000f,distance/factor));requestRender();}
+ /** Three quick fingers reset camera to the initial 3D isometric view. */
+ private void homeCamera(){
+  queueEvent(()->{
+   yaw=35;pitch=25;
+   fitCamera();
+   boolean hasGeometry=false;
+   for(Mesh mesh:meshes)if(mesh.vertices.length>0){hasGeometry=true;break;}
+   cameraHasFit=hasGeometry;
+   requestRender();
+  });
+ }
+ private void collectHomeMovement(android.view.MotionEvent e){
+  if(!threeFingerTracking)return;
+  for(int k=0;k<3;k++){
+   int idx=e.findPointerIndex(homePointerIds[k]);
+   if(idx<0){threeFingerEligible=false;continue;}
+   homeMaxTravel=Math.max(homeMaxTravel,Math.hypot(
+    e.getX(idx)-homeStartX[k],e.getY(idx)-homeStartY[k]));
+  }
+ }
  @Override public boolean onTouchEvent(android.view.MotionEvent e){
   int action=e.getActionMasked();
+  if(action==android.view.MotionEvent.ACTION_DOWN){
+   firstTouchTimeMs=e.getEventTime();
+   twoFingerMoved=false;
+   threeFingerTracking=false;
+   threeFingerEligible=false;
+   suppressUntilLastUp=false;
+  }
+  // Third pointer means neither pinch nor orbit nor CAD selection.
+  if(action==android.view.MotionEvent.ACTION_POINTER_DOWN&&
+      e.getPointerCount()>=3){
+   if(!threeFingerTracking&&e.getPointerCount()==3){
+    threeFingerTracking=true;
+    threeFingerEligible=!twoFingerMoved&&
+     es.josxtm.mycad.cad.ThreeFingerHomePolicy.canStart(
+      firstTouchTimeMs,e.getEventTime());
+    homeMaxTravel=0;
+    for(int k=0;k<3;k++){
+     homePointerIds[k]=e.getPointerId(k);
+     homeStartX[k]=e.getX(k);homeStartY[k]=e.getY(k);
+    }
+   }else threeFingerEligible=false;
+   if(faceHandleCaptured){
+    faceHandleCaptured=false;
+    if(faceDragListener!=null)faceDragListener.onDrag(0,false,true);
+   }
+   pinchActive=false;dragging=false;moved=true;
+   return true;
+  }
+  if(threeFingerTracking){
+   collectHomeMovement(e);
+   if(action==android.view.MotionEvent.ACTION_POINTER_UP){
+    if(e.getPointerCount()==3&&
+       es.josxtm.mycad.cad.ThreeFingerHomePolicy.shouldReset(
+        threeFingerEligible,firstTouchTimeMs,e.getEventTime(),
+        homeMaxTravel,12*getResources().getDisplayMetrics().density))
+     homeCamera();
+    threeFingerTracking=false;
+    suppressUntilLastUp=true;
+   }else if(action==android.view.MotionEvent.ACTION_CANCEL||
+            action==android.view.MotionEvent.ACTION_UP){
+    threeFingerTracking=false;suppressUntilLastUp=false;
+   }
+   return true;
+  }
+  if(suppressUntilLastUp){
+   if(action==android.view.MotionEvent.ACTION_UP||
+      action==android.view.MotionEvent.ACTION_CANCEL)
+    suppressUntilLastUp=false;
+   return true;
+  }
   if(e.getPointerCount()>1&&faceHandleCaptured){
    faceHandleCaptured=false;
    if(faceDragListener!=null)faceDragListener.onDrag(0,false,true);
@@ -234,6 +310,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   }
   if(e.getPointerCount()>=2&&pinchActive){
    if(action==android.view.MotionEvent.ACTION_MOVE){
+    twoFingerMoved=true;
     float span=(float)Math.hypot(e.getX(1)-e.getX(0),e.getY(1)-e.getY(0));
     float mx=(e.getX(0)+e.getX(1))*.5f,my=(e.getY(0)+e.getY(1))*.5f;
     if(span>1&&lastPinchSpan>1){
