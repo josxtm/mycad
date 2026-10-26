@@ -4,6 +4,15 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Selección de aristas según la cara visible:** el visor restringe la
+clasificación analítica a las aristas incidentes de la cara seleccionada
+por la malla/refinamiento analítico. Evita escoger bordes de otra cara
+solo por proximidad geométrica; conserva IDs estables y el umbral por
+zoom. Regresiones Java para prismas y cilindros girados; sin APK ni
+validación táctil. Véase
+[contorno de cara visible](CAD_BREP_VISIBLE_FACE_EDGES.md).
+
+
 **Gizmo 3D en la cara realmente tocada:** el raycast analítico devuelve normales
 mundiales exactas y el arrastre de caras usa el impacto aceptado del visor
 para colocar el manipulador, también en cilindros girados. Se rechazan
