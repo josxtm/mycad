@@ -156,6 +156,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/CubeCameraPreset.java \
   app/src/main/java/es/josxtm/mycad/cad/SurfaceTapPolicy.java \
   app/src/main/java/es/josxtm/mycad/cad/CameraRefitPolicy.java \
+  app/src/main/java/es/josxtm/mycad/cad/CameraOrientationSync.java \
   app/src/main/java/es/josxtm/mycad/cad/TouchDragThreshold.java \
   app/src/main/java/es/josxtm/mycad/cad/CadRayPicker.java \
   app/src/main/java/es/josxtm/mycad/cad/MeshRayIndex.java \
@@ -178,6 +179,7 @@ javac -d build/box-brep-tests \
   tests/CubeCameraPresetTest.java \
   tests/SurfaceTapPolicyTest.java \
   tests/CameraRefitPolicyTest.java \
+  tests/CameraOrientationSyncTest.java \
   tests/TouchDragThresholdTest.java \
   tests/MeshRayIndexTest.java \
   tests/ThreeFingerHomePolicyTest.java
@@ -199,6 +201,7 @@ java -cp build/box-brep-tests FloatVertexBufferCacheTest
 java -cp build/box-brep-tests CubeCameraPresetTest
 java -cp build/box-brep-tests SurfaceTapPolicyTest
 java -cp build/box-brep-tests CameraRefitPolicyTest
+java -cp build/box-brep-tests CameraOrientationSyncTest
 java -cp build/box-brep-tests TouchDragThresholdTest
 java -cp build/box-brep-tests MeshRayIndexTest
 java -cp build/box-brep-tests ThreeFingerHomePolicyTest
@@ -443,7 +446,7 @@ view=a[a.index("void cubeView(int row,int col){"):a.index("void drawOrientationC
 assert "CubeCameraPreset.cell(row,col)" in view
 assert "syncGpuViewCube();" in view
 assert "meshView.setViewOrientation((float)Math.toDegrees(yaw)" in a
-assert "pitch=Math.max(-89,Math.min(89,pitchDegrees));" in m
+assert "CameraOrientationSync.pitchDegrees(pitchDegrees)" in m
 assert "syncGpuViewCube();invalidate();" in a
 print("ViewCube: pulsación y arrastre rotan también cámara GPU: OK")
 PY
@@ -527,6 +530,26 @@ assert m.index("if(threeFingerTracking){")<m.index("if(e.getPointerCount()>1&&fa
 assert "twoFingerMoved=true;" in m
 assert "SurfaceTapPolicy.shouldPick(" in m
 print("Tres dedos recuperan vista 3D sin orbit/picking accidental: OK")
+PY
+
+# GPU orbit/home must update Canvas ViewCube heading without re-entering GPU setters.
+python3 - <<'PY'
+from pathlib import Path
+m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+assert a.count("meshView.setCameraOrientationListener(")==3
+assert "scene.yaw=radians[0];scene.pitch=radians[1];" in a
+assert "CameraOrientationSync.sceneRadians(" in a
+assert "scene.invalidate();" in a
+assert "private void publishCameraOrientation(){" in m
+assert "post(()->{" in m[m.index("private void publishCameraOrientation(){"):
+                      m.index("public void setSurfaceTapListener(")]
+assert "receiver.onCameraOrientation(currentYaw,currentPitch)" in m
+assert "publishCameraOrientation();" in m[m.index("public void orbit("):m.index("public void zoom(")]
+assert "publishCameraOrientation();" in m[m.index("private void homeCamera()"):m.index("private void collectHomeMovement(")]
+assert "CameraOrientationSync.yawDegrees(yaw+dx*.35f)" in m
+assert "CameraOrientationSync.pitchDegrees(pitch+dy*.35f)" in m
+print("ViewCube muestra la orientación de órbita GPU y vista inicial: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"

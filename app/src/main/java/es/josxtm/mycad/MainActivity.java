@@ -358,6 +358,14 @@ public class MainActivity extends Activity {
      meshView=new MeshEngine(this);
      meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
       showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
+     meshView.setCameraOrientationListener((heading,elevation)->{
+      if(scene!=null){
+       float[] radians=es.josxtm.mycad.cad.CameraOrientationSync.sceneRadians(
+        heading,elevation);
+       scene.yaw=radians[0];scene.pitch=radians[1];
+       scene.invalidate();
+      }
+     });
      rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));
     }
     meshMode=true;meshView.setVisibility(View.VISIBLE);
@@ -384,7 +392,15 @@ public class MainActivity extends Activity {
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
   if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
-      showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
+      showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
+     meshView.setCameraOrientationListener((heading,elevation)->{
+      if(scene!=null){
+       float[] radians=es.josxtm.mycad.cad.CameraOrientationSync.sceneRadians(
+        heading,elevation);
+       scene.yaw=radians[0];scene.pitch=radians[1];
+       scene.invalidate();
+      }
+     });rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=true;meshView.setVisibility(View.VISIBLE);
   isolatedMeshPreview=true;activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
   meshView.highlightFace(-1);
@@ -2081,7 +2097,15 @@ public class MainActivity extends Activity {
  MeshEngine.Mesh currentMesh(){return experimentalCadMesh();}
  void toggleMeshView(){
   if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
-      showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
+      showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
+     meshView.setCameraOrientationListener((heading,elevation)->{
+      if(scene!=null){
+       float[] radians=es.josxtm.mycad.cad.CameraOrientationSync.sceneRadians(
+        heading,elevation);
+       scene.yaw=radians[0];scene.pitch=radians[1];
+       scene.invalidate();
+      }
+     });rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=!meshMode;meshView.setVisibility(meshMode?View.VISIBLE:View.GONE);
   if(meshMode){renderCurrentCadMesh();toast("Visor GPU: arrastra para girar");}
  }
