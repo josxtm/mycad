@@ -16,6 +16,8 @@ la política de APK por hitos. Véase [validador de vértices](CAD_MESH_VERTEX_M
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**ViewCube táctil visible dentro de OpenGL:** el visor GPU dispone de un control 3×3 superpuesto (SUP/INF/IZQ/DER/FREN/ISO), pulsable sin regresar al lienzo. Centraliza la creación del visor y comparte el motor de ángulos del ViewCube original; la superposición se oculta al cerrar el visor y no bloquea gestos fuera de su esquina. CI Android y verificación de integración, sin APK. Véase [ViewCube superpuesto](CAD_VIEWCUBE_GPU_OVERLAY.md).
+
 **ViewCube y visor GPU sincronizados en ambos sentidos:** girar con un dedo en OpenGL o ejecutar el gesto de tres dedos actualiza también la orientación del cubo del lienzo (radianes/grados, yaw normalizado y pitch limitado). Se evita reentrar en la cámara desde el callback; tests Java y compilación Android en CI, sin APK.
 
 **Raycast analítico estable en coordenadas grandes:** la dirección del rayo se transforma solo por rotación, sin restar dos puntos mundiales de gran magnitud. Evita cancelación numérica al seleccionar caras B-Rep lejos del origen dentro del límite actual de 10 000 mm por eje; prueba matemática adicional de rotación con traslaciones de 10¹² mm. CI Java/Android, sin APK ni validación táctil.
