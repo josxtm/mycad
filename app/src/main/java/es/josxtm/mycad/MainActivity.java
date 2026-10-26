@@ -2170,11 +2170,26 @@ public class MainActivity extends Activity {
    java.io.ByteArrayOutputStream output=new java.io.ByteArrayOutputStream();
    es.josxtm.mycad.cad.SketchDxfIO.write(shapes,output);
    pendingDxfExport=output.toString("UTF-8");
-   Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);
-   intent.addCategory(Intent.CATEGORY_OPENABLE);
-   intent.setType("application/dxf");
-   intent.putExtra(Intent.EXTRA_TITLE,"MyCAD_bocetos_XY.dxf");
-   startActivityForResult(intent,EXPORT_DXF);
+   final int excluded=sketches.size()-shapes.size();
+   Runnable launch=()->{
+    try{
+     Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+     intent.addCategory(Intent.CATEGORY_OPENABLE);
+     intent.setType("application/dxf");
+     intent.putExtra(Intent.EXTRA_TITLE,"MyCAD_bocetos_XY.dxf");
+     startActivityForResult(intent,EXPORT_DXF);
+    }catch(Exception problem){
+     pendingDxfExport=null;toast("No se pudo abrir el selector DXF");
+    }
+   };
+   if(excluded>0)
+    new AlertDialog.Builder(this).setTitle("Exportación DXF limitada a XY")
+     .setMessage("Se exportarán "+shapes.size()+" bocetos XY. Se omitirán "+
+      excluded+" bocetos XZ/YZ. El diseño MyCAD original se conserva.")
+     .setNegativeButton("Cancelar",(dialog,which)->pendingDxfExport=null)
+     .setOnCancelListener(dialog->pendingDxfExport=null)
+     .setPositiveButton("Exportar solo XY",(dialog,which)->launch.run()).show();
+   else launch.run();
   }catch(Exception problem){
    pendingDxfExport=null;toast("No se pudo preparar DXF: "+problem.getMessage());
   }
