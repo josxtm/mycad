@@ -3,18 +3,25 @@ package es.josxtm.mycad.cad;
 import java.util.*;
 
 /**
- * Persistable immutable Boolean feature linking a saved intersection to two
- * closed sketch extrusion UUIDs. Both upstream profiles must remain supported
- * convex prisms. Rebuild is read-only and can be committed transactionally.
+ * Persistable UUID feature joining two closed sketch extrusions through
+ * either a convex intersection or an orthogonal rectangle union.
+ * Historical JSON without an operation field remains INTERSECTION.
+ * Rebuild is read-only and can be committed transactionally.
  */
 public final class LinkedConvexIntersection {
+ public enum Operation { INTERSECTION, UNION_ORTHOGONAL }
  public final String id,firstId,secondId;
+ public final Operation operation;
 
  public LinkedConvexIntersection(String id,String firstId,String secondId){
+  this(id,firstId,secondId,Operation.INTERSECTION);
+ }
+ public LinkedConvexIntersection(String id,String firstId,String secondId,Operation operation){
   if(!uuid(id)||!uuid(firstId)||!uuid(secondId)||firstId.equals(secondId)||
-     id.equals(firstId)||id.equals(secondId))
-   throw new IllegalArgumentException("IDs de intersección B-Rep inválidos");
+     id.equals(firstId)||id.equals(secondId)||operation==null)
+   throw new IllegalArgumentException("IDs u operación de booleana B-Rep inválidos");
   this.id=id;this.firstId=firstId;this.secondId=secondId;
+  this.operation=operation;
  }
  private static boolean uuid(String value){
   if(value==null)return false;
@@ -27,6 +34,8 @@ public final class LinkedConvexIntersection {
  public ConvexPrismBRepIntersection.Result regenerate(
     Map<String,LoopExtrusionFeature> features,
     Map<String,ClosedSketchExtrusion.Segment> lines){
+  if(operation!=Operation.INTERSECTION)
+   throw new IllegalArgumentException("Usa regenerateTriangles para la unión B-Rep");
   if(features==null||lines==null)
    throw new IllegalArgumentException("Faltan fuentes de la intersección");
   LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
@@ -36,6 +45,25 @@ public final class LinkedConvexIntersection {
    a.asBRep(lines),b.asBRep(lines));
   if(out.triangles().length>18000)
    throw new IllegalArgumentException("Intersección excede tamaño de malla");
+  return out;
+ }
+ /**
+  * Shared non-mutating tessellation for both parametric Boolean operations.
+  * Caller prevalidates EVERY dependent feature before modifying any sketch,
+  * undo stack, saved JSON or mesh list.
+  */
+ public float[] regenerateTriangles(
+    Map<String,LoopExtrusionFeature> features,
+    Map<String,ClosedSketchExtrusion.Segment> lines){
+  if(operation==Operation.INTERSECTION)return regenerate(features,lines).triangles();
+  if(features==null||lines==null)
+   throw new IllegalArgumentException("Faltan operandos de unión B-Rep");
+  LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
+  if(a==null||b==null||!firstId.equals(a.id)||!secondId.equals(b.id))
+   throw new IllegalArgumentException("Se eliminó un sólido de la unión");
+  float[] out=OrthogonalPrismBRepUnion.union(
+   a.asBRep(lines),b.asBRep(lines)).triangles();
+  if(out.length>18000)throw new IllegalArgumentException("Unión B-Rep demasiado grande");
   return out;
  }
 }
