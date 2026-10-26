@@ -1064,6 +1064,33 @@ public class MainActivity extends Activity {
        chooseLinkedOrthogonalOperand(first,geometry,history);
       }).setNegativeButton("Cancelar",null).show();
  }
+
+ /** New opt-in Boolean mode: each disconnected component is kept as an
+  * independent analytic closed B-Rep shell in one exportable result mesh.
+  * Holes and non-manifold point contacts are still rejected. */
+ void booleanLinkedMultiShellPolygons(int first){
+  if(fileBusy||first<0||first>=booleanMeshes.size()||
+     first>=loopExtrusionFeatures.size()||loopExtrusionFeatures.get(first)==null){
+   toast("Selecciona un contorno B-Rep para realizar la booleana");return;
+  }
+  new AlertDialog.Builder(this).setTitle("Booleanas B-Rep · varios sólidos")
+   .setMessage("Admite varios cuerpos separados como resultado de unión, "+
+    "resta o intersección. Cada cuerpo mantiene su B-Rep cerrado; la "+
+    "malla guardada agrupa los componentes. Sin agujeros interiores.")
+   .setItems(new String[]{"Unión de varios cuerpos","Resta de varios cuerpos",
+       "Intersección de varios cuerpos"},(dialog,option)->{
+    es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.Operation geometry=
+     option==0?es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.Operation.UNION:
+     option==1?es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.Operation.DIFFERENCE:
+               es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.Operation.INTERSECTION;
+    es.josxtm.mycad.cad.LinkedConvexIntersection.Operation history=
+     option==0?es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.UNION_MULTISHELL:
+     option==1?es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.DIFFERENCE_MULTISHELL:
+               es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.INTERSECTION_MULTISHELL;
+    chooseLinkedOrthogonalOperand(first,geometry,history);
+   }).setNegativeButton("Cancelar",null).show();
+ }
+
  void chooseLinkedOrthogonalOperand(int first,
    es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.Operation operation,
    es.josxtm.mycad.cad.LinkedConvexIntersection.Operation history){
@@ -1097,11 +1124,24 @@ public class MainActivity extends Activity {
     final MeshEngine.Mesh otherMesh=booleanMeshes.get(second);
     try{
      if(other==null)throw new IllegalArgumentException("El segundo contorno no existe");
-     es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.Result result=
-      es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.apply(
-       source.asBRep(loopSketchSegments(source,null,0,0,0,0)),
-       other.asBRep(loopSketchSegments(other,null,0,0,0,0)),
-       operation);
+     es.josxtm.mycad.cad.PolygonPrismBRep left=
+      source.asBRep(loopSketchSegments(source,null,0,0,0,0));
+     es.josxtm.mycad.cad.PolygonPrismBRep right=
+      other.asBRep(loopSketchSegments(other,null,0,0,0,0));
+     boolean multi=history==es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.UNION_MULTISHELL||
+      history==es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.DIFFERENCE_MULTISHELL||
+      history==es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.INTERSECTION_MULTISHELL;
+     float[] outputTriangles;double volume;int componentCount;
+     if(multi){
+      es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.MultiResult combined=
+       es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.applyMulti(left,right,operation);
+      outputTriangles=combined.triangles();volume=combined.volume;
+      componentCount=combined.shellCount;
+     }else{
+      es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.Result result=
+       es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.apply(left,right,operation);
+      outputTriangles=result.triangles();volume=result.volume;componentCount=1;
+     }
      es.josxtm.mycad.cad.LinkedConvexIntersection linked=
       new es.josxtm.mycad.cad.LinkedConvexIntersection(
        java.util.UUID.randomUUID().toString(),source.id,other.id,history);
@@ -1111,7 +1151,7 @@ public class MainActivity extends Activity {
      java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
       new java.util.LinkedHashMap<>(loopSketchSegments(source,null,0,0,0,0));
      lines.putAll(loopSketchSegments(other,null,0,0,0,0));
-     MeshEngine.Mesh staged=new MeshEngine.Mesh(result.triangles());
+     MeshEngine.Mesh staged=new MeshEngine.Mesh(outputTriangles);
      if(!java.util.Arrays.equals(staged.vertices,linked.regenerateTriangles(refs,lines))||
         booleanMeshes.get(first)!=mesh||booleanMeshes.get(second)!=otherMesh||
         loopExtrusionFeatures.get(first)!=source||
@@ -1123,7 +1163,7 @@ public class MainActivity extends Activity {
      save();scene.invalidate();
      if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast(String.format(java.util.Locale.US,
-       "Booleana B-Rep vinculada · %.2f mm³",result.volume));
+       "Booleana B-Rep vinculada · %.2f mm³ · %d sólido(s)",volume,componentCount));
     }catch(Exception error){
      toast("Booleana ortogonal rechazada: "+error.getMessage());
     }
@@ -1149,7 +1189,13 @@ public class MainActivity extends Activity {
       es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.DIFFERENCE_POLYGONAL?
       "resta cóncava B-Rep vinculada":intersectionRecipes.get(i).operation==
       es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.INTERSECTION_POLYGONAL?
-      "intersección cóncava B-Rep vinculada":"intersección B-Rep vinculada");
+      "intersección cóncava B-Rep vinculada":intersectionRecipes.get(i).operation==
+      es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.UNION_MULTISHELL?
+      "unión multisólido B-Rep":intersectionRecipes.get(i).operation==
+      es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.DIFFERENCE_MULTISHELL?
+      "resta multisólido B-Rep":intersectionRecipes.get(i).operation==
+      es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.INTERSECTION_MULTISHELL?
+      "intersección multisólido B-Rep":"intersección B-Rep vinculada");
    if(drill!=null)names[i]+=" · "+
     (drill.drillDepth==0?"pasante":drill.drillDepth+" mm de profundidad");
   }
@@ -1157,7 +1203,7 @@ public class MainActivity extends Activity {
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
     new AlertDialog.Builder(this).setTitle(names[index])
-     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno","Editar perfil original del contorno","Inspeccionar topología B-Rep","Intersectar con otro contorno B-Rep","Unir dos prismas B-Rep rectangulares","Restar otro prisma B-Rep rectangular","Booleanas de perfiles ortogonales (cóncavos)"},(d,choice)->{
+     .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno","Editar perfil original del contorno","Inspeccionar topología B-Rep","Intersectar con otro contorno B-Rep","Unir dos prismas B-Rep rectangulares","Restar otro prisma B-Rep rectangular","Booleanas de perfiles ortogonales (cóncavos)","Booleanas B-Rep de varios sólidos"},(d,choice)->{
       if(choice==0){showMeshOnly(mesh);}
       else if(choice==1){exportMeshMenuFor(mesh);}
       else if(choice==3){editFaceUnionRecipe(index);}
@@ -1169,6 +1215,7 @@ public class MainActivity extends Activity {
       else if(choice==9){unionLinkedRectangularMeshes(index);}
       else if(choice==10){subtractLinkedRectangularMeshes(index);}
       else if(choice==11){booleanLinkedOrthogonalPolygons(index);}
+      else if(choice==12){booleanLinkedMultiShellPolygons(index);}
       else new AlertDialog.Builder(this).setTitle("Eliminar resultado")
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
@@ -1930,7 +1977,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
       "Editar perfil original","Inspeccionar topología B-Rep",
       "Intersectar con otro contorno B-Rep","Unir dos prismas B-Rep rectangulares",
       "Restar otro prisma B-Rep rectangular","Booleanas de perfiles ortogonales (cóncavos)",
-      "Ver solo esta malla","Exportar a STL/OBJ","Gestionar resultados"}:
+      "Booleanas B-Rep de varios sólidos","Ver solo esta malla","Exportar a STL/OBJ","Gestionar resultados"}:
    new String[]{"Ver solo esta malla","Exportar a STL/OBJ",
       "Gestionar resultados"};
   new AlertDialog.Builder(this)
@@ -1948,7 +1995,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
      if(option==5){unionLinkedRectangularMeshes(index);return;}
      if(option==6){subtractLinkedRectangularMeshes(index);return;}
      if(option==7){booleanLinkedOrthogonalPolygons(index);return;}
-     option-=8;
+     if(option==8){booleanLinkedMultiShellPolygons(index);return;}
+     option-=9;
     }
     if(option==0)showMeshOnly(original);
     else if(option==1)exportMeshMenuFor(original);
