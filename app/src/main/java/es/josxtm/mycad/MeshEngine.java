@@ -23,6 +23,9 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  /** Camera distance used for zoom-aware CAD hit tolerance in the UI thread. */
  public float cameraDistance(){return distance;}
  private float lastX,lastY,downX,downY; private boolean dragging,moved;
+ private boolean pinchActive=false;
+ private float lastPinchSpan,lastPinchMidX,lastPinchMidY;
+
  private volatile int highlightedFirstTriangle=-1;
  private float[] highlightedEdgeVertices=null;
  private float[] faceHandleGpu=null;
@@ -171,8 +174,48 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    }
   }
 
-  if(e.getPointerCount()>1){if(e.getActionMasked()==android.view.MotionEvent.ACTION_MOVE){float dy=e.getY()-lastY;zoom((float)Math.exp(-dy*.008));}lastY=e.getY();return true;}
-  if(e.getActionMasked()==android.view.MotionEvent.ACTION_DOWN){lastX=e.getX();lastY=e.getY();downX=lastX;downY=lastY;moved=false;dragging=true;return true;}
+  // True two-finger CAD navigation: relative pinch changes zoom, centroid
+  // movement pans the world XYZ camera target without rotating the solid.
+  if(action==android.view.MotionEvent.ACTION_POINTER_DOWN||
+     (e.getPointerCount()>=2&&!pinchActive)){
+   if(e.getPointerCount()>=2){
+    lastPinchSpan=(float)Math.hypot(e.getX(1)-e.getX(0),e.getY(1)-e.getY(0));
+    lastPinchMidX=(e.getX(0)+e.getX(1))*.5f;
+    lastPinchMidY=(e.getY(0)+e.getY(1))*.5f;
+    pinchActive=lastPinchSpan>1;
+    dragging=false;moved=true;
+   }
+   return true;
+  }
+  if(e.getPointerCount()>=2&&pinchActive){
+   if(action==android.view.MotionEvent.ACTION_MOVE){
+    float span=(float)Math.hypot(e.getX(1)-e.getX(0),e.getY(1)-e.getY(0));
+    float mx=(e.getX(0)+e.getX(1))*.5f,my=(e.getY(0)+e.getY(1))*.5f;
+    if(span>1&&lastPinchSpan>1){
+     double factor=es.josxtm.mycad.cad.CameraGestureMath.zoomFactor(
+       lastPinchSpan,span);
+     zoom((float)factor);
+     double[] focus=es.josxtm.mycad.cad.CameraGestureMath.pan(
+       centerX,centerY,centerZ,yaw,pitch,distance,getHeight(),
+       mx-lastPinchMidX,my-lastPinchMidY);
+     centerX=(float)focus[0];centerY=(float)focus[1];centerZ=(float)focus[2];
+     requestRender();
+     lastPinchSpan=span;
+    }
+    lastPinchMidX=mx;lastPinchMidY=my;
+   }else if(action==android.view.MotionEvent.ACTION_POINTER_UP){
+    pinchActive=false;dragging=false;moved=true;
+   }
+   return true;
+  }
+  if(action==android.view.MotionEvent.ACTION_POINTER_UP){
+   pinchActive=false;dragging=false;moved=true;return true;
+  }
+  if(action==android.view.MotionEvent.ACTION_DOWN){
+   pinchActive=false;
+   lastX=e.getX();lastY=e.getY();downX=lastX;downY=lastY;
+   moved=false;dragging=true;return true;
+  }
   if(e.getActionMasked()==android.view.MotionEvent.ACTION_MOVE&&dragging){if(Math.hypot(e.getX()-downX,e.getY()-downY)>12*getResources().getDisplayMetrics().density)moved=true;orbit(e.getX()-lastX,e.getY()-lastY);lastX=e.getX();lastY=e.getY();return true;}
   if(e.getActionMasked()==android.view.MotionEvent.ACTION_UP){dragging=false;if(!moved&&surfaceTapListener!=null){final float x=e.getX(),y=e.getY();queueEvent(()->pickSurfaceAt(x,y));}}
   return true;
