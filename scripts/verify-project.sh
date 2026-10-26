@@ -759,11 +759,39 @@ for k in [
  "void editPolygonFace(int index,MeshEngine.Mesh original,String faceId)",
  "solid.findFace(faceId)",
  "editLoopExtrusionDistance(index);return;",
- "editLoopSourceLine(index,selectedFace.sourceLineId)",
+ "editLoopSourceLine(index,sourceLine)",
  "if(!link.dependsOn(requested))",
 ]:
  assert k in main,k
 assert "vertices.containsAll(corners)" in picker
 assert "PolygonPrismFacePickerTest" in flow
 print("Visor 3D: selección B-Rep por cara estable y edición de tapa/lateral: OK")
+PY
+
+# A lateral planar B-Rep side move must rebuild all dependent line-loop
+# features BEFORE editing the source sketch and stored mesh arrays.
+python3 - <<'PY'
+from pathlib import Path
+main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+core=Path("app/src/main/java/es/josxtm/mycad/cad/PolygonPrismSideOffset.java").read_text(encoding="utf-8")
+flow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+block=main[main.index("void offsetPolygonSideFace("):main.index("void editPolygonFace(")]
+for marker in (
+ "PolygonPrismSideOffset.offset(",
+ "proposed.modifiedLineIds()",
+ "if(other.dependsOn(id))",
+ "other.asBRep(snap)",
+ "staged.put(i,new MeshEngine.Mesh(rebuilt.triangles()))",
+ "checkpoint();",
+ "q.x1=(float)v.ax;q.y1=(float)v.ay;q.x2=(float)v.bx;q.y2=(float)v.by",
+ "booleanMeshes.set(e.getKey(),e.getValue())",
+):
+ assert marker in block,marker
+assert block.index("other.asBRep(snap)") < block.index("checkpoint();")
+assert 'new String[]{"Desplazar cara (mm)","Editar línea original del perfil"}' in main
+assert "if(action==0)offsetPolygonSideFace(index,original,lateralId);" in main
+assert "PolygonPrismSideOffsetTest" in flow
+for token in ("face.sourceLineId", "changed.size()<2", "feature.asBRep(next)"):
+ assert token in core,token
+print("Cara B-Rep lateral: desplazamiento geométrico y commit atómico integrado: OK")
 PY

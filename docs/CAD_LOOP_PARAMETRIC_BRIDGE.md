@@ -50,13 +50,17 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
   relaciona con su cara analítica (identidad persistente de cara superior,
   inferior o lateral vinculada a la línea de origen). El segundo toque
   permite editar esa cara: en una tapa se modifica la distancia de
-  extrusión firmada; en una lateral se abre **la línea original concreta**
-  del boceto 2D para cambiar sus coordenadas. La validación de la
-  extrusión y sus dependencias permanece atómica.
-- La edición de cara lateral todavía no desplaza automáticamente la
-  superficie entera manteniendo las restricciones del perfil; la
-  interfaz abre el segmento fuente. No se anuncia fillet/booleanas
-  generales o manipulación B-Rep arbitraria.
+  extrusión firmada; en una lateral puede **desplazarse la cara completa
+  en la normal de su perfil** o abrir la línea fuente en 2D.
+- **Desplazamiento de cara lateral B-Rep:** se trasladan los dos vértices
+  de la línea fuente y se conectan con los extremos de sus dos líneas
+  vecinas. El motor conserva los UUIDs y comprueba antes de aplicar
+  que el sólido siga cerrado y orientado. Si otras extrusiones utilizan
+  alguna línea movida, todas ellas se regeneran antes del commit;
+  el cambio completo es deshacible en una sola operación.
+- Limitación: solo caras laterales rectas de prismas poligonales simples;
+  no realiza operaciones de desplazamiento sobre superficies curvas,
+  restricciones generales, agujeros, fillets ni booleanas B-Rep.
 - Crear un contorno ahora verifica su nuevo sólido B-Rep en memoria
   antes de guardar la operación. El proyecto mantiene el formato
   JSON v1 y las mallas compatibles con versiones anteriores.
