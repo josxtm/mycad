@@ -14,7 +14,7 @@ Revisión: 2026-10-26. **Progreso global estimado: 42 % antes de este lote**. Es
 | Booleanas entre prismas rectangulares | Limitadas | Cajas sin giros en operaciones principales |
 | Historial encadenado y recetas booleanas | Parcial | No existe árbol de features general |
 | Cilindros, taladros XYZ ciegos/pasantes | Base implementada | Triangulación poligonal, no B-Rep |
-| Selección de caras/aristas | Parcial | Sin IDs topológicos persistentes |
+| Selección de caras/aristas | Parcial, incluye mallas vinculadas por selección táctil | Doble toque accede a editar extrusión; sin IDs topológicos persistentes de caras/aristas |
 | CI + regresiones geométricas | Activo | Compilar no equivale a validar en Nothing Phone 2a |
 
 ## Fases principales pendientes
