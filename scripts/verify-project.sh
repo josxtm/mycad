@@ -838,7 +838,7 @@ for marker in (
  "intersectionRecipes.add(linked)",
  "loopExtrusionFeatures.add(feature);intersectionRecipes.add(null);",
  "linked.regenerate(refs,lines)",
- "recipe.regenerate(sourceFeatures,sourceLines).triangles()",
+ "recipe.regenerateTriangles(sourceFeatures,sourceLines)",
 ):
  assert marker in a,marker
 assert a.count("intersectionRecipes.add(null)")>=5
@@ -846,7 +846,7 @@ assert "LinkedConvexIntersectionTest" in workflow
 assert "dependsOnFeature" in kernel
 block=a[a.index("void stageLinkedIntersectionRebuild(") if "void stageLinkedIntersectionRebuild(" in a else a.index("stageLinkedIntersectionRebuild("):
         a.index("void applyLinkedLoopEdit(")]
-assert "recipe.regenerate(sources,lines).triangles()" in block
+assert "recipe.regenerateTriangles(sources,lines)" in block
 print("Intersección B-Rep vinculada: guardado, undo y regeneración enlazados: OK")
 PY
 
@@ -871,11 +871,34 @@ assert "loopExtrusionFeatures.add(null);intersectionRecipes.add(linked);" in cre
 assert "loopExtrusionFeatures.add(null);intersectionRecipes.add(null);intersectionRecipes.add(linked)" not in main
 union=main[main.index("void unionLinkedRectangularMeshes("):main.index("void booleanMeshManager()")]
 assert union.index("OrthogonalPrismBRepUnion.union(a,b)") < union.index("checkpoint();")
-assert union.count("intersectionRecipes.add(null);")==1
+assert union.count("intersectionRecipes.add(linked);")==1
 for key in ("Non", "loopExtrusionFeatures"):
  pass
 assert "new LoopExtrusionFeature(resultId,ids.get(0)" in kernel
 assert "Math.abs(h-other)" in kernel
 assert "OrthogonalPrismBRepUnionTest" in flow
 print("Unión ortogonal B-Rep: transacción, malla independiente y arrays alineados: OK")
+PY
+
+# New Boolean recipe type must remain backward compatible with v1 documents.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+feature=Path("app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java").read_text(encoding="utf-8")
+workflow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for k in (
+ ".put(\"operation\",item.operation.name())",
+ 'row.optString("operation","INTERSECTION")',
+ "LinkedConvexIntersection.Operation.UNION_ORTHOGONAL",
+ "linked.regenerateTriangles(refs,lines)",
+ "recipe.regenerateTriangles(sources,lines)",
+ "recipe.regenerateTriangles(sourceFeatures,sourceLines)",
+ "intersectionRecipes.add(linked);",
+):
+ assert k in a,k
+assert "this(id,firstId,secondId,Operation.INTERSECTION);" in feature
+assert "Operation { INTERSECTION, UNION_ORTHOGONAL }" in feature
+assert "OrthogonalPrismBRepUnion.union(" in feature
+assert "LinkedOrthogonalUnionTest" in workflow
+print("Unión B-Rep vinculada: JSON v1, undo, regeneración y pruebas: OK")
 PY
