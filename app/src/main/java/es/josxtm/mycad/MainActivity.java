@@ -312,6 +312,81 @@ public class MainActivity extends Activity {
   * Upper/lower cap adjust the signed extrusion distance. A lateral planar
   * face opens the exact sketch line from which that face was generated.
   * Full arbitrary face offset and Boolean recomputation remain future work. */
+
+ /** Move a selected analytic lateral plane by offsetting the two sketch
+  * vertices it spans, preserving connections to adjacent segments.
+  * Every dependent mesh is rebuilt BEFORE committing undo/sketch mutations. */
+ void offsetPolygonSideFace(int index,MeshEngine.Mesh original,String faceId){
+  if(fileBusy||index<0||index>=booleanMeshes.size()||
+     index>=loopExtrusionFeatures.size()||booleanMeshes.get(index)!=original||
+     loopExtrusionFeatures.get(index)==null){
+   toast("La cara B-Rep ha cambiado; vuelve a seleccionarla");return;
+  }
+  final es.josxtm.mycad.cad.LoopExtrusionFeature link=loopExtrusionFeatures.get(index);
+  EditText input=new EditText(this);input.setInputType(8194|4096);
+  input.setSingleLine(true);input.setText("1");
+  new AlertDialog.Builder(this).setTitle("Desplazar cara lateral B-Rep · mm")
+   .setMessage("Distancia positiva hacia fuera; negativa hacia dentro. "+
+    "Se mueven los dos vértices de esa cara y los extremos adyacentes "+
+    "del boceto. Si se cruza o rompe el perfil, no se guarda nada.")
+   .setView(input).setNegativeButton("Cancelar",null)
+   .setPositiveButton("Aplicar",(dialog,which)->{
+    if(fileBusy||index>=booleanMeshes.size()||
+       booleanMeshes.get(index)!=original||
+       index>=loopExtrusionFeatures.size()||
+       loopExtrusionFeatures.get(index)!=link){
+     toast("El resultado ha cambiado; vuelve a seleccionar la cara");return;
+    }
+    try{
+     double mm=Double.parseDouble(input.getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.PolygonPrismSideOffset.Plan proposed=
+      es.josxtm.mycad.cad.PolygonPrismSideOffset.offset(
+       link,loopSketchSegments(link,null,0,0,0,0),faceId,mm);
+     java.util.Set<String> changed=proposed.modifiedLineIds();
+     java.util.LinkedHashMap<String,Sketch> sources=new java.util.LinkedHashMap<>();
+     // A UUID must resolve to exactly one live line before changing geometry.
+     for(Sketch q:sketches)if(changed.contains(q.id)){
+      if(q.type!=1||q.plane!=link.plane||sources.put(q.id,q)!=null)
+       throw new IllegalArgumentException("Líneas de origen duplicadas o inválidas");
+     }
+     if(sources.size()!=changed.size())
+      throw new IllegalArgumentException("Se perdió una línea de origen");
+     // Prevalidate every other saved extrusion that shares ANY moved line.
+     java.util.LinkedHashMap<Integer,MeshEngine.Mesh> staged=new java.util.LinkedHashMap<>();
+     for(int i=0;i<loopExtrusionFeatures.size();i++){
+      es.josxtm.mycad.cad.LoopExtrusionFeature other=loopExtrusionFeatures.get(i);
+      if(other==null)continue;
+      boolean depends=false;
+      for(String id:changed)if(other.dependsOn(id)){depends=true;break;}
+      if(!depends)continue;
+      java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> snap=
+       loopSketchSegments(other,null,0,0,0,0);
+      for(String id:changed)if(snap.containsKey(id))
+       snap.put(id,proposed.segments().get(id));
+      es.josxtm.mycad.cad.PolygonPrismBRep rebuilt=other.asBRep(snap);
+      staged.put(i,new MeshEngine.Mesh(rebuilt.triangles()));
+     }
+     if(!staged.containsKey(index))
+      throw new IllegalArgumentException("No se reconstruyó el cuerpo seleccionado");
+     checkpoint();
+     for(java.util.Map.Entry<String,Sketch> e:sources.entrySet()){
+      es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment v=
+       proposed.segments().get(e.getKey());
+      Sketch q=e.getValue();
+      q.x1=(float)v.ax;q.y1=(float)v.ay;q.x2=(float)v.bx;q.y2=(float)v.by;
+     }
+     for(java.util.Map.Entry<Integer,MeshEngine.Mesh> e:staged.entrySet())
+      booleanMeshes.set(e.getKey(),e.getValue());
+     save();scene.invalidate();
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     toast("Cara lateral desplazada "+mm+" mm · "+staged.size()+
+       " cuerpo(s) reconstruido(s)");
+    }catch(Exception error){
+     toast("Desplazamiento rechazado: "+error.getMessage());
+    }
+   }).show();
+ }
+
  void editPolygonFace(int index,MeshEngine.Mesh original,String faceId){
   if(fileBusy||faceId==null||index<0||index>=booleanMeshes.size()||
      booleanMeshes.get(index)!=original||index>=loopExtrusionFeatures.size()||
@@ -327,7 +402,12 @@ public class MainActivity extends Activity {
    if(selectedFace.sourceLineId==null){
     editLoopExtrusionDistance(index);return;
    }
-   editLoopSourceLine(index,selectedFace.sourceLineId);
+   final String lateralId=selectedFace.id,sourceLine=selectedFace.sourceLineId;
+   new AlertDialog.Builder(this).setTitle("Cara lateral B-Rep")
+    .setItems(new String[]{"Desplazar cara (mm)","Editar línea original del perfil"},(dialog,action)->{
+     if(action==0)offsetPolygonSideFace(index,original,lateralId);
+     else editLoopSourceLine(index,sourceLine);
+    }).show();
   }catch(IllegalArgumentException error){
    toast("No se puede editar la cara: "+error.getMessage());
   }
