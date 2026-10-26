@@ -81,6 +81,27 @@ public final class ClosedSketchExtrusion {
  private static boolean withinTriangle(Vertex p,Vertex a,Vertex b,Vertex c,double eps){
   return cross(a,b,p)>=-eps&&cross(b,c,p)>=-eps&&cross(c,a,p)>=-eps;
  }
+
+ /**
+  * Return true for an interior or boundary point, without modifying the
+  * selected loop. Rejecting external geometry inside a selected profile
+  * prevents silently filling what may be an intended hole.
+  */
+ private static boolean insideOrBoundary(Vertex p,List<Integer> loop,
+                                         List<Vertex> points,double eps){
+  boolean inside=false;
+  for(int i=0;i<loop.size();i++){
+   Vertex a=points.get(loop.get(i)),
+          b=points.get(loop.get((i+1)%loop.size()));
+   if(between(a,b,p,eps))return true;
+   if((a.v>p.v)!=(b.v>p.v)){
+    double intersection=a.u+(p.v-a.v)*(b.u-a.u)/(b.v-a.v);
+    if(p.u<intersection)inside=!inside;
+   }
+  }
+  return inside;
+ }
+
  /** Map (u,v,height) consistently with the app's XY/XZ/YZ work planes. */
  private static double[] world(int plane,Vertex p,double height){
   if(plane==0)return new double[]{p.u,p.v,height};
@@ -169,6 +190,22 @@ public final class ClosedSketchExtrusion {
    Vertex c=points.get(contour.get(j)),d=points.get(contour.get((j+1)%n));
    if(intersects(a,b,c,d,eps))
     throw new IllegalArgumentException("El contorno se cruza o se toca a sí mismo");
+  }
+  // A second disconnected loop inside this boundary normally represents a
+  // hole. It is NOT a separate filled extrusion: reject instead of creating
+  // incorrect solid material. An unrelated exterior loop remains selectable.
+  for(int i=0;i<edges.size();i++){
+   if(component.contains(i))continue;
+   Edge other=edges.get(i);
+   Vertex a=points.get(other.a),b=points.get(other.b);
+   if(insideOrBoundary(a,contour,points,eps)||
+      insideOrBoundary(b,contour,points,eps))
+    throw new IllegalArgumentException("El perfil contiene líneas internas: agujeros no soportados");
+   for(int k=0;k<n;k++){
+    Vertex c=points.get(contour.get(k)),d=points.get(contour.get((k+1)%n));
+    if(intersects(a,b,c,d,eps))
+     throw new IllegalArgumentException("Otra línea atraviesa el contorno seleccionado");
+   }
   }
   // Ear clipping handles concavity; point-on-edge counts as inside so a cap
   // never skips a boundary vertex and creates a non-manifold T junction.
