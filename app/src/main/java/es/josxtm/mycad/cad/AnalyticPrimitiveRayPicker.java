@@ -15,10 +15,29 @@ public final class AnalyticPrimitiveRayPicker {
  public static final class Hit {
   public final String bodyId,faceId;
   public final double distance,x,y,z,nx,ny,nz;
-  private Hit(String bodyId,String faceId,double distance,double[] point,double[] normal){
-   this.bodyId=bodyId;this.faceId=faceId;this.distance=distance;
+  private final PrimitiveBRepBody.Kind sourceKind;
+  private final double[] sourceGeometry;
+  private Hit(PrimitiveBRepBody body,String faceId,double distance,
+              double[] point,double[] normal){
+   this.bodyId=body.bodyId;this.faceId=faceId;this.distance=distance;
    x=point[0];y=point[1];z=point[2];
    nx=normal[0];ny=normal[1];nz=normal[2];
+   sourceKind=body.kind;
+   sourceGeometry=new double[]{body.width,body.depth,body.height,
+                               body.x,body.y,body.z,body.rx,body.ry,body.rz};
+  }
+  /**
+   * A hit is a snapshot of one primitive geometry, not just a persistent
+   * face ID. Identical reconstructed bodies are valid; any changed dimension,
+   * translation or rotation invalidates an old gizmo anchor.
+   */
+  boolean matchesGeometry(PrimitiveBRepBody body){
+   if(body==null||!bodyId.equals(body.bodyId)||sourceKind!=body.kind)return false;
+   double[] now={body.width,body.depth,body.height,
+                 body.x,body.y,body.z,body.rx,body.ry,body.rz};
+   for(int i=0;i<now.length;i++)
+    if(Double.compare(sourceGeometry[i],now[i])!=0)return false;
+   return true;
   }
   public double[] point(){return new double[]{x,y,z};}
   /** Outward world-space unit normal at the exact hit (including curved sides). */
@@ -57,7 +76,7 @@ public final class AnalyticPrimitiveRayPicker {
   PrimitiveBRepBody.Face face=body.findFace(faceId);
   if(face==null)return best;
   double[] normal=face.outwardNormalAt(Math.atan2(ly,lx));
-  Hit next=new Hit(body.bodyId,faceId,distance,p,normal);
+  Hit next=new Hit(body,faceId,distance,p,normal);
   if(best==null||distance<best.distance-1e-8)return next;
   // Deterministic tie at a shared rim/corner; face IDs are persistent.
   if(Math.abs(distance-best.distance)<=1e-8&&
