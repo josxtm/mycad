@@ -45,7 +45,13 @@ public final class CadRayPicker {
    double e2x=triangles[i+6]-ax,e2y=triangles[i+7]-ay,e2z=triangles[i+8]-az;
    double px=dy*e2z-dz*e2y,py=dz*e2x-dx*e2z,pz=dx*e2y-dy*e2x;
    double det=e1x*px+e1y*py+e1z*pz;
-   if(!Double.isFinite(det)||Math.abs(det)<1e-12)continue;
+   // A fixed determinant threshold discards valid micron-scale faces.
+   // Compare against the edge-length product instead: this is invariant
+   // under uniform scaling and still rejects numerically parallel rays.
+   double edgeScale=Math.hypot(e1x,Math.hypot(e1y,e1z))*
+                    Math.hypot(e2x,Math.hypot(e2y,e2z));
+   if(!Double.isFinite(det)||!Double.isFinite(edgeScale)||edgeScale==0||
+      Math.abs(det)<=1e-14*edgeScale)continue;
    double inv=1/det,tx=ox-ax,ty=oy-ay,tz=oz-az;
    double u=(tx*px+ty*py+tz*pz)*inv;
    if(!Double.isFinite(u)||u<0||u>1)continue;
