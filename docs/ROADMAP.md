@@ -2,6 +2,12 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Integridad topológica de mallas (incremento 0.6.0):** la validación de
+mallas cerradas ahora rechaza vértices con varios abanicos desconectados
+(dos sólidos que solo se tocan en un punto), además de aristas abiertas,
+invertidas o no manifold. Incluye regresiones con tetraedros y no cambia
+la política de APK por hitos. Véase [validador de vértices](CAD_MESH_VERTEX_MANIFOLD.md).
+
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
 **ViewCube y visor GPU sincronizados en ambos sentidos:** girar con un dedo en OpenGL o ejecutar el gesto de tres dedos actualiza también la orientación del cubo del lienzo (radianes/grados, yaw normalizado y pitch limitado). Se evita reentrar en la cámara desde el callback; tests Java y compilación Android en CI, sin APK.

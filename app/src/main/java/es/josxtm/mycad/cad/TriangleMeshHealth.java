@@ -5,13 +5,13 @@ import java.util.*;
 public final class TriangleMeshHealth {
  private TriangleMeshHealth(){}
  public static final class Report {
-  public final int triangles,boundaryEdges,nonManifoldEdges,reversedEdges,degenerateTriangles;
+  public final int triangles,boundaryEdges,nonManifoldEdges,nonManifoldVertices,reversedEdges,degenerateTriangles;
   public final double signedVolume;
-  Report(int t,int b,int n,int r,int d,double v){
-   triangles=t;boundaryEdges=b;nonManifoldEdges=n;reversedEdges=r;degenerateTriangles=d;signedVolume=v;
+  Report(int t,int b,int n,int nv,int r,int d,double v){
+   triangles=t;boundaryEdges=b;nonManifoldEdges=n;nonManifoldVertices=nv;reversedEdges=r;degenerateTriangles=d;signedVolume=v;
   }
   public boolean isWatertight(){
-   return triangles>0&&boundaryEdges==0&&nonManifoldEdges==0&&reversedEdges==0&&degenerateTriangles==0;
+   return triangles>0&&boundaryEdges==0&&nonManifoldEdges==0&&nonManifoldVertices==0&&reversedEdges==0&&degenerateTriangles==0;
   }
  }
  private static final class Vertex implements Comparable<Vertex>{
@@ -42,10 +42,22 @@ public final class TriangleMeshHealth {
   }
   public int hashCode(){return a.hashCode()*31+b.hashCode();}
  }
- private static final class Count {int uses;int orientation;}
+ private static final class Count {int uses,orientation,firstA,firstB;}
+ /** Each triangle corner has a separate node. Joining corners only across shared
+  * edges exposes disconnected face fans at a vertex (pinched/non-manifold shells). */
+ private static int root(int[] parent,int i){
+  while(parent[i]!=i){parent[i]=parent[parent[i]];i=parent[i];}
+  return i;
+ }
+ private static void join(int[] parent,int a,int b){
+  int ra=root(parent,a),rb=root(parent,b);
+  if(ra!=rb)parent[rb]=ra;
+ }
  public static Report inspect(float[] mesh){
   if(mesh==null||mesh.length%9!=0)throw new IllegalArgumentException("Triangle xyz triplets required");
   Map<Edge,Count> edges=new HashMap<>();
+  int[] parent=new int[mesh.length/3];
+  for(int j=0;j<parent.length;j++)parent[j]=j;
   int degenerates=0;double volume=0;
   for(int i=0;i<mesh.length;i+=9){
    Vertex[] v={new Vertex(mesh,i),new Vertex(mesh,i+3),new Vertex(mesh,i+6)};
@@ -60,7 +72,14 @@ public final class TriangleMeshHealth {
    for(int k=0;k<3;k++){
     Vertex from=v[k],to=v[(k+1)%3];
     Edge e=new Edge(from,to);Count count=edges.get(e);
-    if(count==null){count=new Count();edges.put(e,count);}
+    int cornerA=i/3+(from.compareTo(to)<0?k:(k+1)%3);
+    int cornerB=i/3+(from.compareTo(to)<0?(k+1)%3:k);
+    if(count==null){
+     count=new Count();count.firstA=cornerA;count.firstB=cornerB;edges.put(e,count);
+    }else if(count.uses==1){
+     join(parent,count.firstA,cornerA);
+     join(parent,count.firstB,cornerB);
+    }
     count.uses++;count.orientation+=from.compareTo(to)<0?1:-1;
    }
   }
@@ -70,6 +89,20 @@ public final class TriangleMeshHealth {
    else if(e.uses!=2)nonManifold++;
    else if(e.orientation!=0)reversed++;
   }
-  return new Report(mesh.length/9,boundary,nonManifold,reversed,degenerates,volume);
+  // Edge-manifold tests alone miss two closed shells touching at one vertex.
+  // A valid closed 2-manifold has exactly one connected face fan per vertex.
+  Map<Vertex,Integer> firstFan=new HashMap<>();
+  Set<Vertex> splitVertices=new HashSet<>();
+  for(Map.Entry<Edge,Count> entry:edges.entrySet()){
+   Count count=entry.getValue();
+   if(count.uses!=2)continue;
+   Edge edge=entry.getKey();
+   int a=root(parent,count.firstA),b=root(parent,count.firstB);
+   Integer previousA=firstFan.putIfAbsent(edge.a,a);
+   Integer previousB=firstFan.putIfAbsent(edge.b,b);
+   if(previousA!=null&&previousA!=a)splitVertices.add(edge.a);
+   if(previousB!=null&&previousB!=b)splitVertices.add(edge.b);
+  }
+  return new Report(mesh.length/9,boundary,nonManifold,splitVertices.size(),reversed,degenerates,volume);
  }
 }
