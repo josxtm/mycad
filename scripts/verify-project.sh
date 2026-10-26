@@ -153,6 +153,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/AnalyticPrimitiveRayPicker.java \
   app/src/main/java/es/josxtm/mycad/cad/CameraGestureMath.java \
   app/src/main/java/es/josxtm/mycad/cad/FloatVertexBufferCache.java \
+  app/src/main/java/es/josxtm/mycad/cad/CubeCameraPreset.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -167,7 +168,8 @@ javac -d build/box-brep-tests \
   tests/AnalyticSceneMeshTest.java \
   tests/AnalyticPrimitiveRayPickerTest.java \
   tests/CameraGestureMathTest.java \
-  tests/FloatVertexBufferCacheTest.java
+  tests/FloatVertexBufferCacheTest.java \
+  tests/CubeCameraPresetTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -183,6 +185,7 @@ java -cp build/box-brep-tests AnalyticSceneMeshTest
 java -cp build/box-brep-tests AnalyticPrimitiveRayPickerTest
 java -cp build/box-brep-tests CameraGestureMathTest
 java -cp build/box-brep-tests FloatVertexBufferCacheTest
+java -cp build/box-brep-tests CubeCameraPresetTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -408,6 +411,20 @@ assert src.count("gpuTriangles.clear();")>=3
 assert "gpuTriangles.clear();meshes.clear();meshes.addAll(copy)" in src
 assert "gpuTriangles.clear();\n   meshes.clear();meshes.add(snapshot)" in src
 print("Render 3D: buffers directos reutilizados y liberados al reemplazar escena: OK")
+PY
+
+# ViewCube taps and drag must change the actual GPU camera, not only Canvas.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+view=a[a.index("void cubeView(int row,int col){"):a.index("void drawOrientationCube(Canvas c){")]
+assert "CubeCameraPreset.cell(row,col)" in view
+assert "syncGpuViewCube();" in view
+assert "meshView.setViewOrientation((float)Math.toDegrees(yaw)" in a
+assert "pitch=Math.max(-89,Math.min(89,pitchDegrees));" in m
+assert "syncGpuViewCube();invalidate();" in a
+print("ViewCube: pulsación y arrastre rotan también cámara GPU: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"

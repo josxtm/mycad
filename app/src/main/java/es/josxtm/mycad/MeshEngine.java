@@ -136,6 +136,17 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   });
  }
  public void setMeshes(List<Mesh> incoming){final ArrayList<Mesh> copy=new ArrayList<>(incoming);highlightedFirstTriangle=-1;queueEvent(()->{gpuTriangles.clear();meshes.clear();meshes.addAll(copy);highlightedEdgeVertices=null;fitCamera();requestRender();});}
+ /**
+  * ViewCube orientation command; preserve model focus and camera distance.
+  * The canvas exposes radians and the GPU camera expects degrees.
+  */
+ public void setViewOrientation(float yawDegrees,float pitchDegrees){
+  if(!Float.isFinite(yawDegrees)||!Float.isFinite(pitchDegrees))
+   throw new IllegalArgumentException("Invalid ViewCube orientation");
+  yaw=yawDegrees;
+  pitch=Math.max(-89,Math.min(89,pitchDegrees));
+  requestRender();
+ }
  public void orbit(float dx,float dy){yaw+=dx*.35f;pitch=Math.max(-89,Math.min(89,pitch+dy*.35f));requestRender();}
  public void zoom(float factor){distance=Math.max(.1f,Math.min(100000f,distance/factor));requestRender();}
  @Override public boolean onTouchEvent(android.view.MotionEvent e){
