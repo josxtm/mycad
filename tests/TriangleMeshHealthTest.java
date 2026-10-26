@@ -39,6 +39,32 @@ public final class TriangleMeshHealthTest {
   float[] first=tetra(1),second=tetra(-1);
   require(TriangleMeshHealth.inspect(first).isWatertight(),"First tetrahedron should be closed");
   require(TriangleMeshHealth.inspect(second).isWatertight(),"Second tetrahedron should be closed");
+  // A one-millimetre tetrahedron at 10,000,000 mm is exactly representable
+  // as float. Its volume must not suffer cancellation from world coordinates.
+  for(float offset:new float[]{10000000f,-10000000f}){
+   float[] far=first.clone();
+   for(int k=0;k<far.length;k+=3){
+    far[k]+=offset;far[k+1]+=offset;far[k+2]+=offset;
+   }
+   TriangleMeshHealth.Report translated=TriangleMeshHealth.inspect(far);
+   require(translated.isWatertight(),"Translated tetrahedron remains manifold");
+   require(Math.abs(translated.signedVolume-1.0/6.0)<1e-12,
+     "Translated tetrahedron volume inaccurate: "+translated.signedVolume);
+  }
+  TriangleMeshHealth.Report original=TriangleMeshHealth.inspect(first);
+  require(Math.abs(original.signedVolume-1.0/6.0)<1e-12,
+    "Original tetrahedron volume inaccurate");
+  float[] insideOut=first.clone();
+  for(int i=0;i<insideOut.length;i+=9)
+   for(int k=0;k<3;k++){
+    float tmp=insideOut[i+3+k];
+    insideOut[i+3+k]=insideOut[i+6+k];
+    insideOut[i+6+k]=tmp;
+   }
+  TriangleMeshHealth.Report inward=TriangleMeshHealth.inspect(insideOut);
+  require(inward.isWatertight()&&Math.abs(inward.signedVolume+1.0/6.0)<1e-12,
+    "Signed volume must preserve orientation: "+inward.signedVolume);
+
   float[] pinched=Arrays.copyOf(first,first.length+second.length);
   System.arraycopy(second,0,pinched,first.length,second.length);
   TriangleMeshHealth.Report pinch=TriangleMeshHealth.inspect(pinched);
