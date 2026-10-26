@@ -146,11 +146,13 @@ javac -d build/box-brep-tests \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
-  tests/AnalyticEdgePickerTest.java
+  tests/AnalyticEdgePickerTest.java \
+  tests/PrimitiveEdgeMoveTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
 java -cp build/box-brep-tests AnalyticEdgePickerTest
+java -cp build/box-brep-tests PrimitiveEdgeMoveTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -187,6 +189,26 @@ for marker in (
     if marker not in src:
         raise SystemExit("ERROR: B-Rep compartida no integrada: "+marker)
 print("Integracion Android de B-Rep primitiva compartida: OK")
+PY
+
+# Nueva operacion atomica de aristas: comprobar integracion sin producir APK.
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+for token in (
+ "case 22:editSelectedAnalyticEdge();break;",
+ "void editSelectedAnalyticEdge(){",
+ "activeAnalyticEdgeId=e.id;",
+ ".offsetEdge(edgeId,first,second)",
+ "Float.compare(now[i],previous[i])!=0",
+ "if(!part.sourceSketchId.isEmpty())",
+ "checkpoint();",
+ "part.w=w;part.d=d;part.h=h;part.x=x;part.y=y;part.z=z;",
+ "activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;",
+):
+    if token not in src:
+        raise SystemExit("ERROR: editor de aristas sin integrar: "+token)
+print("Editor de aristas restringidas, undo y control de selección: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"

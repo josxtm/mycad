@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;}}).show();}
  es.josxtm.mycad.cad.ParametricFeatureGraph buildParametricFeatureGraph(){
   es.josxtm.mycad.cad.ParametricFeatureGraph.Builder builder=
    new es.josxtm.mycad.cad.ParametricFeatureGraph.Builder();
@@ -375,14 +375,14 @@ public class MainActivity extends Activity {
  void renderCurrentCadMesh(){
   if(meshView==null)return;
   isolatedMeshPreview=false;
-  activeCadFace=null;activeAnalyticEdgeId=null;
+  activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
   meshView.highlightFace(-1);
   meshView.setMeshes(java.util.Collections.singletonList(currentMesh()));
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
   if(meshView==null){meshView=new MeshEngine(this);meshView.setSurfaceTapListener((triangle,x,y,z)->showGpuSurfaceSelection(triangle,x,y,z));rootLayout.addView(meshView,rootLayout.indexOfChild(nextStep),new LinearLayout.LayoutParams(-1,dp(240)));}
   meshMode=true;meshView.setVisibility(View.VISIBLE);
-  isolatedMeshPreview=true;activeCadFace=null;
+  isolatedMeshPreview=true;activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
   meshView.highlightFace(-1);
   meshView.setMeshes(java.util.Collections.singletonList(mesh));
   info.setText("Resultado booleano · "+mesh.triangles()+" triángulos");
@@ -1401,6 +1401,82 @@ public class MainActivity extends Activity {
    es.josxtm.mycad.cad.PrimitiveBRepBody.cylinder(part.id,part.w,part.h,pose):
    es.josxtm.mycad.cad.PrimitiveBRepBody.box(part.id,part.w,part.d,part.h,pose);
  }
+ /**
+  * Numeric, constrained manipulation of a logical B-Rep edge.
+  * Both adjacent faces are moved atomically; a real touchscreen drag
+  * manipulator requires a later GPU projection/gesture stage.
+  */
+ void editSelectedAnalyticEdge(){
+  if(fileBusy||selected<0||selected>=parts.size()||isolatedMeshPreview){
+   toast("Selecciona primero una arista de un sólido");return;
+  }
+  final int partIndex=selected;
+  final Part part=parts.get(partIndex);
+  if(!part.sourceSketchId.isEmpty()){
+   toast("La pieza depende de un boceto: edita antes su perfil");return;
+  }
+  final String edgeId=activeAnalyticEdgeId;
+  final es.josxtm.mycad.cad.PrimitiveBRepBody solid;
+  final es.josxtm.mycad.cad.PrimitiveBRepBody.Edge edge;
+  try{
+   solid=analyticBody(part);
+   edge=solid.findEdge(edgeId);
+   if(edge==null)throw new IllegalArgumentException("Stale edge");
+  }catch(Exception error){toast("Toca una arista en el visor CAD o elígela en la inspección B-Rep");return;}
+  final float[] previous={part.w,part.d,part.h,part.x,part.y,part.z,
+                          part.rotationX,part.rotationY,part.rotationZ};
+  LinearLayout panel=new LinearLayout(this);
+  panel.setOrientation(LinearLayout.VERTICAL);
+  panel.setPadding(dp(16),dp(8),dp(16),dp(8));
+  final EditText[] inputs=new EditText[2];
+  for(int i=0;i<2;i++){
+   String faceId=edge.adjacentFaceIds().get(i);
+   TextView title=new TextView(this);
+   title.setText("Desplazamiento de "+faceId.substring(faceId.lastIndexOf('/')+1)+" (mm)");
+   panel.addView(title);
+   inputs[i]=new EditText(this);
+   inputs[i].setInputType(8194|4096);
+   inputs[i].setText("0");
+   panel.addView(inputs[i]);
+  }
+  new AlertDialog.Builder(this).setTitle("Editar arista · "+edge.kind)
+   .setMessage("Desplaza sus dos caras adyacentes en milímetros.\n"+
+     "Positivo: hacia fuera. Negativo: hacia dentro. "+
+     "Deja 0 para mantener una cara fija.\n"+
+     (part.circle?"En cilindros: lateral = radio; tapa = altura.":
+                  "En prismas: dos direcciones ortogonales locales."))
+   .setView(panel).setNegativeButton("Cancelar",null)
+   .setPositiveButton("Aplicar",(dialog,which)->{
+    try{
+     if(partIndex>=parts.size()||parts.get(partIndex)!=part||
+        selected!=partIndex||!edgeId.equals(activeAnalyticEdgeId)||
+        !part.sourceSketchId.isEmpty())
+      throw new IllegalArgumentException("Selección obsoleta");
+     float[] now={part.w,part.d,part.h,part.x,part.y,part.z,
+                  part.rotationX,part.rotationY,part.rotationZ};
+     for(int i=0;i<now.length;i++)
+      if(Float.compare(now[i],previous[i])!=0)
+       throw new IllegalArgumentException("El cuerpo cambió durante la edición");
+     double first=Double.parseDouble(inputs[0].getText().toString().trim().replace(',','.'));
+     double second=Double.parseDouble(inputs[1].getText().toString().trim().replace(',','.'));
+     es.josxtm.mycad.cad.PrimitiveBRepBody next=
+      analyticBody(part).offsetEdge(edgeId,first,second);
+     float w=(float)next.width,d=(float)next.depth,h=(float)next.height;
+     float x=(float)next.x,y=(float)next.y,z=(float)next.z;
+     if(!Float.isFinite(w)||!Float.isFinite(d)||!Float.isFinite(h)||
+        !Float.isFinite(x)||!Float.isFinite(y)||!Float.isFinite(z)||
+        w<=0||d<=0||h<=0)throw new IllegalArgumentException("Cotas no válidas");
+     checkpoint();
+     part.w=w;part.d=d;part.h=h;part.x=x;part.y=y;part.z=z;
+     activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
+     save();scene.invalidate();
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     toast("Arista modificada · deshacer y guardar disponibles");
+    }catch(Exception problem){
+     toast("Edición de arista rechazada: comprueba cotas y selección");
+    }
+   }).show();
+ }
  void inspectSelectedAnalyticSolid(){
   if(selected<0||selected>=parts.size()){
    toast("Selecciona un prisma o cilindro antes de inspeccionarlo");return;
@@ -1439,8 +1515,15 @@ public class MainActivity extends Activity {
       String details=String.format(java.util.Locale.US,
        "ID: %s\nTipo: %s\nLongitud: %.3f mm\nCaras adyacentes:\n%s",
        e.id,e.kind,e.length,e.adjacentFaceIds().toString());
+      // The inspector is also a precise selection path when touch tolerance is insufficient.
+      activeAnalyticEdgeId=e.id;
       new AlertDialog.Builder(this).setTitle("Arista analítica").setMessage(details)
-       .setPositiveButton("Cerrar",null).show();
+       .setNegativeButton("Cerrar",null)
+       .setPositiveButton("Editar desplazamiento",(confirmation,which)->{
+        if(selected>=0&&selected<parts.size()&&parts.get(selected)==part)
+         editSelectedAnalyticEdge();
+        else toast("Vuelve a seleccionar la pieza: ha cambiado");
+       }).show();
      }
     }).setNegativeButton("Cerrar",null).show();
   }catch(Exception problem){toast("No se pudo inspeccionar la topología del sólido");}
@@ -1506,7 +1589,7 @@ public class MainActivity extends Activity {
    }).show();
  }
  void toggleCadGpuMesh(){
-  activeCadFace=null;activeCylinderFaceId=null;cadGpuMesh=!cadGpuMesh;
+  activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;cadGpuMesh=!cadGpuMesh;
   if(meshMode&&meshView!=null)renderCurrentCadMesh();
   toast(cadGpuMesh?"Visor CAD experimental · prismas y cilindros XYZ":"Visor clásico restaurado");
  }
