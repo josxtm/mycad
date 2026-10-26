@@ -10,6 +10,8 @@ El código 0.6.0 pasa las pruebas de integridad, las regresiones geométricas y 
 
 ### Motor 0.6.0 — funcionalidades ya incorporadas al código
 
+**Intercambio nuevo:** menú Proyecto → Importar/Exportar bocetos DXF (XY). Solo líneas, círculos y rectángulos ortogonales 2D; importación transaccional con deshacer y exportación con aviso de exclusión de planos XZ/YZ. No es B-Rep ni interoperabilidad DXF completa. Véase [alcance DXF](docs/CAD_DXF_SKETCH_XY.md).
+
 - Bocetos, extrusiones y vinculación parcial entre croquis y piezas, con identificadores persistentes.
 - Historial de operaciones y dependencias paramétricas; reconstrucción incremental de algunas operaciones booleanas.
 - Selección lógica persistente de caras y aristas de primitivas.
@@ -114,7 +116,7 @@ Todas las versiones descritas corresponden a las iteraciones de este repositorio
 | `.mycad.json` | Sí | Sí | Proyecto nativo; no equivale a un sólido CAD industrial. |
 | `.stl` | Sí, binario/ASCII | Sí, binario | Malla triangular; se asumen milímetros. |
 | `.obj` | Sí, geometría de caras | Sí | Malla triangular; el lector triangula polígonos. No hay soporte completo de materiales/texturas MTL. |
-| `.dxf` | Pendiente | Pendiente | Importación CAD 2D/3D aún no implementada. |
+| `.dxf` | Sí, solo bocetos XY | Sí, solo bocetos XY | ASCII DXF en mm: LINE, CIRCLE y rectángulo LWPOLYLINE ortogonal cerrado. No se admite DXF 3D, arcos ni splines. |
 | `.step` / `.stp` | Pendiente | Pendiente | Requiere un núcleo geométrico CAD adicional. |
 | `.iges` / `.igs` | Pendiente | Pendiente | No implementado. |
 | `.dwg`, `.3mf`, `.cad` | Pendiente | Pendiente | No implementado; `.cad` no es un formato universal. |

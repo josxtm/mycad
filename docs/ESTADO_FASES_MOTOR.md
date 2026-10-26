@@ -1,6 +1,6 @@
 # Estado de fases de MyCAD 0.6.0
 
-Revisión: 2026-10-25. **Progreso global estimado: 42 % antes de este lote**. Es juicio de ingeniería sobre el objetivo CAD completo, no dato calculado por GitHub ni equivalencia a madurez comercial. El porcentaje no implica certificación funcional en teléfono.
+Revisión: 2026-10-26. **Progreso global estimado: 42 % antes de este lote**. Es juicio de ingeniería sobre el objetivo CAD completo, no dato calculado por GitHub ni equivalencia a madurez comercial. El porcentaje no implica certificación funcional en teléfono.
 
 | Fase | Estado | Alcance / limitación |
 |---|---|---|
@@ -10,6 +10,7 @@ Revisión: 2026-10-25. **Progreso global estimado: 42 % antes de este lote**. Es
 | Extrusión 2D→3D | Básica | Parte de los vínculos son prototipos |
 | Guardado, apertura, deshacer/rehacer | Base implementada | JSON v1 y migración pendiente |
 | Intercambio STL/OBJ | Básico | No son formatos sólidos paramétricos |
+| DXF de bocetos 2D | Subconjunto XY integrado | LINE, CIRCLE y rectángulos ortogonales; no DXF 3D ni splines/arcos |
 | Booleanas entre prismas rectangulares | Limitadas | Cajas sin giros en operaciones principales |
 | Historial encadenado y recetas booleanas | Parcial | No existe árbol de features general |
 | Cilindros, taladros XYZ ciegos/pasantes | Base implementada | Triangulación poligonal, no B-Rep |
