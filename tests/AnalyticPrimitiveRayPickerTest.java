@@ -52,6 +52,13 @@ public final class AnalyticPrimitiveRayPickerTest {
       "C/face/CYLINDER_BOTTOM"),"Interior exit via bottom");
   yes(ray(cyl,new double[]{-40,10,4},new double[]{1,0,0})!=null,
       "Tangent cylinder is a valid mathematical hit");
+  yes(ray(cyl,new double[]{-40,10.00001,4},new double[]{1,0,0})==null,
+      "Near-tangent ray outside the cylinder must not be selected");
+  near(side.nx,-1,"Unrotated cylinder side outward normal X");
+  near(side.ny,0,"Unrotated cylinder side outward normal Y");
+  near(cap.nz,1,"Top cap outward normal");
+  double[] normalCopy=side.normal();normalCopy[0]=123;
+  near(side.normal()[0],-1,"Hit normal is a defensive copy");
 
   RigidTransform pose=new RigidTransform(23,-11,31,27,39,56);
   PrimitiveBRepBody rotatedBox=PrimitiveBRepBody.box("RB",20,10,8,pose);
@@ -69,6 +76,11 @@ public final class AnalyticPrimitiveRayPickerTest {
   yes(rounded!=null&&rounded.faceId.equals("RC/face/CYLINDER_SIDE"),
       "Rotated circle picked without tessellation");
   point(rounded,cylPoint,"Rotated cylinder circle");
+  double[] expectedNormal=rotatedCyl.findFace(rounded.faceId)
+   .outwardNormalAt(Math.PI/2);
+  near(rounded.nx,expectedNormal[0],"Rotated curved normal X");
+  near(rounded.ny,expectedNormal[1],"Rotated curved normal Y");
+  near(rounded.nz,expectedNormal[2],"Rotated curved normal Z");
   PrimitiveBRepBody updated=rotatedCyl.offsetFace("RC/face/CYLINDER_SIDE",2);
   double[] futurePoint=pose.point(0,12,3);
   AnalyticPrimitiveRayPicker.Hit afterEdit=ray(updated,cylEye,minus(futurePoint,cylEye));

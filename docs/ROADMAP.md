@@ -4,6 +4,14 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Gizmo 3D en la cara realmente tocada:** el raycast analítico devuelve normales
+mundiales exactas y el arrastre de caras usa el impacto aceptado del visor
+para colocar el manipulador, también en cilindros girados. Se rechazan
+puntos obsoletos tras cambiar la geometría y se mantiene el anclaje al centro
+como alternativa. Se refuerza el rechazo de rayos casi tangentes exteriores.
+Pruebas Java/Android en CI, sin APK; véase
+[anclaje analítico de controles](CAD_BREP_SURFACE_HIT_HANDLES.md).
+
 **ViewCube vinculado a OpenGL:** pulsar una cara/dirección del cubo de orientación o arrastrarlo actualiza la cámara del visor 3D GPU, además del lienzo. Se conserva el centro/zoom del visor y se limitan las vistas verticales; CI Java y Android sin APK.
 
 **Optimización GPU de navegación:** los buffers directos de triángulos se preparan una vez por malla y se reutilizan en cada fotograma de órbita/zoom. Se invalidan al cambiar la escena, previsualizar o recuperar contexto EGL; tests Java de memoria/cursor y verificación Android sin APK.
