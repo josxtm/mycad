@@ -21,6 +21,13 @@ public final class SketchDxfIOTest {
   SketchDxfIO.write(shapes,bytes);
   return bytes.toString("UTF-8");
  }
+ static String polygon(double[][] points){
+  StringBuilder dxf=new StringBuilder("0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n"+
+   "0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n"+
+   "90\n"+points.length+"\n70\n1\n");
+  for(double[] p:points)dxf.append("10\n").append(p[0]).append("\n20\n").append(p[1]).append('\n');
+  return dxf.append("0\nENDSEC\n0\nEOF\n").toString();
+ }
  public static void main(String[] args)throws Exception{
   List<SketchDxfIO.Shape> original=Arrays.asList(
    s(1,-5,7,80,19),s(2,32,15,-12,-21),s(3,10,-5,10,3));
@@ -61,6 +68,21 @@ public final class SketchDxfIOTest {
    "10\n1\n20\n1\n10\n1\n20\n3\n10\n0\n20\n3\n",
    "90\n3\n70\n1\n10\n0\n20\n0\n10\n3\n20\n0\n10\n0\n20\n4\n");
   ok(read(triangle).size()==3,"Importación de triángulo cerrado");
+  // An otherwise well-formed, nonzero-area five-vertex DXF loop crosses
+  // itself. It must fail at import rather than create unextrudable sketches.
+  fail(()->read(polygon(new double[][]{
+   {0,0},{4,4},{0,4},{4,0},{2,5}
+  })),"Polilínea DXF cruzada con área no nula");
+  fail(()->read(polygon(new double[][]{
+   {0,0},{4,0},{4,4},{0,4},{2,0},{2,2}
+  })),"Polilínea DXF que toca una arista no adyacente");
+  fail(()->read(polygon(new double[][]{
+   {0,0},{4,0},{4,4},{0,4},{4,0}
+  })),"Vértice DXF repetido en posición no adyacente");
+  ok(read(polygon(new double[][]{
+   {0,0},{0,3},{1,3},{1,1},{3,1},{3,0}
+  })).size()==6,"Contorno cóncavo horario válido");
+
   fail(()->read(concave.replace("90\n6\n70\n1","90\n6\n70\n0")),
        "Polilínea abierta no soportada");
   fail(()->read(concave.replace("90\n6\n70\n1","90\n5\n70\n1")),
