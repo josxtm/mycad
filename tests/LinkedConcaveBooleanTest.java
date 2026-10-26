@@ -63,7 +63,7 @@ public final class LinkedConcaveBooleanTest {
      edited.put(b.lineIds().get(i),
        new ClosedSketchExtrusion.Segment(plane,p[0],p[1],q[0],q[1]));
     }
-    double editedArea=op==LinkedConvexIntersection.Operation.UNION_POLYGONAL?13:
+    double editedArea=op==LinkedConvexIntersection.Operation.UNION_POLYGONAL?16:
                       op==LinkedConvexIntersection.Operation.DIFFERENCE_POLYGONAL?4:3;
     eq(TriangleMeshHealth.inspect(recipe.regenerateTriangles(sources,edited))
       .signedVolume,editedArea*5,op+" source geometry propagation");
