@@ -142,12 +142,15 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/FaceResize.java \
   app/src/main/java/es/josxtm/mycad/cad/RotatedFaceResize.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveBRepBody.java \
+  app/src/main/java/es/josxtm/mycad/cad/AnalyticEdgePicker.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
-  tests/PrimitiveBRepBodyTest.java
+  tests/PrimitiveBRepBodyTest.java \
+  tests/AnalyticEdgePickerTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
+java -cp build/box-brep-tests AnalyticEdgePickerTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
