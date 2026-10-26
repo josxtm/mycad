@@ -2,6 +2,13 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**DXF: rechazo de contornos autointersectados (0.6.0):** el importador
+verifica que cada LWPOLYLINE cerrada sea un polígono simple antes de
+crear bocetos Android: rechaza cruces, contactos no adyacentes y área
+nula, sin impedir perfiles cóncavos válidos. Regresiones Java y
+comprobación de integración Android; sin APK. Véase
+[intercambio DXF](CAD_DXF_SKETCH_XY.md).
+
 **Primer puente paramétrico para contornos cerrados (0.6.0):**
 las mallas procedentes de extruir un bucle de líneas ahora guardan una
 receta por UUID con los IDs exactos de sus segmentos y la distancia
