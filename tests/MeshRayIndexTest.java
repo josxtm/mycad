@@ -124,6 +124,27 @@ public final class MeshRayIndexTest {
    double dz=random.nextDouble()*2-1;
    ray(damaged,damagedIndex,ox,oy,oz,dx,dy,dz,"Randomized "+i);
   }
+  // A tiny face in a different BVH leaf must agree with the linear
+  // picker; its AABB and the narrow-phase must both preserve the hit.
+  float[] microScene=new float[65*9];
+  for(int i=0;i<64;i++){
+   int at=i*9;
+   microScene[at]=100;microScene[at+1]=0;microScene[at+2]=0;
+   microScene[at+3]=101;microScene[at+4]=0;microScene[at+5]=0;
+   microScene[at+6]=100;microScene[at+7]=1;microScene[at+8]=0;
+  }
+  float micro=1e-6f;
+  int tinyAt=64*9;
+  microScene[tinyAt]=0;microScene[tinyAt+1]=0;microScene[tinyAt+2]=0;
+  microScene[tinyAt+3]=micro;microScene[tinyAt+4]=0;microScene[tinyAt+5]=0;
+  microScene[tinyAt+6]=0;microScene[tinyAt+7]=micro;microScene[tinyAt+8]=0;
+  MeshRayIndex microIndex=new MeshRayIndex(microScene);
+  CadRayPicker.Hit tiny=microIndex.pick(micro/4,micro/4,0.01,0,0,-1);
+  if(tiny==null||tiny.triangle!=64)
+   throw new AssertionError("BVH must select micrometre face in last leaf");
+  ray(microScene,microIndex,micro/4,micro/4,0.01,0,0,-1,
+      "Micrometre face parity between BVH and linear picker");
+
   reject(()->new MeshRayIndex(null),"Null mesh");
   reject(()->new MeshRayIndex(new float[8]),"Unaligned triangle array");
   reject(()->index.pick(0,0,0,0,0,0),"Zero direction");
