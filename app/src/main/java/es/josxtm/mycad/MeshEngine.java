@@ -255,8 +255,26 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    lastX=e.getX();lastY=e.getY();downX=lastX;downY=lastY;
    moved=false;dragging=true;return true;
   }
-  if(e.getActionMasked()==android.view.MotionEvent.ACTION_MOVE&&dragging){if(Math.hypot(e.getX()-downX,e.getY()-downY)>12*getResources().getDisplayMetrics().density)moved=true;orbit(e.getX()-lastX,e.getY()-lastY);lastX=e.getX();lastY=e.getY();return true;}
-  if(e.getActionMasked()==android.view.MotionEvent.ACTION_UP){dragging=false;if(es.josxtm.mycad.cad.SurfaceTapPolicy.shouldPick(moved,surfaceRayListener!=null,surfaceTapListener!=null)){final float x=e.getX(),y=e.getY();queueEvent(()->pickSurfaceAt(x,y));}}
+  if(e.getActionMasked()==android.view.MotionEvent.ACTION_MOVE&&dragging){
+   moved=es.josxtm.mycad.cad.TouchDragThreshold.moved(
+    moved,downX,downY,e.getX(),e.getY(),
+    12*getResources().getDisplayMetrics().density);
+   // Do not orbit on tiny tap jitter; the ray still selects the same face.
+   if(moved)orbit(e.getX()-lastX,e.getY()-lastY);
+   lastX=e.getX();lastY=e.getY();return true;
+  }
+  if(e.getActionMasked()==android.view.MotionEvent.ACTION_UP){
+   // Some drivers deliver a final position only with UP; reject such drags.
+   moved=es.josxtm.mycad.cad.TouchDragThreshold.moved(
+    moved,downX,downY,e.getX(),e.getY(),
+    12*getResources().getDisplayMetrics().density);
+   dragging=false;
+   if(es.josxtm.mycad.cad.SurfaceTapPolicy.shouldPick(
+      moved,surfaceRayListener!=null,surfaceTapListener!=null)){
+    final float x=e.getX(),y=e.getY();
+    queueEvent(()->pickSurfaceAt(x,y));
+   }
+  }
   return true;
  }
  private void pickSurfaceAt(float sx,float sy){
