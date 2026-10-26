@@ -2,6 +2,12 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Validación de unidades DXF (0.6.0):** la importación de bocetos XY exige
+`$INSUNITS=4` explícito y único. Los archivos sin declaración, con unidad
+0 (sin unidad), duplicada o incompleta se rechazan antes de modificar el
+proyecto Android; regresiones Java e integración estática Android en CI.
+Sin APK hasta hito. Véase [intercambio DXF](CAD_DXF_SKETCH_XY.md).
+
 **Extrusión en ambas direcciones (0.6.0):** acepta alturas positivas y negativas sobre los planos XY, XZ e YZ, con tapa y paredes orientadas correctamente, volumen geométrico positivo y salida STL/OBJ idéntica salvo dirección. No añade parametricidad ni agujeros. Pruebas Java y Android CI; sin APK hasta hito.
 
 **Extrusión de contornos cerrados con líneas (0.6.0):** permite

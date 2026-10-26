@@ -78,6 +78,16 @@ public final class SketchDxfIOTest {
   ok(read(unix).size()==3,"DXF con saltos LF");
   String inches=exported.replace("$INSUNITS\r\n70\r\n4","$INSUNITS\r\n70\r\n1");
   fail(()->read(inches),"Se aceptaron pulgadas como milímetros");
+  String unitless=exported.replace("$INSUNITS\r\n70\r\n4","$INSUNITS\r\n70\r\n0");
+  fail(()->read(unitless),"DXF sin unidades no debe asumirse en milímetros");
+  String noUnits=exported.replace("9\r\n$INSUNITS\r\n70\r\n4\r\n","");
+  fail(()->read(noUnits),"DXF sin $INSUNITS debe rechazarse");
+  String duplicateUnits=exported.replace("9\r\n$INSUNITS\r\n70\r\n4",
+      "9\r\n$INSUNITS\r\n70\r\n4\r\n9\r\n$INSUNITS\r\n70\r\n4");
+  fail(()->read(duplicateUnits),"DXF con $INSUNITS repetido debe rechazarse");
+  String missingUnitValue=exported.replace("9\r\n$INSUNITS\r\n70\r\n4\r\n",
+      "9\r\n$INSUNITS\r\n");
+  fail(()->read(missingUnitValue),"DXF con $INSUNITS incompleto debe rechazarse");
   fail(()->read(exported.replace("0\r\nCIRCLE","0\r\nSPLINE")),
        "Entidad no soportada no debe perderse silenciosamente");
   fail(()->read(exported.replace("30\r\n0","30\r\n10")),

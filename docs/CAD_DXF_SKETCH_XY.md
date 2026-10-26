@@ -5,7 +5,7 @@
 El editor Android incluye acciones **Importar bocetos DXF (XY)** y
 **Exportar bocetos DXF (XY)** en el menú Proyecto. El subconjunto
 implementado es ASCII DXF 2D, unidades milímetros (variable DXF
-$INSUNITS = 4; se acepta archivo sin unidades explícitas como mm):
+$INSUNITS = 4; los archivos sin unidad declarada se rechazan):
 
 - LINE → boceto de línea, no extruible por sí solo.
 - CIRCLE → boceto circular, con centro y radio preservados.
@@ -19,8 +19,8 @@ $INSUNITS = 4; se acepta archivo sin unidades explícitas como mm):
 
 Rechaza importaciones con entidades no soportadas, geometría fuera
 del plano XY, polilíneas abiertas, arcos DXF (bulge), anchuras/grosores
-no nulos, vértices degenerados y unidades explícitas distintas de
-milímetros. Los polígonos cerrados no rectangulares se conservan como
+no nulos, vértices degenerados, ausencia o duplicación de $INSUNITS
+y unidades distintas de milímetros (incluido el código 0, sin unidad). Los polígonos cerrados no rectangulares se conservan como
 líneas; no se convierten erróneamente en rectángulos. Los polígonos
 con agujeros, autointersecciones o ramas todavía no pueden extruirse.
 Esto evita pérdidas parciales silenciosas.
@@ -36,7 +36,9 @@ Esto evita pérdidas parciales silenciosas.
 - La exportación contiene los bocetos XY, no cuerpos 3D ni operaciones
   booleanas. No sustituye exportación STEP ni DXF industrial completo.
 - CI incluye SketchDxfIOTest con pruebas de ida/vuelta, límites,
-  entidades incompatibles, Z distinto de cero y unidades incorrectas.
+  entidades incompatibles, Z distinto de cero, unidades ausentes,
+repetidas o incorrectas; el script de CI comprueba que Android valide
+antes de añadir bocetos o registrar deshacer.
 - DxfContourExtrusionIntegrationTest comprueba el recorrido real de
   un contorno L cóncavo desde DXF hasta una malla 3D cerrada con
   volumen positivo.
