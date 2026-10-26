@@ -795,3 +795,24 @@ for token in ("face.sourceLineId", "changed.size()<2", "feature.asBRep(next)"):
  assert token in core,token
 print("Cara B-Rep lateral: desplazamiento geométrico y commit atómico integrado: OK")
 PY
+
+# First analytic solid-solid Boolean for two convex B-Rep prism cross-sections.
+python3 - <<'PY'
+from pathlib import Path
+main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+core=Path("app/src/main/java/es/josxtm/mycad/cad/ConvexPrismBRepIntersection.java").read_text(encoding="utf-8")
+flow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+block=main[main.index("void intersectLinkedLoopMeshes("):main.index("void booleanMeshManager()")]
+for marker in ("firstFeature.asBRep(", "secondFeature.asBRep(",
+ "ConvexPrismBRepIntersection.intersect(a,b)", "checkpoint();",
+ "booleanMeshes.add(newMesh);", "loopExtrusionFeatures.add(null);",
+ "unionRecipes.add(null);holeRecipes.add(null);"):
+ assert marker in block,marker
+assert block.index("ConvexPrismBRepIntersection.intersect(a,b)") < block.index("checkpoint();")
+assert "if(choice==8){intersectLinkedLoopMeshes(index);}" in main
+assert "if(option==4){intersectLinkedLoopMeshes(index);return;}" in main
+assert "ConvexPrismBRepIntersectionTest" in flow
+assert "Booleanas B-Rep: solo perfiles convexos" in core
+assert "linked.asBRep(lines)" in core
+print("Intersección B-Rep convexa: validación, integración UI y transacción: OK")
+PY
