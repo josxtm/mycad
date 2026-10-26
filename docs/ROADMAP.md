@@ -2,6 +2,8 @@
 
 **Principio:** primero comportamiento verificable, después ampliación de herramientas.
 
+**Raycast independiente de la escala (0.6.0):** el selector de triángulos compara el determinante con el producto de las longitudes de sus aristas, en lugar de usar un mínimo absoluto que ocultaba caras de 1 µm. Se prueban impactos, fallos y equivalencia con el índice BVH; sin APK ni validación táctil. Véase [selección a escala](CAD_RAY_PICKING_SCALE.md).
+
 **Áreas degeneradas independientes de escala (0.6.0):** se elimina el umbral absoluto de área que rechazaba triángulos legítimos de sólidos diminutos o alargados; se detectan como degenerados solo triángulos de área exactamente nula y esquinas repetidas, manteniendo la comprobación de volumen por componente. Regresiones con tetraedros de 1 µm y altas relaciones de aspecto. Sin APK; véase [áreas a escala](CAD_MESH_SCALE_DEGENERACY.md).
 
 **Rechazo de componentes sin volumen (0.6.0):** el validador de sólidos comprueba el volumen orientado de cada componente de caras conectadas por aristas; una lámina coplanar de doble cara puede tener aristas emparejadas y aun así no encerrar sólido. Se rechaza la componente de volumen exactamente cero, incluso si otra componente válida aporta volumen total positivo. Se exponen contadores de componentes y componentes nulas; regresiones Java, sin APK. Véase [mallas sin volumen](CAD_MESH_ZERO_VOLUME.md).
