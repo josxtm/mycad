@@ -97,7 +97,8 @@ public final class OrthogonalMultiShellBRepBooleanTest {
     check(upgraded.shellCount==1,"Single-body compatibility");
     check(Arrays.equals(old,upgraded.triangles()),"Original JSON mesh byte-equivalence");
    }
-   reject(()->OrthogonalPolygonBRepBoolean.applyMulti(base,right,
+   PolygonPrismBRep far=solid(B,p,h,box(9,0,11,2));
+   reject(()->OrthogonalPolygonBRepBoolean.applyMulti(base,far,
      OrthogonalPolygonBRepBoolean.Operation.INTERSECTION),
       "No volume in intersection");
    reject(()->OrthogonalPolygonBRepBoolean.applyMulti(base,
