@@ -128,6 +128,26 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
   agrega ahora exactamente **una** receta al listado de booleanas,
   evitando duplicar su entrada y desalinear el proyecto JSON.
 
+## Resta B-Rep ortogonal con historial paramétrico
+
+- Desde un contorno vinculado en el visor o en Resultados, seleccionar
+  **Restar otro prisma B-Rep rectangular**. El primer sólido es la pieza;
+  el segundo, el cortador. Ambos deben estar extruidos en el mismo plano
+  y con igual altura firmada.
+- Se calcula una verdadera operación de diferencia en la sección
+  ortogonal, reconstruyendo un sólido B-Rep con caras, aristas y semiaristas.
+  Admite cortes de esquina **en L**, muescas laterales y cortes de banda
+  que dejan un único sólido conexo.
+- Si la resta generaría un **agujero interno**, dos piezas desconectadas
+  o cero volumen, se rechaza sin modificar el documento; estas
+  topologías exigirán soporte de varios contornos/cascarones.
+- Se guarda una receta `DIFFERENCE_ORTHOGONAL` con referencias a las dos
+  extrusiones originales, siguiendo el historial de undo y guardado JSON v1.
+  Los cambios de boceto, altura o cara lateral se comprueban y propagan
+  antes del commit. Si invalidan la resta, se cancela toda la edición.
+- Se mantienen los originales; la vista del resultado es una malla
+  triangulada vinculada, no todavía una B-Rep general editable por caras.
+
 ## Limitaciones importantes
 
 Las operaciones vinculadas son **solo para extrusiones generadas a
