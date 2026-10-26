@@ -235,6 +235,67 @@ public class MainActivity extends Activity {
    }).show();
  }
 
+
+ /** Resolve current sketch coordinates by persistent UUID, not list position. */
+ java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment>
+ loopSketchSegments(es.josxtm.mycad.cad.LoopExtrusionFeature feature,
+                    Sketch override,float x1,float y1,float x2,float y2){
+  java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> result=
+   new java.util.LinkedHashMap<>();
+  for(Sketch sketch:sketches)if(feature.dependsOn(sketch.id)){
+   if(sketch.type!=1||sketch.plane!=feature.plane)
+    throw new IllegalArgumentException("La línea de origen ha cambiado de plano");
+   result.put(sketch.id,new es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment(
+    sketch.plane,sketch==override?x1:sketch.x1,sketch==override?y1:sketch.y1,
+    sketch==override?x2:sketch.x2,sketch==override?y2:sketch.y2));
+  }
+  return result;
+ }
+ /** Preflight all linked meshes before ANY geometry, history or JSON mutation. */
+ java.util.Map<Integer,MeshEngine.Mesh> prepareLinkedLoopEdit(
+   Sketch changed,float x1,float y1,float x2,float y2){
+  java.util.LinkedHashMap<Integer,MeshEngine.Mesh> staged=new java.util.LinkedHashMap<>();
+  for(int i=0;i<loopExtrusionFeatures.size();i++){
+   es.josxtm.mycad.cad.LoopExtrusionFeature feature=loopExtrusionFeatures.get(i);
+   if(feature!=null&&feature.dependsOn(changed.id)){
+    es.josxtm.mycad.cad.ClosedSketchExtrusion.Result solid=
+     feature.regenerate(loopSketchSegments(feature,changed,x1,y1,x2,y2));
+    staged.put(i,new MeshEngine.Mesh(solid.triangles));
+   }
+  }
+  return staged;
+ }
+ void applyLinkedLoopEdit(java.util.Map<Integer,MeshEngine.Mesh> staged){
+  for(java.util.Map.Entry<Integer,MeshEngine.Mesh> e:staged.entrySet())
+   booleanMeshes.set(e.getKey(),e.getValue());
+  if(!staged.isEmpty()&&meshMode&&meshView!=null)renderCurrentCadMesh();
+ }
+ void editLoopExtrusionDistance(int index){
+  if(index<0||index>=loopExtrusionFeatures.size()||
+     loopExtrusionFeatures.get(index)==null){toast("Malla sin vínculo paramétrico");return;}
+  final es.josxtm.mycad.cad.LoopExtrusionFeature original=loopExtrusionFeatures.get(index);
+  EditText input=new EditText(this);input.setInputType(8194|4096);
+  input.setText(String.valueOf(original.distance));
+  new AlertDialog.Builder(this).setTitle("Distancia de extrusión · mm")
+   .setMessage("Se regenerará desde las líneas originales con distancia firmada. "+
+    "El resultado sigue siendo una malla, no una B-Rep editable.")
+   .setView(input).setNegativeButton("Cancelar",null)
+   .setPositiveButton("Aplicar",(dialog,which)->{
+    if(fileBusy||index>=loopExtrusionFeatures.size()||
+       loopExtrusionFeatures.get(index)!=original){toast("La malla ha cambiado");return;}
+    try{
+     double distance=Double.parseDouble(input.getText().toString().replace(',','.'));
+     es.josxtm.mycad.cad.LoopExtrusionFeature next=original.withDistance(distance);
+     MeshEngine.Mesh mesh=new MeshEngine.Mesh(next.regenerate(
+      loopSketchSegments(next,null,0,0,0,0)).triangles);
+     checkpoint();booleanMeshes.set(index,mesh);loopExtrusionFeatures.set(index,next);
+     save();scene.invalidate();
+     if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     toast("Extrusión de contorno regenerada · "+distance+" mm");
+    }catch(Exception error){toast("Contorno no válido: "+error.getMessage());}
+   }).show();
+ }
+
  void requestSketchDeletion(boolean selectedOnly){
   if(sketches.isEmpty()){toast("No hay bocetos para eliminar");return;}
   int index=selectedOnly?selectedSketch:sketches.size()-1;
@@ -247,7 +308,11 @@ public class MainActivity extends Activity {
    plan=es.josxtm.mycad.cad.SketchDeletionPlan.inspect(target.id,sketchBodyLinks());
   }catch(Exception error){toast("Hay identificadores de cuerpos duplicados");return;}
   int count=plan.dependentBodyIds.size();
-  String detail="Boceto "+(index+1)+" · "+count+" pieza(s) vinculada(s). "+
+  int linkedLoops=0;
+  for(es.josxtm.mycad.cad.LoopExtrusionFeature f:loopExtrusionFeatures)
+   if(f!=null&&f.dependsOn(target.id))linkedLoops++;
+  String detail="Boceto "+(index+1)+" · "+count+" pieza(s) vinculada(s), "+
+   linkedLoops+" extrusión(es) de líneas. "+
    "Puedes conservar los cuerpos como independientes o eliminarlos junto al boceto. "+
    "Ambas operaciones se pueden deshacer.";
   new AlertDialog.Builder(this).setTitle("Eliminar boceto y dependencias")
@@ -272,6 +337,14 @@ public class MainActivity extends Activity {
   final String selectedId=selected>=0&&selected<parts.size()?parts.get(selected).id:null;
   checkpoint();
   sketches.remove(index);
+  for(int i=loopExtrusionFeatures.size()-1;i>=0;i--){
+   es.josxtm.mycad.cad.LoopExtrusionFeature feature=loopExtrusionFeatures.get(i);
+   if(feature==null||!feature.dependsOn(target.id))continue;
+   if(mode==es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE){
+    loopExtrusionFeatures.remove(i);booleanMeshes.remove(i);
+    unionRecipes.remove(i);holeRecipes.remove(i);
+   }else loopExtrusionFeatures.set(i,null);
+  }
   if(mode==es.josxtm.mycad.cad.SketchDeletionPlan.Mode.CASCADE_DELETE){
    parts.removeIf(body->!retained.contains(body.id));
   }else{
