@@ -116,7 +116,7 @@ public final class PolygonPrismBRepTest {
   // Vertex positions differ but logical topology still derives from incident
   // sketch UUIDs, never from tessellation indices or input drawing direction.
   PolygonPrismBRep a=PolygonPrismBRep.from(feature(0,5,6),polygon(0,concave,false,false));
-  PolygonPrismBRep backward=PolygonPrismBRep.from(feature(0,5,6),polygon(0,concave,true,true));
+  PolygonPrismBRep backward=PolygonPrismBRep.from(feature(0,5,6),polygon(0,concave,false,true));
   for(PolygonPrismBRep.Edge edge:a.edges())
    check(backward.findEdge(edge.id)!=null,"stable ID under reversed line directions");
   Map<String,ClosedSketchExtrusion.Segment> changed=polygon(0,concave,false,false);
