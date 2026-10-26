@@ -39,6 +39,12 @@ public final class LoopExtrusionFeature {
  }
  public List<String> lineIds(){return sourceLineIds;}
  public boolean dependsOn(String sourceId){return sourceLineIds.contains(sourceId);}
+ /** Analytic planar shell with persistent edge/face/vertex IDs.
+  * This is not general CAD Boolean or NURBS support. */
+ public PolygonPrismBRep asBRep(
+    Map<String,ClosedSketchExtrusion.Segment> current){
+  return PolygonPrismBRep.from(this,current);
+ }
  public LoopExtrusionFeature withDistance(double next){
   return new LoopExtrusionFeature(id,selectedLineId,plane,next,sourceLineIds);
  }
