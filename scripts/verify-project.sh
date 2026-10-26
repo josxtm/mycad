@@ -446,7 +446,7 @@ view=a[a.index("void cubeView(int row,int col){"):a.index("void drawOrientationC
 assert "CubeCameraPreset.cell(row,col)" in view
 assert "syncGpuViewCube();" in view
 assert "meshView.setViewOrientation((float)Math.toDegrees(yaw)" in a
-assert "pitch=Math.max(-89,Math.min(89,pitchDegrees));" in m
+assert "CameraOrientationSync.pitchDegrees(pitchDegrees)" in m
 assert "syncGpuViewCube();invalidate();" in a
 print("ViewCube: pulsación y arrastre rotan también cámara GPU: OK")
 PY
