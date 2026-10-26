@@ -53,6 +53,29 @@ public final class PrimitiveEdgeHandle {
   return new PrimitiveEdgeHandle(body.bodyId,edgeId,faceId,
                                  adjacentFaceIndex,anchor,normal);
  }
+ /**
+  * Anchor the drag gizmo at the closest point of the edge actually touched.
+  * A persistent edge ID alone is insufficient: reject hits computed before
+  * any dimension, translation or rotation change of the source primitive.
+  * For cylinder sides the normal follows the selected rim angle, rather
+  * than the nominal local +X direction.
+  */
+ public static PrimitiveEdgeHandle fromHit(PrimitiveBRepBody body,
+                                            AnalyticEdgePicker.Hit hit,
+                                            int adjacentFaceIndex){
+  if(body==null||hit==null||!hit.matchesGeometry(body))
+   throw new IllegalArgumentException("Stale or foreign edge hit");
+  PrimitiveEdgeHandle nominal=from(body,hit.edgeId,adjacentFaceIndex);
+  double[] point=hit.closestPoint();
+  double[] local=body.pose().inversePoint(point[0],point[1],point[2]);
+  double angle=Math.atan2(local[1],local[0]);
+  double[] direction=body.findFace(nominal.faceId).outwardNormalAt(angle);
+  double length=Math.hypot(direction[0],Math.hypot(direction[1],direction[2]));
+  if(!Double.isFinite(length)||Math.abs(length-1)>1e-7)
+   throw new IllegalArgumentException("Invalid touched edge normal");
+  return new PrimitiveEdgeHandle(body.bodyId,hit.edgeId,nominal.faceId,
+                                 adjacentFaceIndex,point,direction);
+ }
  public double[] anchor(){return anchor.clone();}
  public double[] normal(){return normal.clone();}
  public float[] gpu(){
