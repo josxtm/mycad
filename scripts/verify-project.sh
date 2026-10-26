@@ -148,6 +148,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/EdgeScreenTolerance.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveFaceHandle.java \
   app/src/main/java/es/josxtm/mycad/cad/PrimitiveEdgeHandle.java \
+  app/src/main/java/es/josxtm/mycad/cad/DragPrecision.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -157,7 +158,8 @@ javac -d build/box-brep-tests \
   tests/PrimitiveEdgeCurveTest.java \
   tests/EdgeScreenToleranceTest.java \
   tests/PrimitiveFaceHandleTest.java \
-  tests/PrimitiveEdgeHandleTest.java
+  tests/PrimitiveEdgeHandleTest.java \
+  tests/DragPrecisionTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -168,6 +170,7 @@ java -cp build/box-brep-tests PrimitiveEdgeCurveTest
 java -cp build/box-brep-tests EdgeScreenToleranceTest
 java -cp build/box-brep-tests PrimitiveFaceHandleTest
 java -cp build/box-brep-tests PrimitiveEdgeHandleTest
+java -cp build/box-brep-tests DragPrecisionTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -310,6 +313,21 @@ for marker in (
         raise SystemExit("ERROR: arrastre arista B-Rep incompleto: "+marker)
 assert block.index("checkpoint();")<block.index("save();scene.invalidate();")
 print("Arrastre tactil de aristas analiticas: OK")
+PY
+
+# Snap-to-grid must affect the SAME value used by live preview and Apply.
+python3 - <<'PY'
+from pathlib import Path
+a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+assert "case 26:chooseDragPrecision();break;" in a
+assert "void chooseDragPrecision(){" in a
+assert a.count('getPreferences(MODE_PRIVATE).getFloat("dragSnapMm",0f)') >= 3
+assert "meshView.setFaceSnapStepMm(" in a
+assert "public void setFaceSnapStepMm(double step)" in m
+assert "DragPrecision.quantize(" in m
+assert "double mm=faceMovement(e.getX(),e.getY());" in m
+print("Arrastre sobre modelo con imán configurable: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"

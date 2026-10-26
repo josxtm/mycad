@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)","Arrastrar cara directamente en 3D","Arrastrar arista directamente en 3D"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;case 24:toggleFaceDragOnModel();break;case 25:toggleEdgeDragOnModel();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)","Arrastrar cara directamente en 3D","Arrastrar arista directamente en 3D","Precisión de arrastre (imán)"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;case 24:toggleFaceDragOnModel();break;case 25:toggleEdgeDragOnModel();break;case 26:chooseDragPrecision();break;}}).show();}
  es.josxtm.mycad.cad.ParametricFeatureGraph buildParametricFeatureGraph(){
   es.josxtm.mycad.cad.ParametricFeatureGraph.Builder builder=
    new es.josxtm.mycad.cad.ParametricFeatureGraph.Builder();
@@ -1441,6 +1441,31 @@ public class MainActivity extends Activity {
   * Each gesture moves only that constrained component of offsetEdge().
   * The opposite coordinate stays fixed, and unrelated geometry is untouched.
   */
+ /** Configure symmetric snapping for on-model B-Rep face and edge dragging. */
+ void chooseDragPrecision(){
+  if(faceDragEnabled){
+   toast("Termina o cancela primero el arrastre activo");return;
+  }
+  final String[] labels={
+   "Libre (sin imán)",
+   "Preciso · 0,1 mm",
+   "Normal · 0,5 mm",
+   "Grueso · 1 mm"
+  };
+  final float[] step={0f,.1f,.5f,1f};
+  float saved=getPreferences(MODE_PRIVATE).getFloat("dragSnapMm",0f);
+  int selectedIndex=0;
+  for(int i=0;i<step.length;i++)
+   if(Math.abs(saved-step[i])<1e-6f)selectedIndex=i;
+  new AlertDialog.Builder(this).setTitle("Precisión del arrastre 3D")
+   .setSingleChoiceItems(labels,selectedIndex,(dialog,choice)->{
+    float value=step[choice];
+    getPreferences(MODE_PRIVATE).edit().putFloat("dragSnapMm",value).apply();
+    if(meshView!=null)meshView.setFaceSnapStepMm(value);
+    dialog.dismiss();
+    toast("Arrastre B-Rep · "+labels[choice]);
+   }).setNegativeButton("Cancelar",null).show();
+ }
  void toggleEdgeDragOnModel(){
   if(faceDragEnabled){finishFaceDrag();toast("Arrastre 3D cancelado");return;}
   if(fileBusy||!cadGpuMesh||!meshMode||meshView==null||
@@ -1482,6 +1507,8 @@ public class MainActivity extends Activity {
      final double maxMotion=Math.max(2,Math.min(100,
        Math.min(original.width,Math.min(original.depth,original.height))*.8));
      faceDragEnabled=true;
+     meshView.setFaceSnapStepMm(
+      getPreferences(MODE_PRIVATE).getFloat("dragSnapMm",0f));
      meshView.setFaceDragHandle(handle.gpu(),maxMotion,
        (delta,finished,cancelled)->{
         if(!faceDragEnabled)return;
@@ -1580,6 +1607,8 @@ public class MainActivity extends Activity {
   double maxMotion=Math.max(2,Math.min(100,
     Math.min(original.width,Math.min(original.depth,original.height))*.8));
   faceDragEnabled=true;
+  meshView.setFaceSnapStepMm(
+   getPreferences(MODE_PRIVATE).getFloat("dragSnapMm",0f));
   meshView.setFaceDragHandle(handle.gpu(),maxMotion,
    (deltaMm,finished,cancelled)->{
     if(!faceDragEnabled)return;

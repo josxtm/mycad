@@ -31,6 +31,14 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private boolean faceHandleCaptured=false;
  private float faceDragStartX,faceDragStartY,faceDragAxisX,faceDragAxisY;
  private double faceDragLimit=0;
+ private volatile double faceSnapStepMm=0;
+ /** Zero for free movement; optional snap grid in physical mm. */
+ public void setFaceSnapStepMm(double step){
+  if(!Double.isFinite(step)||step<0||step>10)
+   throw new IllegalArgumentException("Invalid snapping grid");
+  faceSnapStepMm=step;
+ }
+
  public interface FaceDragListener {
   void onDrag(double deltaMm,boolean finished,boolean cancelled);
  }
@@ -85,7 +93,8 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   if(denom<1e-10)return 0;
   double mm=((sx-faceDragStartX)*faceDragAxisX+
              (sy-faceDragStartY)*faceDragAxisY)/denom;
-  return Math.max(-faceDragLimit,Math.min(faceDragLimit,mm));
+  return es.josxtm.mycad.cad.DragPrecision.quantize(
+   mm,faceDragLimit,faceSnapStepMm);
  }
 
  public void highlightFace(int firstTriangle){highlightedFirstTriangle=firstTriangle;requestRender();}
