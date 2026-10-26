@@ -218,7 +218,8 @@ public class MainActivity extends Activity {
      checkpoint();
      booleanMeshes.add(mesh);unionRecipes.add(null);holeRecipes.add(null);
      save();scene.invalidate();
-     if(meshMode&&meshView!=null)renderCurrentCadMesh();
+     if(!meshMode)toggleMeshView();
+     else if(meshView!=null)renderCurrentCadMesh();
      toast("Contorno extruido: "+result.usedLines+" líneas · "+
        mesh.triangles()+" triángulos");
     }catch(Exception error){toast("No se pudo extruir: "+error.getMessage());}
