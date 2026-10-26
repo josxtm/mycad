@@ -59,6 +59,7 @@ public final class OrthogonalMultiShellBRepBooleanTest {
  public static void main(String[] args){
   for(int p=0;p<3;p++)for(double height:new double[]{3,-3}){
    final int plane=p;final double h=height;
+   final int fixedPlane=p;
    PolygonPrismBRep left=solid(A,p,h,box(0,0,2,2));
    PolygonPrismBRep right=solid(B,p,h,box(5,0,7,2));
    OrthogonalPolygonBRepBoolean.MultiResult union=
@@ -100,7 +101,7 @@ public final class OrthogonalMultiShellBRepBooleanTest {
      OrthogonalPolygonBRepBoolean.Operation.INTERSECTION),
       "No volume in intersection");
    reject(()->OrthogonalPolygonBRepBoolean.applyMulti(base,
-     solid(B,p,-h,box(2,1,6,5)),OrthogonalPolygonBRepBoolean.Operation.UNION),
+     solid(B,fixedPlane,-h,box(2,1,6,5)),OrthogonalPolygonBRepBoolean.Operation.UNION),
       "Incompatible signed heights");
   }
   reject(()->OrthogonalPolygonBRepBoolean.applyMulti(
