@@ -156,6 +156,7 @@ javac -d build/box-brep-tests \
   app/src/main/java/es/josxtm/mycad/cad/CubeCameraPreset.java \
   app/src/main/java/es/josxtm/mycad/cad/SurfaceTapPolicy.java \
   app/src/main/java/es/josxtm/mycad/cad/CameraRefitPolicy.java \
+  app/src/main/java/es/josxtm/mycad/cad/TouchDragThreshold.java \
   tests/BoxBRepTest.java \
   tests/CylinderBRepTest.java \
   tests/PrimitiveBRepBodyTest.java \
@@ -173,7 +174,8 @@ javac -d build/box-brep-tests \
   tests/FloatVertexBufferCacheTest.java \
   tests/CubeCameraPresetTest.java \
   tests/SurfaceTapPolicyTest.java \
-  tests/CameraRefitPolicyTest.java
+  tests/CameraRefitPolicyTest.java \
+  tests/TouchDragThresholdTest.java
 java -cp build/box-brep-tests BoxBRepTest
 java -cp build/box-brep-tests CylinderBRepTest
 java -cp build/box-brep-tests PrimitiveBRepBodyTest
@@ -192,6 +194,7 @@ java -cp build/box-brep-tests FloatVertexBufferCacheTest
 java -cp build/box-brep-tests CubeCameraPresetTest
 java -cp build/box-brep-tests SurfaceTapPolicyTest
 java -cp build/box-brep-tests CameraRefitPolicyTest
+java -cp build/box-brep-tests TouchDragThresholdTest
 
 # Regresión de integración del editor de caras cilíndricas.
 python3 - <<'PY'
@@ -443,7 +446,7 @@ python3 - <<'PY'
 from pathlib import Path
 mesh=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
 activity=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
-assert "SurfaceTapPolicy.shouldPick(moved,surfaceRayListener!=null,surfaceTapListener!=null)" in mesh
+assert "SurfaceTapPolicy.shouldPick(moved,surfaceRayListener!=null,surfaceTapListener!=null)" in "".join(mesh.split())
 assert "if(!moved&&surfaceTapListener!=null)" not in mesh
 assert "if(surfaceRayListener!=null)" in mesh
 assert "surfaceRayListener.onSurfaceRay(" in mesh
@@ -469,6 +472,18 @@ for marker in (
 assert "meshView.updateMeshesPreservingCamera(" in render
 assert "meshView.setMeshes(java.util.Collections.singletonList(mesh));" in isolated
 print("Regenerar CAD conserva pan y zoom; malla aislada recibe encuadre: OK")
+PY
+
+# Ray picking remains precise while accidental movement below touch slop does not orbit.
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
+assert src.count("TouchDragThreshold.moved(")==2
+assert "if(moved)orbit(e.getX()-lastX,e.getY()-lastY);" in src
+assert "SurfaceTapPolicy.shouldPick(" in src
+assert src.index("Some drivers deliver a final position only with UP") < src.index("SurfaceTapPolicy.shouldPick(")
+assert "if(e.getPointerCount()>1&&faceHandleCaptured)" in src
+print("Toque/órbita GPU: tolerancia, cancelación y picking protegidos: OK")
 PY
 
 echo "Comprobaciones básicas del proyecto: OK"
