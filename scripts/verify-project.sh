@@ -636,6 +636,31 @@ assert "Distancia en mm (+ hacia delante" in a
 print("Extrusión bidireccional XY/XZ/YZ: normals, volumen y UI integrados")
 PY
 
+# Linked loop extrusion must survive project JSON, undo/redo and detach on deletion.
+python3 - <<'PY'
+from pathlib import Path
+main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+kernel=Path("app/src/main/java/es/josxtm/mycad/cad/LoopExtrusionFeature.java").read_text(encoding="utf-8")
+workflow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for marker in [
+ "loopExtrusionFeatures.add(feature);",
+ 'file.put("loopExtrusionFeatures",linkedLoops);',
+ 'optJSONArray("loopExtrusionFeatures")',
+ "loopExtrusionFeatures=restored.loops;",
+ "loopExtrusionFeatures=loaded.loops;",
+ "void editLoopExtrusionDistance(int index)",
+ "prepareLinkedLoopEdit(q,v[0],v[1],v[2],v[3])",
+ "applyLinkedLoopEdit(staged);",
+ "loopExtrusionFeatures.remove(removed)",
+ "loopExtrusionFeatures.clear()",
+ "feature.regenerate(source)",
+]:
+    assert marker in main,marker
+assert "LoopExtrusionFeatureTest" in workflow
+assert "selectedLineId" in kernel and "List<String> sourceLineIds" in kernel
+print("Extrusión de líneas vinculadas: persistencia, edición atómica y deshacer: OK")
+PY
+
 echo "Comprobaciones básicas del proyecto: OK"
 
 # Integración Android: la validación de unidades DXF debe finalizar antes del undo/guardado.
