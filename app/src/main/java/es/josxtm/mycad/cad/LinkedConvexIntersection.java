@@ -9,7 +9,7 @@ import java.util.*;
  * Rebuild is read-only and can be committed transactionally.
  */
 public final class LinkedConvexIntersection {
- public enum Operation { INTERSECTION, UNION_ORTHOGONAL }
+ public enum Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL }
  public final String id,firstId,secondId;
  public final Operation operation;
 
@@ -61,8 +61,10 @@ public final class LinkedConvexIntersection {
   LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
   if(a==null||b==null||!firstId.equals(a.id)||!secondId.equals(b.id))
    throw new IllegalArgumentException("Se eliminó un sólido de la unión");
-  float[] out=OrthogonalPrismBRepUnion.union(
-   a.asBRep(lines),b.asBRep(lines)).triangles();
+  float[] out=(operation==Operation.DIFFERENCE_ORTHOGONAL?
+   OrthogonalPrismBRepUnion.difference(a.asBRep(lines),b.asBRep(lines)):
+   OrthogonalPrismBRepUnion.union(a.asBRep(lines),b.asBRep(lines)))
+   .triangles();
   if(out.length>18000)throw new IllegalArgumentException("Unión B-Rep demasiado grande");
   return out;
  }
