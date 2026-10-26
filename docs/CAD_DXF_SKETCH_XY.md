@@ -11,10 +11,19 @@ $INSUNITS = 4; se acepta archivo sin unidades explícitas como mm):
 - CIRCLE → boceto circular, con centro y radio preservados.
 - LWPOLYLINE cerrada de cuatro vértices ortogonales → boceto
   rectangular, utilizable para extrusión en el motor actual.
+- **Otras LWPOLYLINE cerradas de segmentos rectos (3–2000 vértices)** →
+  importación de cada arista como boceto de línea conectado. Así se
+  importan triángulos y contornos cóncavos (por ejemplo, forma de L),
+  que pueden extruirse con la herramienta de contorno cerrado. Los
+  segmentos se pueden editar de forma individual.
 
 Rechaza importaciones con entidades no soportadas, geometría fuera
-del plano XY, contornos no ortogonales y unidades explícitas distintas
-de milímetros. Esto evita pérdidas parciales silenciosas.
+del plano XY, polilíneas abiertas, arcos DXF (bulge), anchuras/grosores
+no nulos, vértices degenerados y unidades explícitas distintas de
+milímetros. Los polígonos cerrados no rectangulares se conservan como
+líneas; no se convierten erróneamente en rectángulos. Los polígonos
+con agujeros, autointersecciones o ramas todavía no pueden extruirse.
+Esto evita pérdidas parciales silenciosas.
 
 ## Seguridad e integración
 
@@ -28,6 +37,9 @@ de milímetros. Esto evita pérdidas parciales silenciosas.
   booleanas. No sustituye exportación STEP ni DXF industrial completo.
 - CI incluye SketchDxfIOTest con pruebas de ida/vuelta, límites,
   entidades incompatibles, Z distinto de cero y unidades incorrectas.
+- DxfContourExtrusionIntegrationTest comprueba el recorrido real de
+  un contorno L cóncavo desde DXF hasta una malla 3D cerrada con
+  volumen positivo.
 
 **Estado:** cambios de código verificados por CI; falta probar importación,
 selector de documentos y representación visual en Nothing Phone 2a.

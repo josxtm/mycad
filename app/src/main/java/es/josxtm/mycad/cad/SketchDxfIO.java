@@ -6,9 +6,10 @@ import java.util.*;
 
 /**
  * Restricted ASCII DXF bridge for the Android sketch editor (XY, millimetres).
- * Supported entities: LINE, CIRCLE and axis-aligned closed four-vertex
- * LWPOLYLINE rectangles. Unsupported geometry fails instead of silently
- * disappearing on import. This is NOT a general DXF or 3D CAD parser.
+ * Supported entities: LINE, CIRCLE and closed LWPOLYLINE contours.
+ * Axis-aligned four-corner rectangles remain native rectangle sketches;
+ * other closed straight contours become connected LINE sketches. Unsupported
+ * geometry fails instead of silently disappearing on import. This is NOT a general DXF or 3D CAD parser.
  */
 public final class SketchDxfIO {
  private SketchDxfIO(){}
@@ -112,13 +113,19 @@ public final class SketchDxfIO {
    add(output,new Shape(3,cx,cy,cx+r,cy));
   }else if("LWPOLYLINE".equals(name)){
    double declared=num(field(a,90),"90"),flags=optional(a,70,0);
-   if(declared!=4||(int)flags!=flags||(((int)flags)&1)==0)
-    throw new IllegalArgumentException("Solo se importan polilíneas rectangulares cerradas");
+   if(declared<3||declared>MAX_SHAPES||declared!=(int)declared||
+      flags!=(int)flags||(((int)flags)&1)==0)
+    throw new IllegalArgumentException("Solo se importan polilíneas cerradas de 3 a 2000 vértices");
    List<double[]> corners=new ArrayList<>();
    Double waitingX=null;
    for(Pair p:a){
     if("42".equals(p.code)&&num(p.value,"42")!=0)
      throw new IllegalArgumentException("Arcos DXF dentro de polilínea no soportados");
+    // Nonzero thickness/width is not a 1D sketch line: never discard it.
+    if(("39".equals(p.code)||"40".equals(p.code)||
+        "41".equals(p.code)||"43".equals(p.code))&&
+       num(p.value,"Ancho/grosor")!=0)
+     throw new IllegalArgumentException("Grosor de polilínea DXF no soportado");
     if("10".equals(p.code)){
      if(waitingX!=null)throw new IllegalArgumentException("Falta Y de vértice DXF");
      waitingX=num(p.value,"10");
@@ -127,8 +134,8 @@ public final class SketchDxfIO {
      corners.add(new double[]{waitingX,num(p.value,"20")});waitingX=null;
     }
    }
-   if(waitingX!=null||corners.size()!=4)
-    throw new IllegalArgumentException("Rectángulo DXF con vértices incompletos");
+   if(waitingX!=null||corners.size()!=(int)declared)
+    throw new IllegalArgumentException("Polilínea DXF con vértices incompletos");
    double loX=Double.POSITIVE_INFINITY,loY=Double.POSITIVE_INFINITY;
    double hiX=Double.NEGATIVE_INFINITY,hiY=Double.NEGATIVE_INFINITY;
    for(double[] point:corners){
@@ -136,19 +143,34 @@ public final class SketchDxfIO {
     loY=Math.min(loY,point[1]);hiY=Math.max(hiY,point[1]);
    }
    double eps=1e-8*Math.max(1,Math.max(hiX-loX,hiY-loY));
+   boolean rectangle=corners.size()==4&&hiX-loX>eps&&hiY-loY>eps;
    boolean[] seen=new boolean[4];
-   for(int i=0;i<4;i++){
+   if(rectangle)for(int i=0;i<4;i++){
     double[] v=corners.get(i),w=corners.get((i+1)%4);
     boolean xMin=Math.abs(v[0]-loX)<=eps,xMax=Math.abs(v[0]-hiX)<=eps;
     boolean yMin=Math.abs(v[1]-loY)<=eps,yMax=Math.abs(v[1]-hiY)<=eps;
     if(!(xMin||xMax)||!(yMin||yMax)||
-       !(Math.abs(v[0]-w[0])<=eps ^ Math.abs(v[1]-w[1])<=eps))
-     throw new IllegalArgumentException("La polilínea DXF no es un rectángulo ortogonal");
+       !(Math.abs(v[0]-w[0])<=eps ^ Math.abs(v[1]-w[1])<=eps)){
+     rectangle=false;break;
+    }
     int quadrant=(xMax?1:0)+(yMax?2:0);
-    if(seen[quadrant])throw new IllegalArgumentException("Vértices de rectángulo repetidos");
+    if(seen[quadrant]){rectangle=false;break;}
     seen[quadrant]=true;
    }
-   add(output,new Shape(2,loX,loY,hiX,hiY));
+   if(rectangle){
+    add(output,new Shape(2,loX,loY,hiX,hiY));
+   }else{
+    // Stage every segment before appending; a malformed final edge leaves no
+    // partial entity behind. read() builds a fresh document until full success.
+    List<Shape> segments=new ArrayList<>();
+    for(int i=0;i<corners.size();i++){
+     double[] v=corners.get(i),w=corners.get((i+1)%corners.size());
+     segments.add(new Shape(1,v[0],v[1],w[0],w[1]));
+    }
+    if(output.size()+segments.size()>MAX_SHAPES)
+     throw new IllegalArgumentException("Demasiados bocetos DXF");
+    output.addAll(segments);
+   }
   }else throw new IllegalArgumentException("Entidad DXF no compatible: "+name);
  }
  public static List<Shape> read(InputStream source)throws IOException{

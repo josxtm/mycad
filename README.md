@@ -116,7 +116,7 @@ Todas las versiones descritas corresponden a las iteraciones de este repositorio
 | `.mycad.json` | Sí | Sí | Proyecto nativo; no equivale a un sólido CAD industrial. |
 | `.stl` | Sí, binario/ASCII | Sí, binario | Malla triangular; se asumen milímetros. |
 | `.obj` | Sí, geometría de caras | Sí | Malla triangular; el lector triangula polígonos. No hay soporte completo de materiales/texturas MTL. |
-| `.dxf` | Sí, solo bocetos XY | Sí, solo bocetos XY | ASCII DXF en mm: LINE, CIRCLE y rectángulo LWPOLYLINE ortogonal cerrado. No se admite DXF 3D, arcos ni splines. |
+| `.dxf` | Sí, solo bocetos XY | Sí, solo bocetos XY | ASCII DXF mm: LINE, CIRCLE, rectángulos LWPOLYLINE y contornos cerrados rectos como líneas conectadas (triángulos/perfiles cóncavos); no DXF 3D, arcos ni splines. |
 | `.step` / `.stp` | Pendiente | Pendiente | Requiere un núcleo geométrico CAD adicional. |
 | `.iges` / `.igs` | Pendiente | Pendiente | No implementado. |
 | `.dwg`, `.3mf`, `.cad` | Pendiente | Pendiente | No implementado; `.cad` no es un formato universal. |

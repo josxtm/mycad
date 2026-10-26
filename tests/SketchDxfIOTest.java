@@ -38,6 +38,42 @@ public final class SketchDxfIOTest {
      Math.abs(Math.hypot(recovered.get(2).x2-recovered.get(2).x1,
                recovered.get(2).y2-recovered.get(2).y1)-8)<1e-9,
      "Radio círculo recuperado");
+  // A concave six-corner DXF loop is imported as six connected line
+  // sketches, suitable for ClosedSketchExtrusion; not discarded or
+  // incorrectly normalized into a rectangle.
+  String concave="0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n"+
+   "0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n"+
+   "90\n6\n70\n1\n"+
+   "10\n0\n20\n0\n10\n3\n20\n0\n10\n3\n20\n1\n"+
+   "10\n1\n20\n1\n10\n1\n20\n3\n10\n0\n20\n3\n"+
+   "0\nENDSEC\n0\nEOF\n";
+  List<SketchDxfIO.Shape> loop=read(concave);
+  ok(loop.size()==6,"Contorno cóncavo: seis segmentos");
+  for(int i=0;i<loop.size();i++){
+   SketchDxfIO.Shape edge=loop.get(i),next=loop.get((i+1)%loop.size());
+   ok(edge.type==1,"Arista de polilínea cóncava no es LINE");
+   ok(edge.x2==next.x1&&edge.y2==next.y1,
+      "Extremos de polilínea deben conservar continuidad");
+  }
+  ok(read(write(loop)).size()==6,"Exportar segmentos importados a DXF");
+  String triangle=concave.replace("90\n6\n70\n1\n"+
+   "10\n0\n20\n0\n10\n3\n20\n0\n10\n3\n20\n1\n"+
+   "10\n1\n20\n1\n10\n1\n20\n3\n10\n0\n20\n3\n",
+   "90\n3\n70\n1\n10\n0\n20\n0\n10\n3\n20\n0\n10\n0\n20\n4\n");
+  ok(read(triangle).size()==3,"Importación de triángulo cerrado");
+  fail(()->read(concave.replace("90\n6\n70\n1","90\n6\n70\n0")),
+       "Polilínea abierta no soportada");
+  fail(()->read(concave.replace("90\n6\n70\n1","90\n5\n70\n1")),
+       "Recuento de vértices incompatible");
+  fail(()->read(concave.replace("10\n3\n20\n1\n10\n1",
+       "10\n3\n20\n1\n42\n1\n10\n1")),
+       "Arco bulge en contorno no soportado");
+  fail(()->read(concave.replace("10\n3\n20\n1\n10\n1",
+       "10\n3\n20\n1\n43\n2\n10\n1")),
+       "Anchura variable no soportada");
+  fail(()->read(concave.replace("10\n1\n20\n3\n10\n0\n20\n3",
+       "10\n1\n20\n3\n10\n1\n20\n3")),
+       "Lado de longitud nula");
   String unix=exported.replace("\r\n","\n");
   ok(read(unix).size()==3,"DXF con saltos LF");
   String inches=exported.replace("$INSUNITS\r\n70\r\n4","$INSUNITS\r\n70\r\n1");
