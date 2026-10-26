@@ -93,6 +93,50 @@ public final class AnalyticEdgePickerTest {
   yes(topCapRim!=null&&topCapRim.edgeId.endsWith("/CYLINDER_TOP"),
       "Top cap retains its shared circular rim");
 
+  // Exact ray hits are tied to the original dimensions and XYZ pose.
+  // A ray from the underside touches the X_0 edge of the bottom face.
+  double[] eye=rotated.point(7,-5,-12);
+  double[] target=rotated.point(7,-5,0);
+  AnalyticPrimitiveRayPicker.Hit surface=AnalyticPrimitiveRayPicker.pick(
+      box,eye[0],eye[1],eye[2],target[0]-eye[0],
+      target[1]-eye[1],target[2]-eye[2]);
+  yes(surface!=null&&surface.faceId.equals("persistent-box/face/Z_MIN"),
+      "Analytic ray resolves the visible bottom face");
+  AnalyticEdgePicker.Hit trusted=AnalyticEdgePicker.nearestEdgeOnSurfaceHit(
+      box,surface,.001);
+  yes(trusted!=null&&trusted.edgeId.equals("persistent-box/edge/X_0"),
+      "Edge selection consumes a validated exact surface hit");
+  same(trusted.closestPoint(),target,"Ray hit anchors correct edge point");
+  PrimitiveBRepBody reconstructed=PrimitiveBRepBody.box(
+      "persistent-box",20,10,8,rotated);
+  yes(AnalyticEdgePicker.nearestEdgeOnSurfaceHit(reconstructed,surface,.001)!=null,
+      "Identical reconstructed body may reuse exact surface hit");
+  reject(()->AnalyticEdgePicker.nearestEdgeOnSurfaceHit(
+      box.offsetFace("persistent-box/face/Z_MAX",1),surface,.001),
+      "Surface hit after dimension edit");
+  reject(()->AnalyticEdgePicker.nearestEdgeOnSurfaceHit(
+      PrimitiveBRepBody.box("persistent-box",20,10,8,
+          new RigidTransform(41,-30,15,35,21,70)),surface,.001),
+      "Surface hit after translation");
+  reject(()->AnalyticEdgePicker.nearestEdgeOnSurfaceHit(
+      cylinder,surface,.001),"Surface hit from another body");
+  reject(()->AnalyticEdgePicker.nearestEdgeOnSurfaceHit(
+      box,null,.001),"Missing surface hit");
+  reject(()->AnalyticEdgePicker.nearestEdgeOnSurfaceHit(
+      box,surface,-1),"Negative tolerance for exact hit");
+  double[] cylEye=rotated.point(0,10,18);
+  double[] cylTarget=rotated.point(0,10,8);
+  AnalyticPrimitiveRayPicker.Hit capSurface=AnalyticPrimitiveRayPicker.pick(
+      cylinder,cylEye[0],cylEye[1],cylEye[2],
+      cylTarget[0]-cylEye[0],cylTarget[1]-cylEye[1],
+      cylTarget[2]-cylEye[2]);
+  yes(capSurface!=null&&capSurface.faceId.equals(
+      "persistent-cylinder/face/CYLINDER_TOP"),"Exact top cap ray");
+  AnalyticEdgePicker.Hit capEdge=AnalyticEdgePicker.nearestEdgeOnSurfaceHit(
+      cylinder,capSurface,.001);
+  yes(capEdge!=null&&capEdge.edgeId.endsWith("/CYLINDER_TOP"),
+      "Rotated cylinder cap chooses its own circular edge");
+
   PrimitiveBRepBody taller=cylinder.offsetFace("persistent-cylinder/face/CYLINDER_TOP",2);
   yes(find(taller,rotated.point(-10,0,10),.001).edgeId.equals(
       "persistent-cylinder/edge/CYLINDER_TOP"),"Top ID survives parametric resize");

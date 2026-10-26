@@ -4,6 +4,13 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Selección de aristas vinculada al rayo exacto:** el visor pasa el impacto
+analítico completo al selector de bordes y este comprueba que la geometría
+original (cuerpo, dimensiones y pose XYZ) siga siendo válida. Se conserva
+la alternativa por triángulo cuando no hay refinamiento. Pruebas Java y
+Android en CI, sin APK ni validación táctil; véase
+[selección exacta](CAD_BREP_ANALYTIC_RAY_PICKING.md).
+
 **Asa de arista en el punto realmente tocado:** el selector conserva
 la posición exacta sobre la arista y el control de arrastre la reutiliza
 si la geometría sigue idéntica. En cilindros la normal radial gira con

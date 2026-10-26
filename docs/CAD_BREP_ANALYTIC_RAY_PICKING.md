@@ -9,3 +9,18 @@ La diferencia es especialmente útil en cilindros: el cálculo geométrico de su
 Pruebas: `AnalyticPrimitiveRayPickerTest` cubre caja y cilindro, caras y tapas, distancias normalizadas, rayos desde dentro, fallos por límites, tangententes, rotaciones XYZ y modificaciones de diámetro. CI Android valida la integración del callback y compilación/Lint. Sin APK.
 
 **Límite:** no se implementa selección analítica de filetes, chaflanes, intersecciones booleanas o mallas importadas. La tolerancia al refinar prioriza la consistencia con el cuerpo ya visible en el visor. Falta probar visualmente en Nothing Phone 2a.
+
+## Incremento: coherencia entre rayo exacto y arista (26/10/2026)
+
+La selección de aristas ahora recibe el impacto `AnalyticPrimitiveRayPicker.Hit`
+completo cuando el visor acepta el refinamiento analítico. El selector
+`AnalyticEdgePicker.nearestEdgeOnSurfaceHit` verifica identidad de pieza,
+tipo, dimensiones y transformación XYZ antes de clasificar únicamente las
+aristas de la cara exacta. Esto impide reutilizar puntos de un rayo antiguo
+tras mover, girar o redimensionar un cuerpo. Las mallas que no se refinan
+conservan la selección por cara de triángulo como alternativa explícita.
+
+Las pruebas cubren prismas y cilindros girados, reconstrucción idéntica,
+selección de tapa, rechazo de geometría obsoleta y tolerancias inválidas.
+Verificación Java y Android mediante `verify`; no se genera APK ni se
+presume validación táctil en Nothing Phone 2a.
