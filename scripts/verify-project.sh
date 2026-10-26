@@ -897,7 +897,7 @@ for k in (
 ):
  assert k in a,k
 assert "this(id,firstId,secondId,Operation.INTERSECTION);" in feature
-assert "Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL }" in feature
+assert "Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL, UNION_MULTISHELL, DIFFERENCE_MULTISHELL, INTERSECTION_MULTISHELL }" in feature
 assert "OrthogonalPrismBRepUnion.union(" in feature
 assert "LinkedOrthogonalUnionTest" in workflow
 print("Unión B-Rep vinculada: JSON v1, undo, regeneración y pruebas: OK")
@@ -962,4 +962,35 @@ for op in ("UNION_POLYGONAL","DIFFERENCE_POLYGONAL","INTERSECTION_POLYGONAL"):
 assert "OrthogonalPolygonBRepBooleanTest" in workflow
 assert "LinkedConcaveBooleanTest" in workflow
 print("Booleanas de perfiles cóncavos: B-Rep, recetas UUID y controles de integración: OK")
+PY
+
+# Multi-shell B-Rep results and source UUID histories: no fake single solid,
+# no interior holes, preserve original single-shell JSON reconstruction.
+python3 - <<'PY'
+from pathlib import Path
+main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+kernel=Path("app/src/main/java/es/josxtm/mycad/cad/OrthogonalPolygonBRepBoolean.java").read_text(encoding="utf-8")
+recipe=Path("app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java").read_text(encoding="utf-8")
+workflow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for marker in (
+ "void booleanLinkedMultiShellPolygons(int first)",
+ "OrthogonalPolygonBRepBoolean.applyMulti(left,right,operation)",
+ "if(choice==12){booleanLinkedMultiShellPolygons(index);}",
+ "if(option==8){booleanLinkedMultiShellPolygons(index);return;}",
+ "LinkedConvexIntersection.Operation.DIFFERENCE_MULTISHELL",
+ "linked.regenerateTriangles(refs,lines)",
+):
+ assert marker in main,marker
+block=main[main.index("void chooseLinkedOrthogonalOperand("):main.index("void booleanMeshManager()")]
+assert block.index("OrthogonalPolygonBRepBoolean.applyMulti(")<block.index("checkpoint();")
+assert block.count("intersectionRecipes.add(linked);")==1
+assert "applyMulti(PolygonPrismBRep first" in kernel
+assert "Agujeros interiores B-Rep aún no admitidos" in kernel
+assert "if(contour.size()==1)" in kernel
+assert "return new MultiResult(Collections.singletonList(old.solid)" in kernel
+for op in ("UNION_MULTISHELL","DIFFERENCE_MULTISHELL","INTERSECTION_MULTISHELL"):
+ assert "Operation."+op in recipe,op
+assert "OrthogonalMultiShellBRepBooleanTest" in workflow
+assert "LinkedMultiShellBooleanTest" in workflow
+print("Multi-shell: B-Rep analítica y selección/reconstrucción JSON vinculada: OK")
 PY
