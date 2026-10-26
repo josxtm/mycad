@@ -6,7 +6,7 @@
    simple en el mismo plano XY, XZ o YZ.
 2. Seleccionar una de las líneas y abrir **Boceto táctil →
    Extruir contorno cerrado de líneas (malla)**.
-3. Introducir una altura positiva en milímetros. El resultado se
+3. Introducir una distancia de extrusión **positiva o negativa** en milímetros. La positiva sale por la normal del plano y la negativa en el sentido opuesto. El resultado se
    añade como malla 3D a la escena y al guardado nativo; se puede
    exportar a STL/OBJ y deshacer con el historial habitual.
 
@@ -28,7 +28,9 @@ a la línea seleccionada; otros contornos desconectados no se modifican.
 - Caras laterales, superior e inferior con normales orientadas; la
   transformación del plano XZ corrige el cambio de orientación.
 - La geometría resultante pasa por el comprobador de mallas cerradas
-  orientadas. Máximo 200 segmentos y altura de 10000 mm.
+  orientadas. Para distancias negativas se invierte la orientación de los
+  triángulos, manteniendo volumen positivo y normales exteriores.
+  Máximo 200 segmentos y **distancia absoluta** de 10000 mm.
 
 ## Limitaciones
 
