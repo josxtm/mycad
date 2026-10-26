@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
  ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
- static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104; MeshEngine meshView; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
+ static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104; MeshEngine meshView; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; es.josxtm.mycad.cad.CadFaceReference activeCadFace; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
  void icon(LinearLayout bar,String symbol,String name,Runnable action){TextView v=new TextView(this);v.setText(symbol);v.setTextSize(24);v.setTextColor(Color.rgb(224,235,245));v.setGravity(Gravity.CENTER);v.setContentDescription(name);v.setBackgroundColor(Color.rgb(34,47,64));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(44),dp(48));p.setMargins(dp(2),dp(2),dp(2),dp(2));bar.addView(v,p);v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});}
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)","Arrastrar cara directamente en 3D"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;case 24:toggleFaceDragOnModel();break;}}).show();}
  es.josxtm.mycad.cad.ParametricFeatureGraph buildParametricFeatureGraph(){
   es.josxtm.mycad.cad.ParametricFeatureGraph.Builder builder=
    new es.josxtm.mycad.cad.ParametricFeatureGraph.Builder();
@@ -374,6 +374,8 @@ public class MainActivity extends Activity {
  }
  void renderCurrentCadMesh(){
   if(meshView==null)return;
+  faceDragEnabled=false;
+  meshView.setFaceDragHandle(null,0,null);
   isolatedMeshPreview=false;
   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
   meshView.highlightFace(-1);meshView.highlightEdge(null);
@@ -1421,6 +1423,110 @@ public class MainActivity extends Activity {
   * The actual Part, undo/redo history and JSON remain untouched until Apply.
   * Cancel (including Android Back) restores the complete saved scene.
   */
+ /** Exit the one-finger on-model face movement and restore persisted scene. */
+ void finishFaceDrag(){
+  faceDragEnabled=false;
+  if(meshView!=null){
+   meshView.setFaceDragHandle(null,0,null);
+   if(meshMode)meshView.previewMesh(currentMesh());
+  }
+ }
+ /**
+  * A selected analytic face is directly draggable using an on-model handle.
+  * The GL preview never mutates Part/JSON/history; touch UP asks to confirm.
+  * Tapping this menu item again cancels the active operation.
+  */
+ void toggleFaceDragOnModel(){
+  if(faceDragEnabled){
+   finishFaceDrag();toast("Arrastre cancelado sin modificar la pieza");return;
+  }
+  if(fileBusy||!meshMode||!cadGpuMesh||meshView==null||
+     isolatedMeshPreview||selected<0||selected>=parts.size()){
+   toast("Activa el visor CAD experimental y selecciona una cara");return;
+  }
+  final int partIndex=selected;
+  final Part part=parts.get(partIndex);
+  if(!part.sourceSketchId.isEmpty()){
+   toast("Edita el boceto para modificar esta pieza vinculada");return;
+  }
+  final es.josxtm.mycad.cad.PrimitiveBRepBody original;
+  final es.josxtm.mycad.cad.PrimitiveMovePreview session;
+  final es.josxtm.mycad.cad.PrimitiveFaceHandle handle;
+  try{
+   original=analyticBody(part);
+   String id=part.circle?activeCylinderFaceId:
+    activeCadFace==null?null:activeCadFace.key();
+   session=es.josxtm.mycad.cad.PrimitiveMovePreview.forFace(original,id);
+   handle=es.josxtm.mycad.cad.PrimitiveFaceHandle.from(original,id);
+  }catch(Exception invalid){
+   toast("Toca una cara en el visor 3D antes de activar el arrastre");return;
+  }
+  double maxMotion=Math.max(2,Math.min(100,
+    Math.min(original.width,Math.min(original.depth,original.height))*.8));
+  faceDragEnabled=true;
+  meshView.setFaceDragHandle(handle.gpu(),maxMotion,
+   (deltaMm,finished,cancelled)->{
+    if(!faceDragEnabled)return;
+    if(cancelled){finishFaceDrag();return;}
+    try{
+     if(fileBusy||selected!=partIndex||partIndex>=parts.size()||
+        parts.get(partIndex)!=part||!part.sourceSketchId.isEmpty()||
+        !session.matches(analyticBody(part))||
+        !(session.entityId.equals(part.circle?activeCylinderFaceId:
+          activeCadFace==null?null:activeCadFace.key())))
+      throw new IllegalArgumentException("Stale scene or selection");
+     if(deltaMm==0){
+      meshView.previewMesh(experimentalCadMeshPreview(partIndex,original));
+      info.setText("Arrastre B-Rep · posición de origen");
+      if(finished)finishFaceDrag();
+      return;
+     }
+     final es.josxtm.mycad.cad.PrimitiveBRepBody proposal=
+      session.propose(deltaMm,0);
+     meshView.previewMesh(experimentalCadMeshPreview(partIndex,proposal));
+     info.setText(String.format(java.util.Locale.US,
+       "Cara B-Rep · Δ %.2f mm · volumen provisional %.2f mm³",
+       deltaMm,proposal.volume()));
+     if(!finished)return;
+     new AlertDialog.Builder(this).setTitle("Confirmar movimiento 3D")
+      .setMessage(String.format(java.util.Locale.US,
+       "Desplazar cara %.2f mm. La pieza se guardará como una sola edición.",
+       deltaMm))
+      .setCancelable(false).setNegativeButton("Cancelar",(d,w)->finishFaceDrag())
+      .setPositiveButton("Aplicar",(d,w)->{
+       try{
+        if(!faceDragEnabled||fileBusy||partIndex>=parts.size()||
+           parts.get(partIndex)!=part||selected!=partIndex||
+           !session.matches(analyticBody(part))||
+           !session.entityId.equals(part.circle?activeCylinderFaceId:
+             activeCadFace==null?null:activeCadFace.key()))
+         throw new IllegalArgumentException("Changed before commit");
+        es.josxtm.mycad.cad.PrimitiveBRepBody accepted=session.propose(deltaMm,0);
+        float ww=(float)accepted.width,dd=(float)accepted.depth,
+         hh=(float)accepted.height,xx=(float)accepted.x,
+         yy=(float)accepted.y,zz=(float)accepted.z;
+        if(!Float.isFinite(ww)||!Float.isFinite(dd)||!Float.isFinite(hh)||
+           !Float.isFinite(xx)||!Float.isFinite(yy)||!Float.isFinite(zz)||
+           ww<=0||dd<=0||hh<=0)throw new IllegalArgumentException();
+        checkpoint();
+        part.w=ww;part.d=dd;part.h=hh;
+        part.x=xx;part.y=yy;part.z=zz;
+        activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
+        save();scene.invalidate();
+        toast("Cara desplazada · deshacer disponible");
+       }catch(Exception error){
+        toast("Movimiento no aplicado: selección o cotas inválidas");
+       }finally{finishFaceDrag();}
+      }).show();
+    }catch(Exception invalid){
+     if(finished)toast("Movimiento fuera de límites o selección modificada");
+     else info.setText("Arrastre B-Rep · geometría no válida");
+     if(finished)finishFaceDrag();
+     else meshView.previewMesh(experimentalCadMeshPreview(partIndex,original));
+    }
+   });
+  info.setText("Arrastre activo · mueve el punto amarillo sobre la cara · vuelve al menú para cancelar");
+ }
  void previewSelectedBRepMove(){
   if(fileBusy||!cadGpuMesh||!meshMode||meshView==null||
      isolatedMeshPreview||selected<0||selected>=parts.size()){
@@ -1734,6 +1840,7 @@ public class MainActivity extends Activity {
    }).show();
  }
  void toggleCadGpuMesh(){
+  if(faceDragEnabled)finishFaceDrag();
   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;cadGpuMesh=!cadGpuMesh;
   if(meshMode&&meshView!=null)renderCurrentCadMesh();
   toast(cadGpuMesh?"Visor CAD experimental · prismas y cilindros XYZ":"Visor clásico restaurado");

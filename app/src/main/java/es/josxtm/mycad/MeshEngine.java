@@ -25,6 +25,69 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private float lastX,lastY,downX,downY; private boolean dragging,moved;
  private volatile int highlightedFirstTriangle=-1;
  private float[] highlightedEdgeVertices=null;
+ private float[] faceHandleGpu=null;
+ private volatile float[] faceHandleUi=null;
+ private FaceDragListener faceDragListener=null;
+ private boolean faceHandleCaptured=false;
+ private float faceDragStartX,faceDragStartY,faceDragAxisX,faceDragAxisY;
+ private double faceDragLimit=0;
+ public interface FaceDragListener {
+  void onDrag(double deltaMm,boolean finished,boolean cancelled);
+ }
+ /**
+  * Install a face handle that starts ON the selected 3D face and extends along
+  * its world-space normal. Hit it with one finger to edit without orbiting.
+  * Passing null clears the handle and restores ordinary camera interactions.
+  */
+ public void setFaceDragHandle(float[] anchorNormal,double maxMm,FaceDragListener listener){
+  if(anchorNormal!=null&&(anchorNormal.length!=6||listener==null||
+       !Double.isFinite(maxMm)||maxMm<=0))
+   throw new IllegalArgumentException("Invalid face drag handle");
+  float[] copy=anchorNormal==null?null:anchorNormal.clone();
+  if(copy!=null)for(float f:copy)if(!Float.isFinite(f))
+   throw new IllegalArgumentException("Nonfinite face handle");
+  faceHandleUi=copy;
+  faceDragListener=copy==null?null:listener;
+  faceDragLimit=copy==null?0:maxMm;
+  faceHandleCaptured=false;
+  queueEvent(()->{faceHandleGpu=copy;requestRender();});
+ }
+ private float handleLength(){
+  return Math.max(2f,Math.min(25f,distance*.08f));
+ }
+ /** UI-thread projection, using the same perspective/camera as GL renderer. */
+ private float[] projectPoint(float x,float y,float z){
+  if(getWidth()<=0||getHeight()<=0)return null;
+  double a=Math.toRadians(yaw),b=Math.toRadians(pitch);
+  float[] camera=new float[16],proj=new float[16],mvpLocal=new float[16];
+  Matrix.setLookAtM(camera,0,centerX+(float)(distance*Math.cos(b)*Math.cos(a)),
+    centerY+(float)(distance*Math.cos(b)*Math.sin(a)),
+    centerZ+(float)(distance*Math.sin(b)),centerX,centerY,centerZ,0,0,1);
+  Matrix.perspectiveM(proj,0,45f,(float)getWidth()/getHeight(),.1f,1000000f);
+  Matrix.multiplyMM(mvpLocal,0,proj,0,camera,0);
+  float[] out=new float[4];
+  Matrix.multiplyMV(out,0,mvpLocal,0,new float[]{x,y,z,1f},0);
+  if(out[3]<=1e-6f||!Float.isFinite(out[3]))return null;
+  return new float[]{getWidth()*(out[0]/out[3]+1)/2f,
+                     getHeight()*(1-out[1]/out[3])/2f};
+ }
+ private float[] projectedHandle(){
+  float[] f=faceHandleUi;if(f==null)return null;
+  float arm=handleLength();
+  float px=f[0]+f[3]*arm,py=f[1]+f[4]*arm,pz=f[2]+f[5]*arm;
+  float[] tip=projectPoint(px,py,pz);
+  float[] next=projectPoint(px+f[3],py+f[4],pz+f[5]);
+  if(tip==null||next==null)return null;
+  return new float[]{tip[0],tip[1],next[0]-tip[0],next[1]-tip[1]};
+ }
+ private double faceMovement(float sx,float sy){
+  double denom=faceDragAxisX*faceDragAxisX+faceDragAxisY*faceDragAxisY;
+  if(denom<1e-10)return 0;
+  double mm=((sx-faceDragStartX)*faceDragAxisX+
+             (sy-faceDragStartY)*faceDragAxisY)/denom;
+  return Math.max(-faceDragLimit,Math.min(faceDragLimit,mm));
+ }
+
  public void highlightFace(int firstTriangle){highlightedFirstTriangle=firstTriangle;requestRender();}
  /** A genuine analytic edge outline, not arbitrary tessellation triangle edges. */
  public void highlightEdge(float[] xyz){
@@ -53,6 +116,45 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  public void orbit(float dx,float dy){yaw+=dx*.35f;pitch=Math.max(-89,Math.min(89,pitch+dy*.35f));requestRender();}
  public void zoom(float factor){distance=Math.max(.1f,Math.min(100000f,distance/factor));requestRender();}
  @Override public boolean onTouchEvent(android.view.MotionEvent e){
+  int action=e.getActionMasked();
+  if(e.getPointerCount()>1&&faceHandleCaptured){
+   faceHandleCaptured=false;
+   if(faceDragListener!=null)faceDragListener.onDrag(0,false,true);
+   return true;
+  }
+  if(action==android.view.MotionEvent.ACTION_DOWN&&faceHandleUi!=null){
+   float[] p=projectedHandle();
+   float threshold=26*getResources().getDisplayMetrics().density;
+   if(p!=null&&Math.hypot(e.getX()-p[0],e.getY()-p[1])<=threshold){
+    faceHandleCaptured=true;
+    faceDragStartX=e.getX();faceDragStartY=e.getY();
+    faceDragAxisX=p[2];faceDragAxisY=p[3];
+    // When the face normal points into the camera, fall back to vertical
+    // sliding with a model-space scale instead of an undefined projected axis.
+    if(Math.hypot(faceDragAxisX,faceDragAxisY)<.25f){
+     faceDragAxisX=0;
+     faceDragAxisY=(float)(-getHeight()/
+       (2*Math.max(.01,distance)*Math.tan(Math.toRadians(22.5))));
+    }
+    return true;
+   }
+  }
+  if(faceHandleCaptured){
+   if(action==android.view.MotionEvent.ACTION_MOVE||
+      action==android.view.MotionEvent.ACTION_UP){
+    double mm=faceMovement(e.getX(),e.getY());
+    boolean done=action==android.view.MotionEvent.ACTION_UP;
+    if(done)faceHandleCaptured=false;
+    if(faceDragListener!=null)faceDragListener.onDrag(mm,done,false);
+    return true;
+   }
+   if(action==android.view.MotionEvent.ACTION_CANCEL){
+    faceHandleCaptured=false;
+    if(faceDragListener!=null)faceDragListener.onDrag(0,false,true);
+    return true;
+   }
+  }
+
   if(e.getPointerCount()>1){if(e.getActionMasked()==android.view.MotionEvent.ACTION_MOVE){float dy=e.getY()-lastY;zoom((float)Math.exp(-dy*.008));}lastY=e.getY();return true;}
   if(e.getActionMasked()==android.view.MotionEvent.ACTION_DOWN){lastX=e.getX();lastY=e.getY();downX=lastX;downY=lastY;moved=false;dragging=true;return true;}
   if(e.getActionMasked()==android.view.MotionEvent.ACTION_MOVE&&dragging){if(Math.hypot(e.getX()-downX,e.getY()-downY)>12*getResources().getDisplayMetrics().density)moved=true;orbit(e.getX()-lastX,e.getY()-lastY);lastX=e.getX();lastY=e.getY();return true;}
@@ -94,7 +196,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  }
  @Override public void onSurfaceCreated(javax.microedition.khronos.opengles.GL10 gl,javax.microedition.khronos.egl.EGLConfig cfg){
   GLES30.glEnable(GLES30.GL_DEPTH_TEST);GLES30.glEnable(GLES30.GL_CULL_FACE);
-  int v=shader(GLES30.GL_VERTEX_SHADER,"#version 300 es\nlayout(location=0) in vec3 aPosition;uniform mat4 uMVP;void main(){gl_Position=uMVP*vec4(aPosition,1.0);}");
+  int v=shader(GLES30.GL_VERTEX_SHADER,"#version 300 es\nlayout(location=0) in vec3 aPosition;uniform mat4 uMVP;void main(){gl_Position=uMVP*vec4(aPosition,1.0);gl_PointSize=15.0;}");
   int f=shader(GLES30.GL_FRAGMENT_SHADER,"#version 300 es\nprecision mediump float;uniform vec4 uColor;out vec4 fragColor;void main(){fragColor=uColor;}");
   program=GLES30.glCreateProgram();GLES30.glAttachShader(program,v);GLES30.glAttachShader(program,f);GLES30.glLinkProgram(program);
   int[] status=new int[1];GLES30.glGetProgramiv(program,GLES30.GL_LINK_STATUS,status,0);if(status[0]==0)throw new IllegalStateException(GLES30.glGetProgramInfoLog(program));
@@ -137,6 +239,26 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
    GLES30.glLineWidth(3f);
    GLES30.glDrawArrays(GLES30.GL_LINE_STRIP,0,outline.length/3);
+   GLES30.glEnable(GLES30.GL_DEPTH_TEST);
+  }
+  if(faceHandleGpu!=null){
+   float[] handle=faceHandleGpu, h={
+    handle[0],handle[1],handle[2],
+    handle[0]+handle[3]*handleLength(),
+    handle[1]+handle[4]*handleLength(),
+    handle[2]+handle[5]*handleLength()};
+   FloatBuffer buffer=ByteBuffer.allocateDirect(h.length*4)
+     .order(ByteOrder.nativeOrder()).asFloatBuffer();
+   buffer.put(h).position(0);
+   GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buffer);
+   GLES30.glDisable(GLES30.GL_DEPTH_TEST);
+   GLES30.glUniform4f(colorUniform,1f,.45f,.08f,1);
+   GLES30.glLineWidth(3f);
+   GLES30.glDrawArrays(GLES30.GL_LINES,0,2);
+   buffer.position(3);
+   GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buffer);
+   GLES30.glUniform4f(colorUniform,1f,.96f,.35f,1);
+   GLES30.glDrawArrays(GLES30.GL_POINTS,0,1);
    GLES30.glEnable(GLES30.GL_DEPTH_TEST);
   }
   GLES30.glDisableVertexAttribArray(0);

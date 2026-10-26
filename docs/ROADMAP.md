@@ -4,6 +4,8 @@
 
 ## Estado vigente — 0.6.0 (26 de octubre de 2026)
 
+**Prototipo de arrastre sobre sólido (sin APK):** cara B-Rep seleccionada con punto/asa proyectada al visor GPU, arrastre táctil restringido a su normal mundial, vista previa reversible, confirmación con undo/persistencia solo al aceptar. Requiere calibración táctil y visual en Nothing Phone 2a.
+
 **Picking sensible al zoom:** la distancia de selección de aristas ahora deriva de 12dp de tolerancia visual y del tamaño/proyección de cada cuerpo, acotada para evitar selecciones lejanas. Mejora la interacción al variar el zoom; validación táctil en Nothing Phone 2a pendiente.
 
 **Selección visual de aristas:** el visor OpenGL destaca toda la arista matemática (segmento recto o circunferencia), con aproximación de línea independiente de los triángulos; se limpia con el cambio de selección o previsualización. Pendiente validación táctil real.
