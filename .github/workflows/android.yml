@@ -60,6 +60,8 @@ jobs:
           java -cp build/geometry-tests PlaneExtrusionTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ParametricSketchDocument.java tests/ParametricSketchDocumentTest.java
           java -cp build/geometry-tests ParametricSketchDocumentTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SketchDxfIO.java tests/SketchDxfIOTest.java
+          java -cp build/geometry-tests SketchDxfIOTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SketchEditValidator.java tests/SketchEditValidatorTest.java
           java -cp build/geometry-tests SketchEditValidatorTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedSketchSolidPlan.java app/src/main/java/es/josxtm/mycad/cad/LinkedSketchAudit.java tests/LinkedSketchSolidPlanTest.java tests/LinkedSketchAuditTest.java
