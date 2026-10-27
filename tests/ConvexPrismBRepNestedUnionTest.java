@@ -33,6 +33,7 @@ public final class ConvexPrismBRepNestedUnionTest {
    near(ConvexPrismBRepNestedUnion.union(a,prism("shorter"+p+s,p,s*2,inner)).volume(),108);
    near(ConvexPrismBRepNestedUnion.union(prism("shorterReversed"+p+s,p,s*2,inner),a).volume(),108);
    reject(()->ConvexPrismBRepNestedUnion.union(a,prism("taller"+p+s,p,s*4,inner)));
+   reject(()->ConvexPrismBRepNestedUnion.union(a,prism("tinyTaller"+p+s,p,s*3.00001,inner)));
    reject(()->ConvexPrismBRepNestedUnion.union(a,prism("direction"+p+s,p,-s*3,inner)));
   }
   System.out.println("ConvexPrismBRepNestedUnionTest: OK");
