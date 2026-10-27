@@ -61,3 +61,38 @@ REA es una herramienta de análisis mediante agentes/CLI/MCP, no una biblioteca 
 5. Usar REA como investigación secundaria para interacciones de Shapr3D y sus evidencias observables; no copiar código propietario, formatos privados ni recursos.
 
 **Criterio de salida:** editar una cara, regenerar el sólido, deshacer y guardar/reabrir sin pérdida topológica. Hasta entonces, MyCAD 0.6.0 continúa en fase experimental.
+
+## Consulta oficial contrastada — 2026-10-27
+
+Se consultaron el [manual oficial](https://support.shapr3d.com/hc/en-us/articles/9760033847964-Shapr3D-Manual),
+el [catálogo de videotutoriales](https://support.shapr3d.com/hc/en-us/articles/12208897524380-Video-tutorials)
+y el [canal oficial](https://www.youtube.com/@Shapr3D). **No se inspeccionaron
+visualmente vídeos en esta ejecución**: la página accesible del canal no expuso
+fotogramas. Las siguientes secuencias proceden de documentación textual oficial,
+no de observaciones de vídeo. Las observaciones históricas de vídeos locales
+no se han revalidado. No se copian código, iconos ni recursos propietarios.
+
+| Flujo | Secuencia documentada y resultado | Adaptación propuesta para MyCAD |
+|---|---|---|
+| Navegación iPad | Arrastrar con un dedo sobre rejilla orbita; dos dedos desplazan; pinza acerca/aleja. Doble toque con dedo sobre cara la encuadra. | Separar herramienta de dibujo, navegación y edición con modos explícitos para uso sin lápiz. |
+| Selección | Toque selecciona; doble toque con lápiz selecciona objeto completo; pulsación prolongada y arrastre selecciona área. Toque en vacío con lápiz deselecciona. | Resaltar tipo seleccionado y permitir cambiar entre cara, arista y cuerpo. No confundir doble toque con dedo para encuadre y doble toque con lápiz para cuerpo. |
+| Boceto/acotación | Seleccionar elemento y su etiqueta dimensional; introducir valor. Hay longitudes, radios, diámetros y ángulos; las longitudes pueden medirse en absoluto, horizontal o vertical. | Rectángulo con ancho/fondo en mm y regeneración atómica de sólidos dependientes. |
+| Extrude | Tools → Extrude → seleccionar cara/perfil cerrado → arrastrar gizmo a distancia → elegir acción booleana opcional → Done. El resultado puede ser cuerpo nuevo, adición, corte o intersección según contexto. | Perfil seleccionado, controlador axial y lectura en mm; confirmar/cancelar sin geometría residual. Priorizar 40 × 30 × 10 mm. |
+| Orientation Cube | Arrastrar cubo rota cámara; doble toque vuelve a vista inicial. Caras, aristas y esquinas son seleccionables; flechas rotan vista plana. | Mantener cubo y cámara sincronizados y preservar el sólido. |
+| Subtract | Tools → Subtract → seleccionar cuerpo objetivo (+) → cortador (−) → decidir originales conservados → Done. Requiere sólidos solapados. | Explicar objetivo/cortador con nombres y distintivos originales; mostrar vista previa antes de confirmar. |
+| Historial/edición | Abrir History, seleccionar paso y modificar parámetros disponibles. Cambiar pasos anteriores puede afectar a los posteriores. | Conservar UUID de rasgos y validar toda la reconstrucción antes de publicarla. |
+
+Fuentes específicas:
+
+- [Gestos, navegación y selección](https://support.shapr3d.com/hc/en-us/articles/7873906073884-Keyboard-shortcuts-gestures-and-hotkeys).
+- [Acotación](https://support.shapr3d.com/hc/en-us/articles/7874245890844-Editing-sketch-dimensions).
+- [Extrude](https://support.shapr3d.com/hc/en-us/articles/7874453786908-Extrude).
+- [Orientation Cube](https://support.shapr3d.com/hc/en-us/articles/7873937480604-Orientation-Cube).
+- [Subtract](https://support.shapr3d.com/hc/en-us/articles/7874461913884-Subtract).
+- [History](https://support.shapr3d.com/hc/en-us/articles/11567903089180-History).
+
+Pendiente de investigación detallada antes de implementar nuevas herramientas:
+restricciones/solver, unión e intersección completas, guardado/exportación y
+Revolve/Sweep/Loft/Shell/Fillet/Chamfer. El catálogo oficial señala tutoriales de
+bocetos, ajustes de rejilla, navegación e historial como siguientes materiales;
+no se atribuyen gestos concretos a esos vídeos sin inspección.
