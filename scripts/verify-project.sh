@@ -847,8 +847,8 @@ assert "dependsOnFeature" in kernel
 block=a[a.index("void stageLinkedIntersectionRebuild(") if "void stageLinkedIntersectionRebuild(" in a else a.index("stageLinkedIntersectionRebuild("):
         a.index("void applyLinkedLoopEdit(")]
 assert "LinkedBooleanRegenerationPlan.build(affected,sources,lines)" in block
-assert "for(String id:plan.featureIds())" in block
-assert "new MeshEngine.Mesh(plan.triangles(id))" in block
+assert "plan.publishIfCurrent(affected,sources,lines)" in block
+assert "new MeshEngine.Mesh(entry.getValue())" in block
 assert block.index("LinkedBooleanRegenerationPlan.build(affected,sources,lines)") < block.rindex("return out;")
 print("Intersección B-Rep vinculada: guardado, undo y regeneración enlazados: OK")
 PY
