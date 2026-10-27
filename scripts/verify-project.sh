@@ -849,6 +849,9 @@ block=a[a.index("void stageLinkedIntersectionRebuild(") if "void stageLinkedInte
 assert "LinkedBooleanRegenerationPlan.build(affected,sources,lines)" in block
 assert "Índice o malla B-Rep propuesta inválida" in block
 assert "Sustitución de extrusión B-Rep inválida" in block
+assert "Identificador de booleana B-Rep duplicado o vacío" in block
+assert "recipeIds.add(recipe.id)" in block
+assert block.index("recipeIds.add(recipe.id)") < block.index("if(touched.isEmpty())return out;")
 assert "!loopExtrusionFeatures.get(entry.getKey()).id.equals(entry.getValue().id)" in block
 assert block.index("Índice o malla B-Rep propuesta inválida") < block.index("LinkedBooleanRegenerationPlan.build(affected,sources,lines)")
 assert "plan.publishIfCurrent(affected,sources,lines)" in block
