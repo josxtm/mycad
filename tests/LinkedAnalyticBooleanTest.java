@@ -62,7 +62,20 @@ public final class LinkedAnalyticBooleanTest {
      throw new AssertionError(op+" nondeterministic regeneration");
     Map<String,LoopExtrusionFeature> changed=new LinkedHashMap<>(sources);
     changed.put(a.id,a.withDistance(s*2));
-    reject(()->linked.regenerateTriangles(changed,lines),op+" partial height edit");
+    if(op==LinkedConvexIntersection.Operation.INTERSECTION_ANALYTIC){
+     // A partial edit is valid for intersections: the shorter extrusion
+     // defines the shared volume. Other Boolean routes still reject it.
+     float[] partial=linked.regenerateTriangles(changed,lines);
+     verify(partial,area*2,op+" partial height edit");
+     if(!Arrays.equals(original,linked.regenerateTriangles(sources,lines)))
+      throw new AssertionError(op+" partial height edit mutated original sources");
+     Map<String,LoopExtrusionFeature> shorterSecond=new LinkedHashMap<>(sources);
+     shorterSecond.put(b.id,b.withDistance(s*2));
+     verify(linked.regenerateTriangles(shorterSecond,lines),area*2,
+         op+" shorter second operand");
+    }else{
+     reject(()->linked.regenerateTriangles(changed,lines),op+" partial height edit");
+    }
     changed.put(b.id,b.withDistance(s*2));
     verify(linked.regenerateTriangles(changed,lines),area*2,op+" coherent height edit");
     Map<String,ClosedSketchExtrusion.Segment> moved=new LinkedHashMap<>(lines);
