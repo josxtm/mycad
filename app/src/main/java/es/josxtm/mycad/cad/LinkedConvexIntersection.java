@@ -9,7 +9,7 @@ import java.util.*;
  * Rebuild is read-only and can be committed transactionally.
  */
 public final class LinkedConvexIntersection {
- public enum Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL, UNION_MULTISHELL, DIFFERENCE_MULTISHELL, INTERSECTION_MULTISHELL, UNION_WITH_HOLES, DIFFERENCE_WITH_HOLES, INTERSECTION_WITH_HOLES }
+ public enum Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL, UNION_MULTISHELL, DIFFERENCE_MULTISHELL, INTERSECTION_MULTISHELL, UNION_WITH_HOLES, DIFFERENCE_WITH_HOLES, INTERSECTION_WITH_HOLES, UNION_ANALYTIC, INTERSECTION_ANALYTIC, DIFFERENCE_ANALYTIC }
  public final String id,firstId,secondId;
  public final Operation operation;
 
@@ -61,6 +61,21 @@ public final class LinkedConvexIntersection {
   LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
   if(a==null||b==null||!firstId.equals(a.id)||!secondId.equals(b.id))
    throw new IllegalArgumentException("Se eliminó un sólido de la unión");
+  // New saved operations reuse the unified analytic B-Rep kernel.
+  // Existing operation names retain their original reconstruction routes.
+  if(operation==Operation.UNION_ANALYTIC||
+     operation==Operation.INTERSECTION_ANALYTIC||
+     operation==Operation.DIFFERENCE_ANALYTIC){
+   PrismBRepBoolean.Operation op=
+       operation==Operation.UNION_ANALYTIC?PrismBRepBoolean.Operation.UNION:
+       operation==Operation.INTERSECTION_ANALYTIC?PrismBRepBoolean.Operation.INTERSECTION:
+           PrismBRepBoolean.Operation.DIFFERENCE;
+   float[] mesh=PrismBRepBoolean.apply(
+       a.asBRep(lines),b.asBRep(lines),op).triangles();
+   if(mesh.length>18000)
+    throw new IllegalArgumentException("Booleana analítica demasiado grande");
+   return mesh;
+  }
   if(operation==Operation.UNION_WITH_HOLES||
      operation==Operation.DIFFERENCE_WITH_HOLES||
      operation==Operation.INTERSECTION_WITH_HOLES){
