@@ -16,6 +16,56 @@ public final class SteppedCoplanarFaceGroups {
  /** Exposed boundary edges per coplanar patch, excluding internal shared edges.
   * Each edge ID appears at most once per patch; original half-edges are retained.
   */
+ /**
+  * Ordered oriented boundary half-edge loops for each coplanar patch.
+  * Each loop is closed implicitly (last half-edge ends at the first start).
+  * Multiple loops are retained separately, including potential holes.
+  */
+ public static List<List<List<String>>> boundaryLoops(VariableHeightOrthogonalBRep shell){
+  List<List<String>> groups=find(shell);
+  Map<String,Integer> patchByFace=new HashMap<>();
+  for(int i=0;i<groups.size();i++)
+   for(String face:groups.get(i))patchByFace.put(face,i);
+  Map<String,VariableHeightOrthogonalBRep.HalfEdge> byId=new HashMap<>();
+  for(VariableHeightOrthogonalBRep.HalfEdge half:shell.halfEdges())byId.put(half.id,half);
+  List<Map<String,VariableHeightOrthogonalBRep.HalfEdge>> outgoing=new ArrayList<>();
+  for(int i=0;i<groups.size();i++)outgoing.add(new TreeMap<>());
+  for(VariableHeightOrthogonalBRep.HalfEdge half:shell.halfEdges()){
+   VariableHeightOrthogonalBRep.HalfEdge twin=byId.get(half.twinId);
+   if(twin==null)throw new IllegalArgumentException("Missing patch twin");
+   Integer a=patchByFace.get(half.faceId),b=patchByFace.get(twin.faceId);
+   if(a==null||b==null)throw new IllegalArgumentException("Missing patch face");
+   if(!a.equals(b)){
+    VariableHeightOrthogonalBRep.HalfEdge previous=outgoing.get(a).put(half.fromId,half);
+    if(previous!=null)throw new IllegalArgumentException("Ambiguous patch boundary vertex");
+   }
+  }
+  List<List<List<String>>> patches=new ArrayList<>();
+  for(Map<String,VariableHeightOrthogonalBRep.HalfEdge> byStart:outgoing){
+   if(byStart.isEmpty())throw new IllegalArgumentException("Empty patch boundary");
+   Set<String> visited=new HashSet<>();
+   List<List<String>> loops=new ArrayList<>();
+   for(VariableHeightOrthogonalBRep.HalfEdge start:byStart.values()){
+    if(visited.contains(start.id))continue;
+    List<String> loop=new ArrayList<>();
+    VariableHeightOrthogonalBRep.HalfEdge current=start;
+    do{
+     if(!visited.add(current.id))
+      throw new IllegalArgumentException("Repeated boundary half-edge");
+     loop.add(current.id);
+     current=byStart.get(current.toId);
+     if(current==null)throw new IllegalArgumentException("Open patch boundary");
+     if(loop.size()>byStart.size())throw new IllegalArgumentException("Unclosed patch boundary");
+    }while(!current.id.equals(start.id));
+    if(loop.size()<4)throw new IllegalArgumentException("Degenerate patch boundary loop");
+    loops.add(Collections.unmodifiableList(loop));
+   }
+   if(visited.size()!=byStart.size())throw new IllegalArgumentException("Unvisited patch boundary");
+   patches.add(Collections.unmodifiableList(loops));
+  }
+  return Collections.unmodifiableList(patches);
+ }
+
  public static List<List<String>> boundaryEdgeIds(VariableHeightOrthogonalBRep shell){
   List<List<String>> groups=find(shell);
   Map<String,Integer> groupByFace=new HashMap<>();
