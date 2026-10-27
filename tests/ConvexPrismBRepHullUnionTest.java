@@ -65,6 +65,14 @@ public final class ConvexPrismBRepHullUnionTest {
    reject(()->ConvexPrismBRepHullUnion.union(
       prism("offsetA"+p+s,p,s*3,rect(0,0,3,3)),
       prism("offsetB"+p+s,p,s*3,rect(2,2,5,5))),"concave union");
+   // A thin step is concave, but its hull-area error is below the
+   // historical 1e-5 relative area tolerance. Never fill that gap.
+   PolygonPrismBRep slightlyTaller=prism("tinyStep"+p+s,p,s*3,
+       rect(2,0,5,2.00001));
+   reject(()->ConvexPrismBRepHullUnion.union(left,slightlyTaller),
+       "tiny concave step must not be filled by hull");
+   reject(()->ConvexPrismBRepHullUnion.union(slightlyTaller,left),
+       "tiny concave step also rejected in reverse operand order");
    reject(()->ConvexPrismBRepHullUnion.union(left,
       prism("far"+p+s,p,s*3,rect(6,0,8,2))),"disconnected union");
    reject(()->ConvexPrismBRepHullUnion.union(left,
