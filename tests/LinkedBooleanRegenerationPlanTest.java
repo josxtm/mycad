@@ -55,6 +55,14 @@ public final class LinkedBooleanRegenerationPlanTest {
    ok(first.isCurrent(recipes,features,lines),
        "unchanged Boolean recipes and geometry remain current");
    first.requireCurrent(recipes,features,lines);
+   Map<String,float[]> published=first.publishIfCurrent(recipes,features,lines);
+   ok(published.size()==2&&published.containsKey(union.id),
+       "checked publication exports all staged meshes");
+   published.get(union.id)[0]=Float.NaN;
+   ok(Float.isFinite(first.triangles(union.id)[0]),
+       "publication mesh cannot mutate preflight");
+   reject(()->published.clear(),"published feature map must be immutable");
+
    ok(first.isCurrent(Arrays.asList(intersection,union),features,lines),
        "recipe collection order is irrelevant");
    LinkedConvexIntersection changedOperation=new LinkedConvexIntersection(
@@ -63,6 +71,8 @@ public final class LinkedBooleanRegenerationPlanTest {
        "changing Boolean operation invalidates the staged result");
    reject(()->first.requireCurrent(Arrays.asList(changedOperation,intersection),
        features,lines),"stale Boolean operation cannot be published");
+   reject(()->first.publishIfCurrent(Arrays.asList(changedOperation,intersection),
+       features,lines),"stale Boolean operation cannot export meshes");
    LinkedConvexIntersection swappedOperands=new LinkedConvexIntersection(
        union.id,b.id,a.id,union.operation);
    ok(!first.isCurrent(Arrays.asList(swappedOperands,intersection),features,lines),
@@ -97,6 +107,8 @@ public final class LinkedBooleanRegenerationPlanTest {
        "full guard rejects stale extrusion height");
    reject(()->first.requireCurrent(staleHeight,lines),
        "cannot publish stale extrusion batch");
+   reject(()->first.publishIfCurrent(recipes,staleHeight,lines),
+       "stale extrusion cannot export meshes");
    Map<String,ClosedSketchExtrusion.Segment> staleLines=new LinkedHashMap<>(lines);
    String sourceLine=a.lineIds().get(0);
    ClosedSketchExtrusion.Segment original=lines.get(sourceLine);
