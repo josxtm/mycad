@@ -13,6 +13,35 @@ public final class SteppedCoplanarFaceGroups {
  /** Aggregate the analytic surface area of each edge-connected coplanar patch.
   * Face and half-edge IDs remain unchanged; these are read-only patch metrics.
   */
+ /** Exposed boundary edges per coplanar patch, excluding internal shared edges.
+  * Each edge ID appears at most once per patch; original half-edges are retained.
+  */
+ public static List<List<String>> boundaryEdgeIds(VariableHeightOrthogonalBRep shell){
+  List<List<String>> groups=find(shell);
+  Map<String,Integer> groupByFace=new HashMap<>();
+  for(int i=0;i<groups.size();i++)
+   for(String faceId:groups.get(i))groupByFace.put(faceId,i);
+  List<List<String>> boundaries=new ArrayList<>();
+  for(int i=0;i<groups.size();i++)boundaries.add(new ArrayList<>());
+  for(VariableHeightOrthogonalBRep.Edge edge:shell.edges()){
+   List<String> owners=edge.adjacentFaceIds();
+   if(owners.size()!=2)throw new IllegalArgumentException("Nonmanifold patch edge");
+   Integer a=groupByFace.get(owners.get(0)),b=groupByFace.get(owners.get(1));
+   if(a==null||b==null)throw new IllegalArgumentException("Unknown patch face");
+   if(!a.equals(b)){
+    boundaries.get(a).add(edge.id);
+    boundaries.get(b).add(edge.id);
+   }
+  }
+  List<List<String>> result=new ArrayList<>();
+  for(List<String> boundary:boundaries){
+   Collections.sort(boundary);
+   if(boundary.isEmpty())throw new IllegalArgumentException("Patch has no boundary");
+   result.add(Collections.unmodifiableList(boundary));
+  }
+  return Collections.unmodifiableList(result);
+ }
+
  public static List<Double> areas(VariableHeightOrthogonalBRep shell){
   List<List<String>> groups=find(shell);
   Map<String,Double> byId=new HashMap<>();

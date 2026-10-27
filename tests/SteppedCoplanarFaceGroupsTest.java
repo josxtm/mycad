@@ -24,6 +24,35 @@ public final class SteppedCoplanarFaceGroupsTest {
     VariableHeightOrthogonalBRep shell=VariableHeightOrthogonalBRep.apply(first,second,op);
     int before=shell.faces().size();
     List<List<String>> groups=SteppedCoplanarFaceGroups.find(shell);
+    List<List<String>> boundaries=SteppedCoplanarFaceGroups.boundaryEdgeIds(shell);
+    if(boundaries.size()!=groups.size()||
+       !boundaries.equals(SteppedCoplanarFaceGroups.boundaryEdgeIds(shell)))
+     throw new AssertionError("Invalid or nondeterministic patch boundaries");
+    Map<String,Integer> owners=new HashMap<>();
+    for(VariableHeightOrthogonalBRep.Edge edge:shell.edges()){
+     List<String> f=edge.adjacentFaceIds();
+     int ga=-1,gb=-1;
+     for(int i=0;i<groups.size();i++){
+      if(groups.get(i).contains(f.get(0)))ga=i;
+      if(groups.get(i).contains(f.get(1)))gb=i;
+     }
+     if(ga<0||gb<0)throw new AssertionError("Missing patch owner");
+     owners.put(edge.id,ga==gb?0:2);
+    }
+    for(List<String> boundary:boundaries){
+     if(boundary.isEmpty()||new HashSet<>(boundary).size()!=boundary.size())
+      throw new AssertionError("Invalid patch boundary edge set");
+     for(String edgeId:boundary){
+      Integer count=owners.get(edgeId);
+      if(count==null||count!=2)throw new AssertionError("Internal edge exposed");
+     }
+    }
+    for(Map.Entry<String,Integer> e:owners.entrySet()){
+     int count=0;
+     for(List<String> boundary:boundaries)
+      if(boundary.contains(e.getKey()))count++;
+     if(count!=e.getValue())throw new AssertionError("Incorrect edge boundary incidence");
+    }
     List<Double> patchAreas=SteppedCoplanarFaceGroups.areas(shell);
     if(patchAreas.size()!=groups.size())
      throw new AssertionError("Patch area count mismatch");
