@@ -26,6 +26,20 @@ public final class SteppedCoplanarFaceGroupsTest {
     List<List<String>> groups=SteppedCoplanarFaceGroups.find(shell);
     List<List<String>> boundaries=SteppedCoplanarFaceGroups.boundaryEdgeIds(shell);
     List<List<List<String>>> loops=SteppedCoplanarFaceGroups.boundaryLoops(shell);
+    List<List<Double>> signedAreas=SteppedCoplanarFaceGroups.boundaryLoopAreas(shell);
+    if(signedAreas.size()!=groups.size()||
+       !signedAreas.equals(SteppedCoplanarFaceGroups.boundaryLoopAreas(shell)))
+     throw new AssertionError("Invalid or nondeterministic signed loop areas");
+    for(int i=0;i<signedAreas.size();i++){
+     double sum=0;
+     for(double area:signedAreas.get(i)){
+      if(!Double.isFinite(area)||Math.abs(area)<1e-9)
+       throw new AssertionError("Degenerate signed loop area");
+      sum+=area;
+     }
+     if(Math.abs(sum-SteppedCoplanarFaceGroups.areas(shell).get(i))>1e-5)
+      throw new AssertionError("Signed loop area does not conserve patch area");
+    }
     if(loops.size()!=groups.size()||
        !loops.equals(SteppedCoplanarFaceGroups.boundaryLoops(shell)))
      throw new AssertionError("Invalid or nondeterministic boundary loops");
