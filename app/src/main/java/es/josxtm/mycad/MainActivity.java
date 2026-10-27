@@ -25,7 +25,7 @@ public class MainActivity extends Activity {
  info=new TextView(this);info.setTextColor(Color.LTGRAY);info.setTextSize(11);info.setText("Toca para seleccionar · Mantén pulsado para mover · Pellizca para zoom");root.addView(info);
  LinearLayout workspace=new LinearLayout(this);root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1));
  LinearLayout left=new LinearLayout(this);left.setOrientation(LinearLayout.VERTICAL);workspace.addView(left);leftBar=left;
- icon(left,"✎","Boceto 2D",()->chooseSketchPlane());icon(left,"↥","Extruir boceto",()->extrudeSketch());icon(left,"□","Crear rectángulo",()->edit(false,false));icon(left,"◯","Crear círculo",()->edit(true,false));icon(left,"✎","Editar pieza",()->{if(selected>=0)editLinkedOrPart();else toast("Selecciona una pieza");});icon(left,"☞","Modo navegar / mover / editar",()->chooseInteractionMode());icon(left,"✥","Mover / restricciones",()->moveOptions());icon(left,"⌫","Eliminar pieza",()->{if(selected>=0){checkpoint();parts.remove(selected);selected=-1;save();scene.invalidate();}else toast("Selecciona una pieza");});
+ icon(left,"✎","Boceto 2D",()->chooseSketchPlane());icon(left,"↥","Extruir boceto",()->chooseSketchExtrusion());icon(left,"□","Crear rectángulo",()->edit(false,false));icon(left,"◯","Crear círculo",()->edit(true,false));icon(left,"✎","Editar pieza",()->{if(selected>=0)editLinkedOrPart();else toast("Selecciona una pieza");});icon(left,"☞","Modo navegar / mover / editar",()->chooseInteractionMode());icon(left,"✥","Mover / restricciones",()->moveOptions());icon(left,"⌫","Eliminar pieza",()->{if(selected>=0){checkpoint();parts.remove(selected);selected=-1;save();scene.invalidate();}else toast("Selecciona una pieza");});
  scene=new Scene();workspace.addView(scene,new LinearLayout.LayoutParams(0,-1,1));
  LinearLayout right=new LinearLayout(this);right.setOrientation(LinearLayout.VERTICAL);workspace.addView(right);rightBar=right;
  icon(right,"☷","Árbol de cuerpos",()->bodyTree());icon(right,"∩","Analizar booleanas",()->booleanAnalysis());icon(right,"▤","Resultados booleanos",()->booleanMeshManager());icon(right,"▦","Inspeccionar caras",()->inspectSelectedFaces());icon(right,"⌑","Inspeccionar aristas",()->inspectSelectedEdges());icon(right,"◇","Alternar vista 2D / 3D",()->{flat=!flat;scene.invalidate();});icon(right,"⊡","Centrar vista",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});icon(right,"▱","Visor 3D GPU",()->toggleMeshView());icon(right,"?","Guía",()->guide());
@@ -143,7 +143,7 @@ public class MainActivity extends Activity {
  void chooseSketchPlane(){new AlertDialog.Builder(this).setTitle("Plano de boceto").setSingleChoiceItems(new String[]{"XY · planta","XZ · alzado","YZ · lateral"},sketchPlane,(d,n)->{sketchPlane=n;flat=true;sketchTool=0;scene.invalidate();info.setText("Plano "+new String[]{"XY","XZ","YZ"}[n]+" seleccionado · Elige herramienta de boceto");d.dismiss();sketchMenu();}).setNegativeButton("Cancelar",null).show();}
  void sketchMenu(){
   String[] items={"Salir de boceto","Línea","Rectángulo","Círculo","Acotar seleccionado",
-   "Extruir seleccionado","Eliminar último boceto","Eliminar boceto seleccionado","Extruir contorno cerrado de líneas (malla)"};
+   "Extruir seleccionado","Eliminar último boceto","Eliminar boceto seleccionado","Extruir contorno cerrado de líneas (malla)","Extruir arrastrando con el dedo"};
   new AlertDialog.Builder(this).setTitle("Boceto táctil · plano "+new String[]{"XY","XZ","YZ"}[sketchPlane])
    .setItems(items,(dialog,choice)->{
     if(choice==4){dimensionSketch();return;}
@@ -151,6 +151,7 @@ public class MainActivity extends Activity {
     if(choice==6){requestSketchDeletion(false);return;}
     if(choice==7){requestSketchDeletion(true);return;}
     if(choice==8){extrudeSelectedLineLoop();return;}
+    if(choice==9){startSketchPushPull();return;}
     sketchTool=choice;
     if(choice>0){
      flat=true;info.setText("BOCETO · Arrastra con el dedo · Pellizca para zoom");
@@ -662,11 +663,35 @@ public class MainActivity extends Activity {
  Part makeExtrudedPart(Sketch q,float height){
   es.josxtm.mycad.cad.LinkedSketchSolidPlan.Body result=
    es.josxtm.mycad.cad.LinkedSketchSolidPlan.build(q.type,q.plane,q.x1,q.y1,q.x2,q.y2,height);
+  return partFromSketchPlan(q.id,result);
+ }
+ Part partFromSketchPlan(String sketchId,es.josxtm.mycad.cad.LinkedSketchSolidPlan.Body result){
   Part body=new Part(result.circle,result.w,result.d,result.h,result.x);
   body.y=result.y;body.z=result.z;
   body.rotationX=result.rx;body.rotationY=result.ry;body.rotationZ=result.rz;
-  body.sourceSketchId=q.id;
+  body.sourceSketchId=sketchId;
   return body;
+ }
+ void chooseSketchExtrusion(){
+  new AlertDialog.Builder(this).setTitle("Extruir boceto seleccionado")
+   .setItems(new String[]{"Arrastrar con el dedo", "Introducir altura / deslizador"},
+    (dialog,choice)->{if(choice==0)startSketchPushPull();else extrudeSketch();})
+   .setNegativeButton("Cancelar",null).show();
+ }
+ void startSketchPushPull(){
+  if(scene.pushPullSession!=null){scene.cancelPushPull();return;}
+  if(fileBusy||meshMode||movie){toast("Usa el lienzo de boceto sin animación para extruir");return;}
+  if(selectedSketch<0||selectedSketch>=sketches.size()||parts.size()>=500){
+   toast("Selecciona un rectángulo o círculo de boceto");return;
+  }
+  Sketch q=sketches.get(selectedSketch);
+  try{
+   scene.pushPullSession=new es.josxtm.mycad.cad.SketchPushPullSession(
+    q.id,q.type,q.plane,q.x1,q.y1,q.x2,q.y2);
+   scene.pushPullSource=q;scene.pushPullDraft=null;scene.pushPullTracking=false;
+   sketchTool=0;flat=false;scene.invalidate();
+   info.setText("EXTRUIR · Arrastra hacia arriba en el lienzo · Suelta para crear · Dos dedos cancelan");
+  }catch(Exception invalid){toast("Selecciona un perfil cerrado válido");}
  }
  void extrudeSketch(){
   if(selectedSketch<0||selectedSketch>=sketches.size()){toast("Selecciona un perfil de boceto");return;}
@@ -1963,7 +1988,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
  void save(){try{getPreferences(MODE_PRIVATE).edit().putString("design",encode()).apply();updateStep();}catch(Exception e){toast("No se pudo guardar el borrador interno");}}
  void load(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;loopExtrusionFeatures=restored.loops;intersectionRecipes=restored.intersections;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
- protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putString("pendingExport",pendingExport);}
+ protected void onSaveInstanceState(Bundle b){if(scene!=null&&scene.pushPullSession!=null)scene.cancelPushPull();super.onSaveInstanceState(b);b.putString("pendingExport",pendingExport);}
 
  void addTri(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r){for(float v:p)a.add(v);for(float v:q)a.add(v);for(float v:r)a.add(v);}
  void quad(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r,float[] t){addTri(a,p,q,r);addTri(a,p,r,t);}
@@ -3434,6 +3459,47 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  class Face {float[][] vertices;float depth;int color;Face(float[][] v,int c){vertices=v;color=c;for(float[] p:v)depth+=p[2]/v.length;}}
  class Scene extends View{
  Paint paint=new Paint(3);int selectedFaceBody=-1,selectedFaceIndex=-1;int partHandle=-1;float originalW,originalD,originalH,originalX,originalY,originalZ;boolean geometryChanged=false,entityDrag=false;int activeMoveAxis=-1,activeRotateAxis=-1;float rotationStart,rotationOriginal;float yaw=.65f,pitch=.6f,zoom=3,lastX,lastY,multiMidX,multiMidY,panX,panY;boolean movingEntity=false,editingHandle=false,gestureMulti=false;int handleIndex=-1,tapCount=0,lastTapEntity=-999;long lastTapTime=0;float movieYaw,movieOldYaw,movieOldPitch,movieOldZoom,moviePivotX,moviePivotY,moviePivotZ;boolean movieOldFlat,movieCameraSaved=false;long movieLast;android.os.Handler movieHandler=new android.os.Handler(android.os.Looper.getMainLooper());Runnable movieFrame;ScaleGestureDetector scale;
+ es.josxtm.mycad.cad.SketchPushPullSession pushPullSession;
+ Sketch pushPullSource;Part pushPullDraft;boolean pushPullTracking=false;float pushPullDownY;
+ void cancelPushPull(){
+  pushPullSession=null;pushPullSource=null;pushPullDraft=null;pushPullTracking=false;
+  invalidate();info.setText("Extrusión cancelada · proyecto sin cambios");
+ }
+ boolean pushPullIsCurrent(){
+  return !fileBusy&&!meshMode&&!movie&&!flat&&selectedSketch>=0&&selectedSketch<sketches.size()&&
+   sketches.get(selectedSketch)==pushPullSource&&parts.size()<500&&
+   pushPullSession.matches(pushPullSource.id,pushPullSource.type,pushPullSource.plane,
+    pushPullSource.x1,pushPullSource.y1,pushPullSource.x2,pushPullSource.y2);
+ }
+ boolean handlePushPull(android.view.MotionEvent event){
+  int action=event.getActionMasked();
+  if(action==android.view.MotionEvent.ACTION_CANCEL||event.getPointerCount()>1||!pushPullIsCurrent()){
+   cancelPushPull();gestureMulti=event.getPointerCount()>1;return true;
+  }
+  if(action==android.view.MotionEvent.ACTION_DOWN){
+   pushPullDownY=event.getY();pushPullTracking=true;return true;
+  }
+  if(!pushPullTracking)return true;
+  if(action==android.view.MotionEvent.ACTION_MOVE||action==android.view.MotionEvent.ACTION_UP){
+   try{
+    double height=pushPullSession.heightForTravel((pushPullDownY-event.getY())/getResources().getDisplayMetrics().density);
+    pushPullDraft=height>0?partFromSketchPlan(pushPullSession.sketchId,pushPullSession.propose(height)):null;
+    info.setText(String.format(java.util.Locale.US,"EXTRUIR · %.0f mm · Suelta para crear · Dos dedos cancelan",height));
+    invalidate();
+    if(action==android.view.MotionEvent.ACTION_UP){
+     if(pushPullDraft==null){cancelPushPull();return true;}
+     Part result=pushPullDraft;
+     // The preview has never entered parts: undo and saved JSON contain only committed bodies.
+     checkpoint();parts.add(result);selected=parts.size()-1;
+     selectedSketch=-1;selectedFaceBody=-1;selectedFaceIndex=-1;
+     pushPullDraft=null;pushPullSession=null;pushPullSource=null;pushPullTracking=false;
+     save();invalidate();
+     info.setText(String.format(java.util.Locale.US,"Extrusión %.0f mm · Deshacer disponible",height));
+    }
+   }catch(Exception invalid){cancelPushPull();toast("Extrusión no aplicada: perfil o altura inválidos");}
+  }
+  return true;
+ }
  boolean cubeDragging=false; float cubeDownX,cubeDownY;
  float cubeSize(){return dp(96);}
  float cubeLeft(){return getWidth()-cubeSize()-dp(12);}
@@ -3475,8 +3541,11 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  float[] rotatePoint(Part p,float x,float y,float z){double ax=Math.toRadians(p.rotationX),ay=Math.toRadians(p.rotationY),az=Math.toRadians(p.rotationZ);double cy=Math.cos(ax),sy=Math.sin(ax),yy=y*cy-z*sy,zz=y*sy+z*cy;double cx=Math.cos(ay),sx=Math.sin(ay),xx=x*cx+zz*sx,z2=-x*sx+zz*cx;double cz=Math.cos(az),sz=Math.sin(az);return new float[]{(float)(xx*cz-yy*sz),(float)(xx*sz+yy*cz),(float)z2};}
  float[] project(float x,float y,float z){if(movieCameraSaved){x-=moviePivotX;y-=moviePivotY;z-=moviePivotZ;}if(flat)return new float[]{getWidth()/2f+x*zoom+panX*zoom,getHeight()/2f-y*zoom-panY*zoom,z};float u=(float)(x*Math.cos(yaw)-y*Math.sin(yaw));float v=(float)(x*Math.sin(yaw)+y*Math.cos(yaw));return new float[]{getWidth()/2f+u*zoom+panX*zoom,getHeight()/2f+(float)(v*Math.sin(pitch)-z*Math.cos(pitch))*zoom-panY*zoom,(float)(v*Math.cos(pitch)+z*Math.sin(pitch))};}
  protected void onDraw(Canvas c){super.onDraw(c);c.drawColor(darkMode?Color.rgb(24,33,46):Color.rgb(239,244,249));paint.setStrokeWidth(1);paint.setColor(darkMode?Color.rgb(44,57,73):Color.rgb(201,213,224));if(gridVisible){float step=Math.max(.1f,gridStep);int count=Math.min(160,(int)(400/step));for(int i=-count;i<=count;i++){float t=i*step;float[] a,b;if(gridPlane==0){a=project(t,-200,0);b=project(t,200,0);}else if(gridPlane==1){a=project(t,0,-200);b=project(t,0,200);}else{a=project(0,t,-200);b=project(0,t,200);}c.drawLine(a[0],a[1],b[0],b[1],paint);if(gridPlane==0){a=project(-200,t,0);b=project(200,t,0);}else if(gridPlane==1){a=project(-200,0,t);b=project(200,0,t);}else{a=project(0,-200,t);b=project(0,200,t);}c.drawLine(a[0],a[1],b[0],b[1],paint);}}if(axesVisible){float[][] origin={project(0,0,0),project(100,0,0),project(0,100,0),project(0,0,100)};for(int k=1;k<=3;k++){paint.setColor(new int[]{0,Color.RED,Color.GREEN,Color.BLUE}[k]);paint.setStrokeWidth(3);c.drawLine(origin[0][0],origin[0][1],origin[k][0],origin[k][1],paint);}}
+ if(pushPullSession!=null&&!pushPullIsCurrent())cancelPushPull();
  ArrayList<Face> faces=new ArrayList<>();
- for(int j=0;j<parts.size();j++){Part p=parts.get(j);int n=p.circle?64:4;float[][] low=new float[n][],high=new float[n][];
+ ArrayList<Part> visibleParts=new ArrayList<>(parts);
+ if(pushPullDraft!=null)visibleParts.add(pushPullDraft);
+ for(int j=0;j<visibleParts.size();j++){Part p=visibleParts.get(j);int n=p.circle?64:4;float[][] low=new float[n][],high=new float[n][];
  for(int i=0;i<n;i++){float x,y;if(p.circle){x=(float)Math.cos(i*2*Math.PI/n)*p.w/2;y=(float)Math.sin(i*2*Math.PI/n)*p.d/2;}else{x=(i==0||i==3)?-p.w/2:p.w/2;y=i<2?-p.d/2:p.d/2;}float[] lo=rotatePoint(p,x,y,-p.h/2),hi=rotatePoint(p,x,y,p.h/2);low[i]=project(lo[0]+p.x,lo[1]+p.y,lo[2]+p.z+p.h/2);high[i]=project(hi[0]+p.x,hi[1]+p.y,hi[2]+p.z+p.h/2);}
  int col=j==selected?Color.rgb(69,186,207):Color.rgb(105,135,165);
  if(!flat)faces.add(new Face(low,col));
@@ -3565,6 +3634,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
 
  public boolean onTouchEvent(android.view.MotionEvent e){
   int action=e.getActionMasked();
+  if(pushPullSession!=null)return handlePushPull(e);
   if(action==android.view.MotionEvent.ACTION_DOWN&&inCube(e.getX(),e.getY())){
    cubeDragging=true;cubeDownX=downX=e.getX();cubeDownY=downY=e.getY();return true;
   }
