@@ -52,7 +52,8 @@ public final class ConvexPrismBRepNestedUnion {
   boolean bInsideA=Math.abs(common.area-areaB)<=tolerance&&containsSection(a,b);
   if(!aInsideB&&!bInsideA)
    throw new IllegalArgumentException("Unión B-Rep: solo contención completa; solape parcial no soportado");
-  double heightTolerance=EPS*Math.max(1,Math.max(Math.abs(da),Math.abs(db)));
+  // Do not treat a protruding top cap as contained just because area tolerance is loose.
+  double heightTolerance=1e-9*Math.max(1,Math.max(Math.abs(da),Math.abs(db)));
   boolean aContained=aInsideB&&Math.abs(da)<=Math.abs(db)+heightTolerance;
   boolean bContained=bInsideA&&Math.abs(db)<=Math.abs(da)+heightTolerance;
   if(!aContained&&!bContained)
