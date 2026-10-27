@@ -282,6 +282,16 @@ public class MainActivity extends Activity {
   if(intersectionRecipes.size()!=booleanMeshes.size()||
      loopExtrusionFeatures.size()!=booleanMeshes.size())
    throw new IllegalArgumentException("Historial de booleanas B-Rep desalineado");
+  if(staged==null)throw new IllegalArgumentException("Falta la propuesta de mallas B-Rep");
+  for(java.util.Map.Entry<Integer,MeshEngine.Mesh> entry:staged.entrySet())
+   if(entry.getKey()==null||entry.getKey()<0||
+      entry.getKey()>=booleanMeshes.size()||entry.getValue()==null)
+    throw new IllegalArgumentException("Índice o malla B-Rep propuesta inválida");
+  if(replacements!=null)for(java.util.Map.Entry<Integer,es.josxtm.mycad.cad.LoopExtrusionFeature> entry:replacements.entrySet())
+   if(entry.getKey()==null||entry.getKey()<0||
+      entry.getKey()>=loopExtrusionFeatures.size()||entry.getValue()==null||
+      loopExtrusionFeatures.get(entry.getKey())==null)
+    throw new IllegalArgumentException("Sustitución de extrusión B-Rep inválida");
   java.util.LinkedHashMap<Integer,MeshEngine.Mesh> out=
    new java.util.LinkedHashMap<>(staged);
   java.util.Map<String,es.josxtm.mycad.cad.LoopExtrusionFeature> sources=
