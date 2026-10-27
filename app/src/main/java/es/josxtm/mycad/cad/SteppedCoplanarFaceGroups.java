@@ -29,6 +29,42 @@ public final class SteppedCoplanarFaceGroups {
  /** Immutable counts of exterior contours and holes for every coplanar patch.
   * This is a diagnostic summary, not a topological face replacement.
   */
+ /** Read-only candidate for a consolidated planar face; source topology is unchanged. */
+ public static final class Patch {
+  public final List<String> faceIds;
+  public final List<List<String>> boundaryHalfEdgeLoops;
+  public final List<Double> signedLoopAreas;
+  public final double area;
+  public final int exteriorCount;
+  public final int holeCount;
+  private Patch(List<String> faces,List<List<String>> loops,List<Double> signed,double area){
+   this.faceIds=faces;this.boundaryHalfEdgeLoops=loops;this.signedLoopAreas=signed;
+   this.area=area;
+   int outer=0,holes=0;
+   for(double value:signed){if(value>0)outer++;else holes++;}
+   this.exteriorCount=outer;this.holeCount=holes;
+  }
+ }
+
+ /** Immutable planar patch descriptors for future topology-safe face consolidation. */
+ public static List<Patch> describe(VariableHeightOrthogonalBRep shell){
+  List<List<String>> faces=find(shell);
+  List<List<List<String>>> loops=boundaryLoops(shell);
+  List<List<Double>> signed=boundaryLoopAreas(shell);
+  List<Double> areas=areas(shell);
+  List<Patch> result=new ArrayList<>();
+  for(int i=0;i<faces.size();i++){
+   if(faces.get(i).isEmpty()||loops.get(i).size()!=signed.get(i).size())
+    throw new IllegalArgumentException("Inconsistent coplanar patch");
+   double sum=0;
+   for(double value:signed.get(i))sum+=value;
+   if(Math.abs(sum-areas.get(i))>1e-5*Math.max(1,areas.get(i)))
+    throw new IllegalArgumentException("Inconsistent patch area");
+   result.add(new Patch(faces.get(i),loops.get(i),signed.get(i),areas.get(i)));
+  }
+  return Collections.unmodifiableList(result);
+ }
+
  public static List<List<Integer>> loopCounts(VariableHeightOrthogonalBRep shell){
   List<List<Double>> signedAreas=boundaryLoopAreas(shell);
   List<List<Integer>> result=new ArrayList<>();
