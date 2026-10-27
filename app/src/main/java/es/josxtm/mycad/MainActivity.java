@@ -293,6 +293,12 @@ public class MainActivity extends Activity {
       loopExtrusionFeatures.get(entry.getKey())==null||
       !loopExtrusionFeatures.get(entry.getKey()).id.equals(entry.getValue().id))
     throw new IllegalArgumentException("Sustitución de extrusión B-Rep inválida");
+  // Recipe IDs must be globally unique, including unaffected historical entries.
+  // Otherwise a later edit can publish a Boolean into the wrong mesh slot.
+  java.util.HashSet<String> recipeIds=new java.util.HashSet<>();
+  for(es.josxtm.mycad.cad.LinkedConvexIntersection recipe:intersectionRecipes)
+   if(recipe!=null&&(recipe.id==null||recipe.id.isEmpty()||!recipeIds.add(recipe.id)))
+    throw new IllegalArgumentException("Identificador de booleana B-Rep duplicado o vacío");
   java.util.LinkedHashMap<Integer,MeshEngine.Mesh> out=
    new java.util.LinkedHashMap<>(staged);
   java.util.Map<String,es.josxtm.mycad.cad.LoopExtrusionFeature> sources=
