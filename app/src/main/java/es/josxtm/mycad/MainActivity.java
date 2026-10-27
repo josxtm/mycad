@@ -3577,7 +3577,24 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   void drawMoveGizmo(Canvas c,Part p){float[] center=project(p.x,p.y,p.z+p.h/2);float len=dp(55);for(int axis=0;axis<3;axis++){float[] end=axis==0?project(p.x+25,p.y,p.z+p.h/2):axis==1?project(p.x,p.y+25,p.z+p.h/2):project(p.x,p.y,p.z+p.h/2+25);float vx=end[0]-center[0],vy=end[1]-center[1],norm=(float)Math.hypot(vx,vy);if(norm<1){vx=axis==2?0:1;vy=axis==2?-1:0;norm=1;}vx=vx/norm*len;vy=vy/norm*len;paint.setColor(new int[]{Color.rgb(235,90,90),Color.rgb(70,208,120),Color.rgb(75,140,255)}[axis]);paint.setStrokeWidth(dp(4));c.drawLine(center[0],center[1],center[0]+vx,center[1]+vy,paint);c.drawCircle(center[0]+vx,center[1]+vy,dp(11),paint);paint.setColor(Color.WHITE);paint.setTextSize(dp(13));c.drawText(new String[]{"X","Y","Z"}[axis],center[0]+vx-dp(5),center[1]+vy+dp(5),paint);}paint.setColor(Color.WHITE);paint.setTextSize(dp(11));c.drawText(String.format(java.util.Locale.US,"X %.1f  Y %.1f  Z %.1f mm",p.x,p.y,p.z),Math.max(5,center[0]-dp(70)),center[1]+dp(80),paint);}
  int hitMoveGizmo(float sx,float sy){if(selected<0||selected>=parts.size()||interactionMode!=1)return -1;Part p=parts.get(selected);float[] center=project(p.x,p.y,p.z+p.h/2);for(int axis=2;axis>=0;axis--){float[] end=axis==0?project(p.x+25,p.y,p.z+p.h/2):axis==1?project(p.x,p.y+25,p.z+p.h/2):project(p.x,p.y,p.z+p.h/2+25);float vx=end[0]-center[0],vy=end[1]-center[1],norm=(float)Math.hypot(vx,vy);if(norm<1){vx=axis==2?0:1;vy=axis==2?-1:0;norm=1;}float ex=center[0]+vx/norm*dp(55),ey=center[1]+vy/norm*dp(55);if(Math.hypot(sx-ex,sy-ey)<dp(24))return axis;}return -1;}
  float[] sketchPoint(Sketch q,float a,float b){if(flat)return new float[]{getWidth()/2f+a*zoom+panX*zoom,getHeight()/2f-b*zoom-panY*zoom,0};return q.plane==0?project(a,b,0):q.plane==1?project(a,0,b):project(0,a,b);}
- void drawSketch(Canvas c,Sketch q){float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);if(q.type==1)c.drawLine(a[0],a[1],b[0],b[1],paint);else if(q.type==2)c.drawRect(Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1]),paint);else c.drawCircle(a[0],a[1],(float)Math.hypot(b[0]-a[0],b[1]-a[1]),paint);}
+ void drawSketch(Canvas c,Sketch q){
+  float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);
+  if(q.type==1){c.drawLine(a[0],a[1],b[0],b[1],paint);return;}
+  // Project every point from the sketch plane. A projected rectangle is not
+  // generally an axis-aligned screen rectangle, nor is a circle a screen circle.
+  Path path=new Path();
+  int count=q.type==2?4:64;
+  double radius=Math.hypot(q.x2-q.x1,q.y2-q.y1);
+  for(int i=0;i<count;i++){
+   float u,v;
+   if(q.type==2){u=(i==0||i==3)?q.x1:q.x2;v=i<2?q.y1:q.y2;}
+   else{u=q.x1+(float)(radius*Math.cos(2*Math.PI*i/count));
+        v=q.y1+(float)(radius*Math.sin(2*Math.PI*i/count));}
+   float[] point=sketchPoint(q,u,v);
+   if(i==0)path.moveTo(point[0],point[1]);else path.lineTo(point[0],point[1]);
+  }
+  path.close();c.drawPath(path,paint);
+ }
  int hitSketch(float sx,float sy){int best=-1;float distance=dp(18);for(int i=0;i<sketches.size();i++){Sketch q=sketches.get(i);float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);float d;if(q.type==1){float vx=b[0]-a[0],vy=b[1]-a[1],len=vx*vx+vy*vy;float t=len<.01f?0:Math.max(0,Math.min(1,((sx-a[0])*vx+(sy-a[1])*vy)/len));d=(float)Math.hypot(sx-a[0]-t*vx,sy-a[1]-t*vy);}else if(q.type==2){float l=Math.min(a[0],b[0]),r=Math.max(a[0],b[0]),t=Math.min(a[1],b[1]),bt=Math.max(a[1],b[1]);d=Math.min(Math.min(Math.abs(sx-l),Math.abs(sx-r)),Math.min(Math.abs(sy-t),Math.abs(sy-bt)));if(sx<l-distance||sx>r+distance||sy<t-distance||sy>bt+distance)d=Float.MAX_VALUE;}else{float radius=(float)Math.hypot(b[0]-a[0],b[1]-a[1]);d=Math.abs((float)Math.hypot(sx-a[0],sy-a[1])-radius);}if(d<distance){distance=d;best=i;}}return best;}
  long downAt;float downX,downY;boolean moved,drag;
  float[][] facePolygon(Part p,int face){

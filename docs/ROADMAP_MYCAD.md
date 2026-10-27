@@ -71,12 +71,13 @@ porcentaje); no se usan como evidencia de aceptación del estado actual.
 Estado: **no aceptado aún**. Las pruebas del motor no sustituyen esta secuencia Android.
 
 
-## Incremento: extrusión desde el lienzo por arrastre
+## Incremento: extrusión desde el lienzo por arrastre — [PR #117](https://github.com/josxtm/mycad/pull/117)
 
 - El botón Extruir permite elegir arrastre con dedo o el diálogo anterior.
   También se añade la opción al menú Boceto táctil.
 - Seleccionar rectángulo/círculo, activar arrastre, mover hacia arriba en el
   lienzo y soltar. Escala inicial: 8 dp/mm, ajuste a 1 mm; 80 dp producen 10 mm.
+- El contorno del boceto se proyecta punto a punto en 3D para que rectángulos y círculos permanezcan en su plano durante la vista previa.
 - La vista previa no entra en `parts`, JSON ni historial. Un cuerpo se publica
   al soltar con altura positiva y perfil todavía vigente; se conserva el vínculo
   al UUID de boceto. Dos dedos, retorno al origen, cancelación del sistema o
