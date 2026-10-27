@@ -21,6 +21,52 @@ public final class SteppedCoplanarFaceGroups {
   * Each loop is closed implicitly (last half-edge ends at the first start).
   * Multiple loops are retained separately, including potential holes.
   */
+ /**
+  * Signed projected area of each oriented patch loop, measured along its
+  * outward face normal. Positive loops are exterior; negative loops are holes.
+  * The signed sum must reproduce the corresponding analytic patch area.
+  */
+ public static List<List<Double>> boundaryLoopAreas(VariableHeightOrthogonalBRep shell){
+  List<List<String>> groups=find(shell);
+  List<List<List<String>>> loops=boundaryLoops(shell);
+  List<Double> expected=areas(shell);
+  Map<String,VariableHeightOrthogonalBRep.Face> faces=new HashMap<>();
+  for(VariableHeightOrthogonalBRep.Face face:shell.faces())faces.put(face.id,face);
+  Map<String,VariableHeightOrthogonalBRep.Vertex> vertices=new HashMap<>();
+  for(VariableHeightOrthogonalBRep.Vertex vertex:shell.vertices())vertices.put(vertex.id,vertex);
+  Map<String,VariableHeightOrthogonalBRep.HalfEdge> halfEdges=new HashMap<>();
+  for(VariableHeightOrthogonalBRep.HalfEdge edge:shell.halfEdges())halfEdges.put(edge.id,edge);
+  List<List<Double>> result=new ArrayList<>();
+  for(int i=0;i<groups.size();i++){
+   double[] normal=faces.get(groups.get(i).get(0)).outwardNormal();
+   int axis=0;
+   for(int a=1;a<3;a++)if(Math.abs(normal[a])>Math.abs(normal[axis]))axis=a;
+   if(Math.abs(normal[axis])<1-1e-8)
+    throw new IllegalArgumentException("Non-axis-aligned patch");
+   List<Double> patch=new ArrayList<>();
+   double total=0;
+   for(List<String> loop:loops.get(i)){
+    double signed=0;
+    for(String id:loop){
+     VariableHeightOrthogonalBRep.HalfEdge edge=halfEdges.get(id);
+     VariableHeightOrthogonalBRep.Vertex a=vertices.get(edge.fromId);
+     VariableHeightOrthogonalBRep.Vertex b=vertices.get(edge.toId);
+     if(axis==0)signed+=a.y*b.z-b.y*a.z;
+     else if(axis==1)signed+=a.z*b.x-b.z*a.x;
+     else signed+=a.x*b.y-b.x*a.y;
+    }
+    signed*=0.5*normal[axis];
+    if(!Double.isFinite(signed)||Math.abs(signed)<1e-9)
+     throw new IllegalArgumentException("Degenerate patch loop area");
+    patch.add(signed);total+=signed;
+   }
+   if(Math.abs(total-expected.get(i))>1e-5*Math.max(1,expected.get(i)))
+    throw new IllegalArgumentException("Patch loop area conservation failed");
+   result.add(Collections.unmodifiableList(patch));
+  }
+  return Collections.unmodifiableList(result);
+ }
+
  public static List<List<List<String>>> boundaryLoops(VariableHeightOrthogonalBRep shell){
   List<List<String>> groups=find(shell);
   Map<String,Integer> patchByFace=new HashMap<>();
