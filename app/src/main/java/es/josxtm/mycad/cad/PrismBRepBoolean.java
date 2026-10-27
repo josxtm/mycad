@@ -7,8 +7,8 @@ import java.util.*;
  * Unified analytic Boolean entry point for supported single-shell prisms.
  *
  * UNION uses the established containment, convex-hull and orthogonal routes.
- * INTERSECTION clips convex profiles (including unequal signed heights) or
- * falls back to the equal-height orthogonal arrangement for concave profiles.
+ * INTERSECTION clips convex profiles or falls back to the orthogonal
+ * arrangement for concave profiles, including unequal signed heights.
  * DIFFERENCE currently supports only equal-height orthogonal profiles.
  *
  * A disconnected result, hole or unsupported freeform profile is rejected;
@@ -45,8 +45,8 @@ public final class PrismBRepBoolean {
    PolygonPrismBRep.Vertex a=body.vertices().get(i);
    PolygonPrismBRep.Vertex b=body.vertices().get((i+1)%n);
    int plane=body.plane();
-   double au=plane==2?a.y:a.x,av=plane==0?a.y:plane==1?a.z:a.z;
-   double bu=plane==2?b.y:b.x,bv=plane==0?b.y:plane==1?b.z:b.z;
+   double au=plane==2?a.y:a.x,av=plane==0?a.y:a.z;
+   double bu=plane==2?b.y:b.x,bv=plane==0?b.y:b.z;
    String edge=UUID.nameUUIDFromBytes(
        (body.id()+"/intersection-height/edge/"+i).getBytes(StandardCharsets.UTF_8))
        .toString();
