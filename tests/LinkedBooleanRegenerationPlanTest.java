@@ -49,6 +49,35 @@ public final class LinkedBooleanRegenerationPlanTest {
    ok(first.isCurrent(features,lines)&&reversed.isCurrent(features,lines),
        "unchanged source snapshot remains publishable");
    first.requireCurrent(features,lines);
+   // The saved Boolean recipe is also part of the publication revision.
+   // The older two-map check remains compatible with existing callers.
+   java.util.List<LinkedConvexIntersection> recipes=Arrays.asList(union,intersection);
+   ok(first.isCurrent(recipes,features,lines),
+       "unchanged Boolean recipes and geometry remain current");
+   first.requireCurrent(recipes,features,lines);
+   ok(first.isCurrent(Arrays.asList(intersection,union),features,lines),
+       "recipe collection order is irrelevant");
+   LinkedConvexIntersection changedOperation=new LinkedConvexIntersection(
+       union.id,a.id,b.id,LinkedConvexIntersection.Operation.DIFFERENCE_ANALYTIC);
+   ok(!first.isCurrent(Arrays.asList(changedOperation,intersection),features,lines),
+       "changing Boolean operation invalidates the staged result");
+   reject(()->first.requireCurrent(Arrays.asList(changedOperation,intersection),
+       features,lines),"stale Boolean operation cannot be published");
+   LinkedConvexIntersection swappedOperands=new LinkedConvexIntersection(
+       union.id,b.id,a.id,union.operation);
+   ok(!first.isCurrent(Arrays.asList(swappedOperands,intersection),features,lines),
+       "operand order is part of saved Boolean topology");
+   ok(!first.isCurrent(Collections.singletonList(union),features,lines),
+       "removing a Boolean recipe invalidates the batch");
+   LinkedConvexIntersection addedRecipe=new LinkedConvexIntersection(
+       id("extra-recipe"+p+s),a.id,b.id,
+       LinkedConvexIntersection.Operation.INTERSECTION_ANALYTIC);
+   ok(!first.isCurrent(Arrays.asList(union,intersection,addedRecipe),features,lines),
+       "adding a Boolean recipe invalidates the batch");
+   ok(!first.isCurrent(Arrays.asList(union,union),features,lines),
+       "duplicate Boolean IDs are not a valid current recipe set");
+   ok(first.isCurrent(recipes,features,lines),
+       "failed recipe checks cannot mutate the successful plan");
    Map<String,ClosedSketchExtrusion.Segment> unrelatedLines=new LinkedHashMap<>(lines);
    unrelatedLines.put(id("unrelated-line"+p+s),
        new ClosedSketchExtrusion.Segment(p,20,20,21,20));
@@ -64,6 +93,8 @@ public final class LinkedBooleanRegenerationPlanTest {
    staleHeight.put(a.id,a.withDistance(s*2));
    ok(!first.isCurrent(staleHeight,lines),
        "changed extrusion height invalidates staged B-Rep");
+   ok(!first.isCurrent(recipes,staleHeight,lines),
+       "full guard rejects stale extrusion height");
    reject(()->first.requireCurrent(staleHeight,lines),
        "cannot publish stale extrusion batch");
    Map<String,ClosedSketchExtrusion.Segment> staleLines=new LinkedHashMap<>(lines);
