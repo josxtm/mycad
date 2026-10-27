@@ -45,6 +45,49 @@ public final class LinkedBooleanRegenerationPlanTest {
        Arrays.asList(union,intersection),features,lines);
    LinkedBooleanRegenerationPlan.Plan reversed=LinkedBooleanRegenerationPlan.build(
        Arrays.asList(intersection,union),features,lines);
+   // The preflight is valid only for the exact referenced source revision.
+   ok(first.isCurrent(features,lines)&&reversed.isCurrent(features,lines),
+       "unchanged source snapshot remains publishable");
+   first.requireCurrent(features,lines);
+   Map<String,ClosedSketchExtrusion.Segment> unrelatedLines=new LinkedHashMap<>(lines);
+   unrelatedLines.put(id("unrelated-line"+p+s),
+       new ClosedSketchExtrusion.Segment(p,20,20,21,20));
+   ok(first.isCurrent(features,unrelatedLines),
+       "unrelated sketch edits must not invalidate a Boolean batch");
+   Map<String,LoopExtrusionFeature> unrelatedFeatures=new LinkedHashMap<>(features);
+   unrelatedFeatures.put(id("unrelated-feature"+p+s),
+       feature("unrelated-feature"+p+s,p,s*2,
+           new double[][]{{20,20},{21,20},{20,21}},unrelatedLines));
+   ok(first.isCurrent(unrelatedFeatures,unrelatedLines),
+       "unrelated extrusions must not invalidate a Boolean batch");
+   Map<String,LoopExtrusionFeature> staleHeight=new LinkedHashMap<>(features);
+   staleHeight.put(a.id,a.withDistance(s*2));
+   ok(!first.isCurrent(staleHeight,lines),
+       "changed extrusion height invalidates staged B-Rep");
+   reject(()->first.requireCurrent(staleHeight,lines),
+       "cannot publish stale extrusion batch");
+   Map<String,ClosedSketchExtrusion.Segment> staleLines=new LinkedHashMap<>(lines);
+   String sourceLine=a.lineIds().get(0);
+   ClosedSketchExtrusion.Segment original=lines.get(sourceLine);
+   staleLines.put(sourceLine,new ClosedSketchExtrusion.Segment(
+       original.plane,original.ax+0.00001,original.ay,
+       original.bx+0.00001,original.by));
+   ok(!first.isCurrent(features,staleLines),
+       "sub-millimetre source edit invalidates staged B-Rep");
+   reject(()->first.requireCurrent(features,staleLines),
+       "cannot publish stale sketch batch");
+   staleLines.remove(sourceLine);
+   ok(!first.isCurrent(features,staleLines),
+       "deleted source line invalidates staged B-Rep");
+   Map<String,LoopExtrusionFeature> reordered=new LinkedHashMap<>(features);
+   ArrayList<String> reversedLines=new ArrayList<>(a.lineIds());
+   Collections.reverse(reversedLines);
+   reordered.put(a.id,new LoopExtrusionFeature(a.id,a.selectedLineId,
+       a.plane,a.distance,reversedLines));
+   ok(!first.isCurrent(reordered,lines),
+       "changed source edge order invalidates saved B-Rep topology");
+   ok(first.isCurrent(features,lines),
+       "stale checks must not modify original sources or successful plan");
    ok(first.size()==2&&first.triangleCount()>0,"two rebuilt closed solids");
    ok(new ArrayList<>(first.featureIds()).equals(new ArrayList<>(reversed.featureIds())),
        "stable ordering");
