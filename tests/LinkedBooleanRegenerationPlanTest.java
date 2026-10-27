@@ -70,6 +70,25 @@ public final class LinkedBooleanRegenerationPlanTest {
     }
    reject(()->LinkedBooleanRegenerationPlan.requireClosedMesh(insideOut),
        "inward-facing closed solid");
+   // A positive aggregate volume must not mask an inverted small shell.
+   float[] positive=first.triangles(union.id);
+   float[] invertedSmall=first.triangles(intersection.id);
+   for(int k=0;k<invertedSmall.length;k+=3)
+    for(int axis=0;axis<3;axis++)invertedSmall[k+axis]+=1000;
+   for(int k=0;k<invertedSmall.length;k+=9)
+    for(int axis=0;axis<3;axis++){
+     float tmp=invertedSmall[k+3+axis];
+     invertedSmall[k+3+axis]=invertedSmall[k+6+axis];
+     invertedSmall[k+6+axis]=tmp;
+    }
+   float[] mixedShells=Arrays.copyOf(positive,positive.length+invertedSmall.length);
+   System.arraycopy(invertedSmall,0,mixedShells,positive.length,invertedSmall.length);
+   TriangleMeshHealth.Report mixedHealth=TriangleMeshHealth.inspect(mixedShells);
+   ok(mixedHealth.isWatertight()&&mixedHealth.shells==2&&
+      mixedHealth.signedVolume>0&&mixedHealth.negativeVolumeShells==1,
+      "mixed orientation is hidden by positive total volume");
+   reject(()->LinkedBooleanRegenerationPlan.requireClosedMesh(mixedShells),
+       "inverted disconnected shell in otherwise positive multi-shell result");
    ok(TriangleMeshHealth.inspect(first.triangles(union.id)).isWatertight(),
        "failed validation must not corrupt the saved plan");
    // Disconnected, individually closed shells are valid Boolean results.

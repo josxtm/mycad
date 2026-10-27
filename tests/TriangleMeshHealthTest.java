@@ -121,6 +121,10 @@ public final class TriangleMeshHealthTest {
   TriangleMeshHealth.Report mixedReport=TriangleMeshHealth.inspect(mixed);
   require(mixedReport.isWatertight()&&Math.abs(mixedReport.signedVolume-1.0/6.0)<1e-12,
     "Oppositely oriented distant shell must cancel exactly: "+mixedReport.signedVolume);
+  require(mixedReport.shells==3&&mixedReport.negativeVolumeShells==1,
+    "Mixed-orientation mesh must identify the inverted component");
+  require(shells.negativeVolumeShells==0&&inward.negativeVolumeShells==1,
+    "Orientation must be reported separately for each closed shell");
 
   // A doubled planar triangle has exactly two incident faces per edge,
   // opposite edge directions and no degenerate triangles, but no 3D interior.
