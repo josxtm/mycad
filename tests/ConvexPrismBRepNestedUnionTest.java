@@ -18,6 +18,7 @@ public final class ConvexPrismBRepNestedUnionTest {
   double[][] outer={{0,0},{6,0},{6,6},{0,6}};
   double[][] inner={{1,1},{3,1},{1,3}};
   double[][] overlap={{4,0},{8,0},{8,4},{4,4}};
+  double[][] tinyProtrusion={{1,1},{6.00001,1},{6.00001,5},{1,5}};
   for(int plane=0;plane<3;plane++)for(int sign:new int[]{-1,1}){
    final int p=plane,s=sign;
    PolygonPrismBRep a=prism("outer"+p+s,p,s*3,outer);
@@ -28,6 +29,7 @@ public final class ConvexPrismBRepNestedUnionTest {
    if(!TriangleMeshHealth.inspect(result.triangles()).isWatertight())
     throw new AssertionError("Nested union must be watertight");
    reject(()->ConvexPrismBRepNestedUnion.union(a,prism("partial"+p+s,p,s*3,overlap)));
+   reject(()->ConvexPrismBRepNestedUnion.union(a,prism("tinyProtrusion"+p+s,p,s*3,tinyProtrusion)));
    near(ConvexPrismBRepNestedUnion.union(a,prism("shorter"+p+s,p,s*2,inner)).volume(),108);
    near(ConvexPrismBRepNestedUnion.union(prism("shorterReversed"+p+s,p,s*2,inner),a).volume(),108);
    reject(()->ConvexPrismBRepNestedUnion.union(a,prism("taller"+p+s,p,s*4,inner)));
