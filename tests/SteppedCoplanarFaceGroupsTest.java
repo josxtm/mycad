@@ -27,6 +27,20 @@ public final class SteppedCoplanarFaceGroupsTest {
     List<List<String>> boundaries=SteppedCoplanarFaceGroups.boundaryEdgeIds(shell);
     List<List<List<String>>> loops=SteppedCoplanarFaceGroups.boundaryLoops(shell);
     List<List<Double>> signedAreas=SteppedCoplanarFaceGroups.boundaryLoopAreas(shell);
+    List<List<Integer>> counts=SteppedCoplanarFaceGroups.loopCounts(shell);
+    if(counts.size()!=groups.size()||
+       !counts.equals(SteppedCoplanarFaceGroups.loopCounts(shell)))
+     throw new AssertionError("Invalid or nondeterministic loop counts");
+    for(int i=0;i<counts.size();i++){
+     int exterior=0,holes=0;
+     for(double area:SteppedCoplanarFaceGroups.boundaryLoopAreas(shell).get(i)){
+      if(area>0)exterior++;else holes++;
+     }
+     if(counts.get(i).get(0)!=exterior||counts.get(i).get(1)!=holes||exterior<1)
+      throw new AssertionError("Incorrect patch loop classification");
+    }
+    try{counts.get(0).set(0,99);throw new AssertionError("Mutable loop counts");}
+    catch(UnsupportedOperationException expected){}
     if(signedAreas.size()!=groups.size()||
        !signedAreas.equals(SteppedCoplanarFaceGroups.boundaryLoopAreas(shell)))
      throw new AssertionError("Invalid or nondeterministic signed loop areas");

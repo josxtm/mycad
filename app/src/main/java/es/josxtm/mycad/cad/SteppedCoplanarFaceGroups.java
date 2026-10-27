@@ -26,6 +26,24 @@ public final class SteppedCoplanarFaceGroups {
   * outward face normal. Positive loops are exterior; negative loops are holes.
   * The signed sum must reproduce the corresponding analytic patch area.
   */
+ /** Immutable counts of exterior contours and holes for every coplanar patch.
+  * This is a diagnostic summary, not a topological face replacement.
+  */
+ public static List<List<Integer>> loopCounts(VariableHeightOrthogonalBRep shell){
+  List<List<Double>> signedAreas=boundaryLoopAreas(shell);
+  List<List<Integer>> result=new ArrayList<>();
+  for(List<Double> patch:signedAreas){
+   int exterior=0,holes=0;
+   for(double area:patch){
+    if(area>0)exterior++;
+    else holes++;
+   }
+   if(exterior==0)throw new IllegalArgumentException("Patch without exterior boundary");
+   result.add(Collections.unmodifiableList(Arrays.asList(exterior,holes)));
+  }
+  return Collections.unmodifiableList(result);
+ }
+
  public static List<List<Double>> boundaryLoopAreas(VariableHeightOrthogonalBRep shell){
   List<List<String>> groups=find(shell);
   List<List<List<String>>> loops=boundaryLoops(shell);
