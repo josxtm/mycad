@@ -194,6 +194,33 @@ con signo. El resultado sigue siendo una malla triangular cerrada.
 - La UI expone el conjunto como un resultado con varias carcasas; aún
   no permite editar individualmente las caras de las piezas derivadas.
 
+## Primer B-Rep analítico con agujeros pasantes
+
+- Nuevo modo **Booleanas B-Rep con agujeros pasantes** del visor y el
+  gestor de resultados. Permite unión, resta e intersección de dos
+  secciones poligonales ortogonales cerradas del mismo plano XY/XZ/YZ
+  y de igual altura firmada. Admite vaciados interiores que atraviesan
+  toda la extrusión, además de varios cuerpos separados.
+- La nueva representación `OrthogonalGridHoleBRep` mantiene **vértices
+  3D, caras planas (quads), aristas compartidas, dos semiaristas por
+  arista, direcciones y relaciones de gemelas**, incluyendo las paredes
+  interiores de los huecos. Descompone las tapas en celdas ortogonales
+  que coinciden exactamente con las caras vecinas (sin T-junctions).
+- Cada operación comprueba topología manifold mediante gemelas opuestas,
+  característica de Euler `V-E+F=2·sólidos-2·agujeros`, orientación,
+  volumen y cierre de malla. El resultado sigue siendo una malla
+  triangulada exportable en el visor, derivada del B-Rep analítico.
+- El nuevo historial `UNION_WITH_HOLES`, `DIFFERENCE_WITH_HOLES` e
+  `INTERSECTION_WITH_HOLES` conserva los UUID de los dos bocetos
+  extruidos: regeneración antes de confirmar cambios, deshacer/rehacer
+  y carga JSON v1 con comparación exacta de la malla reconstruida.
+- **Límites**: máximo 16 cuerpos y 16 agujeros pasantes, perfiles
+  ortogonales y misma altura desde el origen. No se admiten superficies
+  curvas, taladros ciegos de profundidad parcial, desplazamientos
+  de planos base ni selección/editado de caras del resultado compuesto.
+  Las operaciones anteriores siguen usando su topología y formatos sin
+  cambios.
+
 ## Limitaciones importantes
 
 Las operaciones vinculadas son **solo para extrusiones generadas a
