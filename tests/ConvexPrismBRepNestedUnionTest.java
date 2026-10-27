@@ -1,0 +1,36 @@
+import es.josxtm.mycad.cad.*;
+import java.util.*;
+public final class ConvexPrismBRepNestedUnionTest {
+ static PolygonPrismBRep prism(String key,int plane,double height,double[][] points){
+  String id=UUID.nameUUIDFromBytes(key.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+  List<String> ids=new ArrayList<>();
+  Map<String,ClosedSketchExtrusion.Segment> lines=new LinkedHashMap<>();
+  for(int i=0;i<points.length;i++){
+   String edge=UUID.nameUUIDFromBytes((key+"/edge/"+i).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+   ids.add(edge);double[] a=points[i],b=points[(i+1)%points.length];
+   lines.put(edge,new ClosedSketchExtrusion.Segment(plane,a[0],a[1],b[0],b[1]));
+  }
+  return new LoopExtrusionFeature(id,ids.get(0),plane,height,ids).asBRep(lines);
+ }
+ static void near(double a,double b){if(Math.abs(a-b)>1e-4)throw new AssertionError(a+" != "+b);}
+ static void reject(Runnable action){try{action.run();}catch(IllegalArgumentException expected){return;}throw new AssertionError("Unsupported union accepted");}
+ public static void main(String[] args){
+  double[][] outer={{0,0},{6,0},{6,6},{0,6}};
+  double[][] inner={{1,1},{3,1},{1,3}};
+  double[][] overlap={{4,0},{8,0},{8,4},{4,4}};
+  for(int plane=0;plane<3;plane++)for(int sign:new int[]{-1,1}){
+   final int p=plane,s=sign;
+   PolygonPrismBRep a=prism("outer"+p+s,p,s*3,outer);
+   PolygonPrismBRep b=prism("inner"+p+s,p,s*3,inner);
+   PolygonPrismBRep result=ConvexPrismBRepNestedUnion.union(a,b);
+   near(result.volume(),108);
+   near(ConvexPrismBRepNestedUnion.union(b,a).volume(),108);
+   if(!TriangleMeshHealth.inspect(result.triangles()).isWatertight())
+    throw new AssertionError("Nested union must be watertight");
+   reject(()->ConvexPrismBRepNestedUnion.union(a,prism("partial"+p+s,p,s*3,overlap)));
+   reject(()->ConvexPrismBRepNestedUnion.union(a,prism("height"+p+s,p,s*2,inner)));
+   reject(()->ConvexPrismBRepNestedUnion.union(a,prism("direction"+p+s,p,-s*3,inner)));
+  }
+  System.out.println("ConvexPrismBRepNestedUnionTest: OK");
+ }
+}
