@@ -18,6 +18,7 @@ import java.util.*;
 public final class OrthogonalPolygonBRepBoolean {
  public enum Operation { UNION, DIFFERENCE, INTERSECTION }
  private static final double EPS=1e-6;
+ private static final double HEIGHT_EPS=1e-9;
  private static final int MAX_AXES=48;
  private OrthogonalPolygonBRepBoolean(){}
 
@@ -148,7 +149,7 @@ public final class OrthogonalPolygonBRepBoolean {
    throw new IllegalArgumentException("Booleanas ortogonales: plano u operación incompatibles");
   double h=first.distance(),other=second.distance();
   if(!Double.isFinite(h)||!Double.isFinite(other)||
-     Math.abs(h-other)>EPS*Math.max(1,Math.abs(h)))
+     Math.abs(h-other)>HEIGHT_EPS*Math.max(1,Math.max(Math.abs(h),Math.abs(other))))
    throw new IllegalArgumentException("Booleanas ortogonales: alturas firmadas distintas");
   List<double[]> a=points(first),b=points(second);
   double[] xs=coordinates(a,b,0),ys=coordinates(a,b,1);
@@ -328,7 +329,7 @@ public final class OrthogonalPolygonBRepBoolean {
    throw new IllegalArgumentException("Booleanas múltiples: plano u operación incompatibles");
   double height=first.distance(),other=second.distance();
   if(!Double.isFinite(height)||!Double.isFinite(other)||
-      Math.abs(height-other)>EPS*Math.max(1,Math.abs(height)))
+      Math.abs(height-other)>HEIGHT_EPS*Math.max(1,Math.max(Math.abs(height),Math.abs(other))))
    throw new IllegalArgumentException("Booleanas múltiples: alturas distintas");
   List<double[]> a=points(first),b=points(second);
   double[] xs=coordinates(a,b,0),ys=coordinates(a,b,1);

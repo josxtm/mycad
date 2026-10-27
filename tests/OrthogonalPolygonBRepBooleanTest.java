@@ -102,6 +102,14 @@ public final class OrthogonalPolygonBRepBooleanTest {
       a,prism(B,p,h+1,rectangle(2,0,5,3)),
       OrthogonalPolygonBRepBoolean.Operation.DIFFERENCE),
       "Different heights");
+   invalid(()->OrthogonalPolygonBRepBoolean.apply(
+      a,prism(B,p,h+0.00001,rectangle(2,0,5,3)),
+      OrthogonalPolygonBRepBoolean.Operation.UNION),
+      "Tiny vertical protrusion in single-shell union");
+   invalid(()->OrthogonalPolygonBRepBoolean.applyMulti(
+      a,prism(B,p,h+0.00001,rectangle(2,0,5,3)),
+      OrthogonalPolygonBRepBoolean.Operation.UNION),
+      "Tiny vertical protrusion in multi-shell union");
    PolygonPrismBRep diagonal=prism(B,p,h,
       new double[][]{{1,1},{4,1},{3,3},{1,3}});
    invalid(()->OrthogonalPolygonBRepBoolean.apply(a,diagonal,
