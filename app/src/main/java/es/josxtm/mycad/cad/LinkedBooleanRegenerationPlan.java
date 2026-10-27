@@ -30,6 +30,21 @@ public final class LinkedBooleanRegenerationPlan {
   }
  }
 
+ /**
+  * Validate the tessellation of a candidate analytic Boolean before publication.
+  * Multi-shell solids are allowed, but every shell must be a closed oriented
+  * manifold with nonzero volume. Rejecting invalid results keeps the previous
+  * displayed meshes and saved parametric history intact.
+  */
+ public static void requireClosedMesh(float[] mesh){
+  if(mesh==null||mesh.length==0||mesh.length%9!=0||mesh.length>18000)
+   throw new IllegalArgumentException("Malla de booleana inválida o demasiado grande");
+  TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(mesh);
+  if(!health.isWatertight()||!Double.isFinite(health.signedVolume)||
+     health.signedVolume<=0)
+   throw new IllegalArgumentException("Booleana B-Rep no es un sólido cerrado y orientado");
+ }
+
  public static Plan build(Collection<LinkedConvexIntersection> booleans,
                           Map<String,LoopExtrusionFeature> features,
                           Map<String,ClosedSketchExtrusion.Segment> lines){
@@ -48,12 +63,9 @@ public final class LinkedBooleanRegenerationPlan {
   int totalFloats=0;
   for(LinkedConvexIntersection feature:ordered.values()){
    float[] mesh=feature.regenerateTriangles(features,lines);
-   if(mesh==null||mesh.length==0||mesh.length%9!=0||mesh.length>18000||
-      totalFloats>MAX_FLOATS-mesh.length)
-    throw new IllegalArgumentException("Malla de booleana inválida o demasiado grande");
-   for(float coordinate:mesh)
-    if(!Float.isFinite(coordinate))
-     throw new IllegalArgumentException("Coordenada de booleana no finita");
+   requireClosedMesh(mesh);
+   if(totalFloats>MAX_FLOATS-mesh.length)
+    throw new IllegalArgumentException("Límite de mallas booleanas excedido");
    totalFloats+=mesh.length;
    staged.put(feature.id,mesh.clone());
   }
