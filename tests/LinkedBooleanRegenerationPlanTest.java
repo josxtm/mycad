@@ -55,6 +55,39 @@ public final class LinkedBooleanRegenerationPlanTest {
     expected[0]=Float.NaN;
     ok(Float.isFinite(first.triangles(key)[0]),"defensive copy");
    }
+   // Preflight must reject open, degenerate and inside-out triangle soups,
+   // not just finite coordinates. The last successful plan remains immutable.
+   reject(()->LinkedBooleanRegenerationPlan.requireClosedMesh(
+       new float[]{0,0,0,1,0,0,0,1,0}),"open triangle");
+   reject(()->LinkedBooleanRegenerationPlan.requireClosedMesh(
+       new float[]{0,0,0,1,0,0,2,0,0}),"degenerate triangle");
+   float[] insideOut=first.triangles(union.id);
+   for(int k=0;k<insideOut.length;k+=9)
+    for(int axis=0;axis<3;axis++){
+     float tmp=insideOut[k+3+axis];
+     insideOut[k+3+axis]=insideOut[k+6+axis];
+     insideOut[k+6+axis]=tmp;
+    }
+   reject(()->LinkedBooleanRegenerationPlan.requireClosedMesh(insideOut),
+       "inward-facing closed solid");
+   ok(TriangleMeshHealth.inspect(first.triangles(union.id)).isWatertight(),
+       "failed validation must not corrupt the saved plan");
+   // Disconnected, individually closed shells are valid Boolean results.
+   Map<String,ClosedSketchExtrusion.Segment> multiLines=new LinkedHashMap<>();
+   LoopExtrusionFeature wide=feature("wide"+p+s,p,s*3,
+       new double[][]{{0,0},{8,0},{8,4},{0,4}},multiLines);
+   LoopExtrusionFeature strip=feature("strip"+p+s,p,s*3,
+       new double[][]{{3,-1},{5,-1},{5,5},{3,5}},multiLines);
+   Map<String,LoopExtrusionFeature> multiFeatures=new LinkedHashMap<>();
+   multiFeatures.put(wide.id,wide);multiFeatures.put(strip.id,strip);
+   LinkedConvexIntersection split=new LinkedConvexIntersection(
+       id("split"+p+s),wide.id,strip.id,
+       LinkedConvexIntersection.Operation.DIFFERENCE_MULTISHELL);
+   LinkedBooleanRegenerationPlan.Plan multi=LinkedBooleanRegenerationPlan.build(
+       Collections.singletonList(split),multiFeatures,multiLines);
+   TriangleMeshHealth.Report splitHealth=TriangleMeshHealth.inspect(multi.triangles(split.id));
+   ok(splitHealth.isWatertight()&&splitHealth.shells==2,
+       "two independent closed B-Rep shells remain supported");
    boolean immutable=false;
    try{first.featureIds().clear();}
    catch(UnsupportedOperationException expected){immutable=true;}
