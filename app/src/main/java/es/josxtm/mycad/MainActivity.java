@@ -322,8 +322,11 @@ public class MainActivity extends Activity {
    if(lines.containsKey(e.getKey()))lines.put(e.getKey(),e.getValue());
   es.josxtm.mycad.cad.LinkedBooleanRegenerationPlan.Plan plan=
    es.josxtm.mycad.cad.LinkedBooleanRegenerationPlan.build(affected,sources,lines);
-  for(String id:plan.featureIds())
-   out.put(meshById.get(id),new MeshEngine.Mesh(plan.triangles(id)));
+  // Export only if the complete recipe and source snapshot still matches.
+  // A stale B-Rep batch must never be published into the editor.
+  java.util.Map<String,float[]> checked=plan.publishIfCurrent(affected,sources,lines);
+  for(java.util.Map.Entry<String,float[]> entry:checked.entrySet())
+   out.put(meshById.get(entry.getKey()),new MeshEngine.Mesh(entry.getValue()));
   return out;
  }
 
