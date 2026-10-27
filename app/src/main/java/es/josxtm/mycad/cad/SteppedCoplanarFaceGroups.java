@@ -10,6 +10,30 @@ import java.util.*;
 public final class SteppedCoplanarFaceGroups {
  private SteppedCoplanarFaceGroups(){}
 
+ /** Aggregate the analytic surface area of each edge-connected coplanar patch.
+  * Face and half-edge IDs remain unchanged; these are read-only patch metrics.
+  */
+ public static List<Double> areas(VariableHeightOrthogonalBRep shell){
+  List<List<String>> groups=find(shell);
+  Map<String,Double> byId=new HashMap<>();
+  for(VariableHeightOrthogonalBRep.Face face:shell.faces())
+   byId.put(face.id,face.area);
+  List<Double> result=new ArrayList<>();
+  for(List<String> group:groups){
+   double area=0;
+   for(String id:group){
+    Double value=byId.get(id);
+    if(value==null||!Double.isFinite(value)||value<=0)
+     throw new IllegalArgumentException("Invalid coplanar patch face area");
+    area+=value;
+   }
+   if(!Double.isFinite(area)||area<=0)
+    throw new IllegalArgumentException("Invalid coplanar patch area");
+   result.add(area);
+  }
+  return Collections.unmodifiableList(result);
+ }
+
  public static List<List<String>> find(VariableHeightOrthogonalBRep shell){
   if(shell==null)throw new IllegalArgumentException("Missing stepped B-Rep");
   Map<String,VariableHeightOrthogonalBRep.Face> faces=new LinkedHashMap<>();
