@@ -25,6 +25,28 @@ public final class SteppedCoplanarFaceGroupsTest {
     int before=shell.faces().size();
     List<List<String>> groups=SteppedCoplanarFaceGroups.find(shell);
     List<List<String>> boundaries=SteppedCoplanarFaceGroups.boundaryEdgeIds(shell);
+    List<List<List<String>>> loops=SteppedCoplanarFaceGroups.boundaryLoops(shell);
+    if(loops.size()!=groups.size()||
+       !loops.equals(SteppedCoplanarFaceGroups.boundaryLoops(shell)))
+     throw new AssertionError("Invalid or nondeterministic boundary loops");
+    Map<String,VariableHeightOrthogonalBRep.HalfEdge> halfById=new HashMap<>();
+    for(VariableHeightOrthogonalBRep.HalfEdge half:shell.halfEdges())
+     halfById.put(half.id,half);
+    for(int i=0;i<loops.size();i++){
+     Set<String> loopEdges=new HashSet<>();
+     for(List<String> loop:loops.get(i)){
+      if(loop.size()<4)throw new AssertionError("Degenerate loop");
+      for(int j=0;j<loop.size();j++){
+       VariableHeightOrthogonalBRep.HalfEdge current=halfById.get(loop.get(j));
+       VariableHeightOrthogonalBRep.HalfEdge next=halfById.get(loop.get((j+1)%loop.size()));
+       if(current==null||next==null||!current.toId.equals(next.fromId))
+        throw new AssertionError("Open or misoriented boundary loop");
+       if(!loopEdges.add(current.edgeId))throw new AssertionError("Duplicate loop edge");
+      }
+     }
+     if(!loopEdges.equals(new HashSet<>(SteppedCoplanarFaceGroups.boundaryEdgeIds(shell).get(i))))
+      throw new AssertionError("Boundary loop coverage mismatch");
+    }
     if(boundaries.size()!=groups.size()||
        !boundaries.equals(SteppedCoplanarFaceGroups.boundaryEdgeIds(shell)))
      throw new AssertionError("Invalid or nondeterministic patch boundaries");
