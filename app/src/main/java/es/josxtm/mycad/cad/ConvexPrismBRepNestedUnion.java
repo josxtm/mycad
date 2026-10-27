@@ -2,7 +2,8 @@ package es.josxtm.mycad.cad;
 
 /**
  * Safe, intentionally limited analytic B-Rep union for nested convex prisms.
- * Both bodies must share a work plane and extrusion direction. The containing\n * section must also have at least the height of the contained prism.
+ * Both bodies must share a work plane and extrusion direction. The containing
+ * section must also have at least the height of the contained prism.
  * A true nested union has exactly the containing body's geometry; no mesh
  * stitching, topology approximation or mutation of either operand is needed.
  * Overlaps requiring boundary reconstruction are rejected.
@@ -10,6 +11,32 @@ package es.josxtm.mycad.cad;
 public final class ConvexPrismBRepNestedUnion {
  private static final double EPS=1e-5;
  private ConvexPrismBRepNestedUnion(){}
+ private static double[] uv(PolygonPrismBRep.Vertex v,int plane){
+  return plane==0?new double[]{v.x,v.y}:plane==1?new double[]{v.x,v.z}:new double[]{v.y,v.z};
+ }
+ private static boolean containsSection(PolygonPrismBRep outer,PolygonPrismBRep inner){
+  int n=outer.vertices().size()/2,m=inner.vertices().size()/2;
+  if(n<3||m<3)return false;
+  double orientation=0;
+  for(int i=0;i<n;i++){
+   double[] a=uv(outer.vertices().get(i),outer.plane());
+   double[] b=uv(outer.vertices().get((i+1)%n),outer.plane());
+   orientation+=a[0]*b[1]-b[0]*a[1];
+  }
+  if(Math.abs(orientation)<1e-10)return false;
+  double sign=Math.signum(orientation);
+  for(int j=0;j<m;j++){
+   double[] p=uv(inner.vertices().get(j),inner.plane());
+   for(int i=0;i<n;i++){
+    double[] a=uv(outer.vertices().get(i),outer.plane());
+    double[] b=uv(outer.vertices().get((i+1)%n),outer.plane());
+    double dx=b[0]-a[0],dy=b[1]-a[1];
+    double cross=sign*(dx*(p[1]-a[1])-dy*(p[0]-a[0]));
+    if(cross < -1e-7*Math.max(1,Math.hypot(dx,dy)))return false;
+   }
+  }
+  return true;
+ }
 
  public static PolygonPrismBRep union(PolygonPrismBRep a,PolygonPrismBRep b){
   if(a==null||b==null||a.plane()!=b.plane())
@@ -21,8 +48,8 @@ public final class ConvexPrismBRepNestedUnion {
   ConvexPrismBRepIntersection.Result common=ConvexPrismBRepIntersection.intersect(a,b);
   double areaA=a.sectionArea(),areaB=b.sectionArea();
   double tolerance=EPS*Math.max(1,Math.max(areaA,areaB));
-  boolean aInsideB=Math.abs(common.area-areaA)<=tolerance;
-  boolean bInsideA=Math.abs(common.area-areaB)<=tolerance;
+  boolean aInsideB=Math.abs(common.area-areaA)<=tolerance&&containsSection(b,a);
+  boolean bInsideA=Math.abs(common.area-areaB)<=tolerance&&containsSection(a,b);
   if(!aInsideB&&!bInsideA)
    throw new IllegalArgumentException("Unión B-Rep: solo contención completa; solape parcial no soportado");
   double heightTolerance=EPS*Math.max(1,Math.max(Math.abs(da),Math.abs(db)));
