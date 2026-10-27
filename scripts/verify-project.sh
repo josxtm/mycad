@@ -846,7 +846,10 @@ assert "LinkedConvexIntersectionTest" in workflow
 assert "dependsOnFeature" in kernel
 block=a[a.index("void stageLinkedIntersectionRebuild(") if "void stageLinkedIntersectionRebuild(" in a else a.index("stageLinkedIntersectionRebuild("):
         a.index("void applyLinkedLoopEdit(")]
-assert "recipe.regenerateTriangles(sources,lines)" in block
+assert "LinkedBooleanRegenerationPlan.build(affected,sources,lines)" in block
+assert "for(String id:plan.featureIds())" in block
+assert "new MeshEngine.Mesh(plan.triangles(id))" in block
+assert block.index("LinkedBooleanRegenerationPlan.build(affected,sources,lines)") < block.index("return out;")
 print("Intersección B-Rep vinculada: guardado, undo y regeneración enlazados: OK")
 PY
 
@@ -891,7 +894,7 @@ for k in (
  'row.optString("operation","INTERSECTION")',
  "LinkedConvexIntersection.Operation.UNION_ORTHOGONAL",
  "linked.regenerateTriangles(refs,lines)",
- "recipe.regenerateTriangles(sources,lines)",
+ "LinkedBooleanRegenerationPlan.build(affected,sources,lines)",
  "recipe.regenerateTriangles(sourceFeatures,sourceLines)",
  "intersectionRecipes.add(linked);",
 ):
