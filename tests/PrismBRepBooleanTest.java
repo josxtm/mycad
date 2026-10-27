@@ -50,6 +50,28 @@ public final class PrismBRepBooleanTest {
        "concave orthogonal union");
    check(PrismBRepBoolean.apply(a,b,PrismBRepBoolean.Operation.INTERSECTION),6,
        "concave orthogonal intersection");
+   // For extrusions from the same plane in the same direction, the 3D
+   // intersection has the shorter signed height even for a concave outline.
+   float[] originalA=a.triangles(),originalB=b.triangles();
+   PolygonPrismBRep shortB=prism("short-r"+p+s,p,s*2,r);
+   PrismBRepBoolean.Result reduced=PrismBRepBoolean.apply(a,shortB,
+       PrismBRepBoolean.Operation.INTERSECTION);
+   check(reduced,4,"concave orthogonal intersection with shorter second height");
+   near(reduced.distance,s*2,"shorter second signed height");
+   check(PrismBRepBoolean.apply(shortB,a,PrismBRepBoolean.Operation.INTERSECTION),
+       4,"unequal-height intersection operand commutativity");
+   PolygonPrismBRep shortA=prism("short-l"+p+s,p,s*1.25,l);
+   PrismBRepBoolean.Result reducedFirst=PrismBRepBoolean.apply(shortA,b,
+       PrismBRepBoolean.Operation.INTERSECTION);
+   check(reducedFirst,2.5,"concave orthogonal intersection with shorter first height");
+   near(reducedFirst.distance,s*1.25,"shorter first signed height");
+   if(a.distance()!=s*3||b.distance()!=s*3||
+      !Arrays.equals(originalA,a.triangles())||
+      !Arrays.equals(originalB,b.triangles()))
+    throw new AssertionError("Unequal-height intersection changed source B-Rep");
+   reject(()->PrismBRepBoolean.apply(a,shortB,
+       PrismBRepBoolean.Operation.DIFFERENCE),
+       "variable-height orthogonal difference remains unsupported");
    check(PrismBRepBoolean.apply(a,b,PrismBRepBoolean.Operation.DIFFERENCE),15,
        "concave orthogonal difference");
    PolygonPrismBRep c=prism("convexA"+p+s,p,s*3,triangle);
