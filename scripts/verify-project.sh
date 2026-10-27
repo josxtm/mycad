@@ -849,6 +849,7 @@ block=a[a.index("void stageLinkedIntersectionRebuild(") if "void stageLinkedInte
 assert "LinkedBooleanRegenerationPlan.build(affected,sources,lines)" in block
 assert "Índice o malla B-Rep propuesta inválida" in block
 assert "Sustitución de extrusión B-Rep inválida" in block
+assert "!loopExtrusionFeatures.get(entry.getKey()).id.equals(entry.getValue().id)" in block
 assert block.index("Índice o malla B-Rep propuesta inválida") < block.index("LinkedBooleanRegenerationPlan.build(affected,sources,lines)")
 assert "plan.publishIfCurrent(affected,sources,lines)" in block
 assert "new MeshEngine.Mesh(entry.getValue())" in block

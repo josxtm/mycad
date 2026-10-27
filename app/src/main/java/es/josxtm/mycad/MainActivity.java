@@ -290,7 +290,8 @@ public class MainActivity extends Activity {
   if(replacements!=null)for(java.util.Map.Entry<Integer,es.josxtm.mycad.cad.LoopExtrusionFeature> entry:replacements.entrySet())
    if(entry.getKey()==null||entry.getKey()<0||
       entry.getKey()>=loopExtrusionFeatures.size()||entry.getValue()==null||
-      loopExtrusionFeatures.get(entry.getKey())==null)
+      loopExtrusionFeatures.get(entry.getKey())==null||
+      !loopExtrusionFeatures.get(entry.getKey()).id.equals(entry.getValue().id))
     throw new IllegalArgumentException("Sustitución de extrusión B-Rep inválida");
   java.util.LinkedHashMap<Integer,MeshEngine.Mesh> out=
    new java.util.LinkedHashMap<>(staged);
