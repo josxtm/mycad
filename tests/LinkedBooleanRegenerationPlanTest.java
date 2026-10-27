@@ -61,7 +61,10 @@ public final class LinkedBooleanRegenerationPlanTest {
    published.get(union.id)[0]=Float.NaN;
    ok(Float.isFinite(first.triangles(union.id)[0]),
        "publication mesh cannot mutate preflight");
-   reject(()->published.clear(),"published feature map must be immutable");
+   boolean publicationImmutable=false;
+   try{published.clear();}
+   catch(UnsupportedOperationException expected){publicationImmutable=true;}
+   ok(publicationImmutable,"published feature map must be immutable");
 
    ok(first.isCurrent(Arrays.asList(intersection,union),features,lines),
        "recipe collection order is irrelevant");
