@@ -93,6 +93,44 @@ public final class ConvexPrismBRepHullUnion {
   return lower;
  }
 
+
+ /**
+  * Area tolerances alone can silently fill thin notches. Every hull edge
+  * must be covered, end-to-end, by actual input boundary segments.
+  * Convex input polygons lie on the inner side of each hull supporting line.
+  */
+ private static boolean boundaryCovered(List<double[]> hull,
+                                        List<double[]> a,List<double[]> b){
+  for(int i=0;i<hull.size();i++){
+   double[] p=hull.get(i),q=hull.get((i+1)%hull.size());
+   double dx=q[0]-p[0],dy=q[1]-p[1],len2=dx*dx+dy*dy;
+   if(len2<=EPS*EPS)return false;
+   double length=Math.sqrt(len2);
+   ArrayList<double[]> intervals=new ArrayList<>();
+   for(List<double[]> poly:Arrays.asList(a,b)){
+    for(int j=0;j<poly.size();j++){
+     double[] u=poly.get(j),v=poly.get((j+1)%poly.size());
+     // Both endpoints must lie on this supporting line.
+     if(Math.abs(cross(p,q,u))>1e-9*length||
+        Math.abs(cross(p,q,v))>1e-9*length)continue;
+     double tu=((u[0]-p[0])*dx+(u[1]-p[1])*dy)/len2;
+     double tv=((v[0]-p[0])*dx+(v[1]-p[1])*dy)/len2;
+     double start=Math.max(0,Math.min(tu,tv));
+     double end=Math.min(1,Math.max(tu,tv));
+     if(end>start)intervals.add(new double[]{start,end});
+    }
+   }
+   intervals.sort((x,y)->Double.compare(x[0],y[0]));
+   double covered=0;
+   for(double[] range:intervals){
+    if(range[0]>covered+1e-9)return false;
+    covered=Math.max(covered,range[1]);
+   }
+   if(covered<1-1e-9)return false;
+  }
+  return true;
+ }
+
  public static Result union(PolygonPrismBRep first,PolygonPrismBRep second){
   if(first==null||second==null||first.plane()!=second.plane())
    throw new IllegalArgumentException("Unión convexa: planos incompatibles");
@@ -113,7 +151,8 @@ public final class ConvexPrismBRepHullUnion {
   }
   double expected=area(a)+area(b)-common;
   double hullArea=area(boundary);
-  if(Math.abs(hullArea-expected)>1e-5*Math.max(1,expected))
+  if(!boundaryCovered(boundary,a,b)||
+     Math.abs(hullArea-expected)>1e-5*Math.max(1,expected))
    throw new IllegalArgumentException("Unión convexa: resultado cóncavo o desconectado");
   String idA=first.id(),idB=second.id();
   if(idA.compareTo(idB)>0){String t=idA;idA=idB;idB=t;}
