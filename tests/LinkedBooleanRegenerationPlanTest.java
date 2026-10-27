@@ -82,6 +82,35 @@ public final class LinkedBooleanRegenerationPlanTest {
    ok(updated.size()==2&&updated.triangleCount()>0,"coherent edit accepted");
    ok(!Arrays.equals(first.triangles(union.id),updated.triangles(union.id)),
        "regenerated geometry reflects edit");
+   // A complete proposed line edit must rebuild all dependent operations
+   // against the same coordinates, without modifying the old saved snapshot.
+   LinkedConvexIntersection difference=new LinkedConvexIntersection(
+       id("batch-difference"+p+s),a.id,b.id,
+       LinkedConvexIntersection.Operation.DIFFERENCE_ANALYTIC);
+   Map<String,ClosedSketchExtrusion.Segment> movedLines=new LinkedHashMap<>(lines);
+   for(String lineId:b.lineIds()){
+    ClosedSketchExtrusion.Segment edge=lines.get(lineId);
+    movedLines.put(lineId,new ClosedSketchExtrusion.Segment(
+        edge.plane,edge.ax+0.5,edge.ay,edge.bx+0.5,edge.by));
+   }
+   LinkedBooleanRegenerationPlan.Plan moved=LinkedBooleanRegenerationPlan.build(
+       Arrays.asList(difference,intersection,union),features,movedLines);
+   ok(moved.size()==3,"three dependent Booleans rebuilt together");
+   double factor=Math.abs(s*3);
+   double[] volumes={14.5*factor,1.5*factor,5.5*factor};
+   String[] ids={union.id,intersection.id,difference.id};
+   for(int k=0;k<ids.length;k++){
+    TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(moved.triangles(ids[k]));
+    ok(health.isWatertight(),"edited Boolean remains watertight");
+    ok(Math.abs(health.signedVolume-volumes[k])<1e-3,
+        "all Boolean volumes use proposed source coordinates");
+   }
+   ok(!Arrays.equals(first.triangles(union.id),moved.triangles(union.id)),
+       "line edit changes Boolean geometry");
+   ok(Arrays.equals(first.triangles(union.id),
+       LinkedBooleanRegenerationPlan.build(
+           Arrays.asList(union,intersection),features,lines).triangles(union.id)),
+       "old source geometry and saved plan remain unchanged");
    ok(LinkedBooleanRegenerationPlan.build(Collections.emptyList(),features,lines)
        .size()==0,"empty dependency set");
   }
