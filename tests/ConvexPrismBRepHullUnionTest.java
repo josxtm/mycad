@@ -60,7 +60,7 @@ public final class ConvexPrismBRepHullUnionTest {
       "overlap mesh watertight");
    PolygonPrismBRep outer=prism("outer"+p+s,p,s*3,rect(0,0,4,4));
    PolygonPrismBRep inner=prism("inner"+p+s,p,s*3,triangle);
-   near(ConvexPrismBRepHullUnion.union(outer,inner).volume(),48,
+   near(ConvexPrismBRepHullUnion.union(outer,inner).volume,48,
        "nested convex union");
    reject(()->ConvexPrismBRepHullUnion.union(
       prism("offsetA"+p+s,p,s*3,rect(0,0,3,3)),
