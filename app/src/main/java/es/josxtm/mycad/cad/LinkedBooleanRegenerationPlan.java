@@ -16,11 +16,14 @@ public final class LinkedBooleanRegenerationPlan {
   private final Map<String,float[]> staged;
   private final int triangles;
   private final Map<String,String> sources;
+  private final Map<String,String> recipes;
   private Plan(Map<String,float[]> meshes,int triangleCount,
-               Map<String,String> sourceSignatures){
+               Map<String,String> sourceSignatures,
+               Map<String,String> recipeSignatures){
    staged=Collections.unmodifiableMap(new LinkedHashMap<>(meshes));
    triangles=triangleCount;
    sources=Collections.unmodifiableMap(new TreeMap<>(sourceSignatures));
+   recipes=Collections.unmodifiableMap(new TreeMap<>(recipeSignatures));
   }
   public int size(){return staged.size();}
   public int triangleCount(){return triangles;}
@@ -39,6 +42,23 @@ public final class LinkedBooleanRegenerationPlan {
                              Map<String,ClosedSketchExtrusion.Segment> lines){
    if(!isCurrent(features,lines))
     throw new IllegalArgumentException("La geometría de origen cambió tras el preflight");
+  }
+  /**
+   * Full commit guard: reject changes to Boolean operation, operand order,
+   * added/removed recipes, as well as edits to referenced source geometry.
+   * The legacy two-map guard is retained for existing callers.
+   */
+  public boolean isCurrent(Collection<LinkedConvexIntersection> booleans,
+                           Map<String,LoopExtrusionFeature> features,
+                           Map<String,ClosedSketchExtrusion.Segment> lines){
+   try{return isCurrent(features,lines)&&recipes.equals(captureRecipes(booleans));}
+   catch(IllegalArgumentException stale){return false;}
+  }
+  public void requireCurrent(Collection<LinkedConvexIntersection> booleans,
+                             Map<String,LoopExtrusionFeature> features,
+                             Map<String,ClosedSketchExtrusion.Segment> lines){
+   if(!isCurrent(booleans,features,lines))
+    throw new IllegalArgumentException("La operación o geometría B-Rep cambió tras el preflight");
   }
   /** Always return a copy: editing a mesh cannot corrupt the preflight. */
   public float[] triangles(String featureId){
@@ -100,6 +120,19 @@ public final class LinkedBooleanRegenerationPlan {
   return signatures;
  }
 
+ /** Exact UUID/operation/operand snapshot, independent of collection order. */
+ private static Map<String,String> captureRecipes(
+     Collection<LinkedConvexIntersection> booleans){
+  if(booleans==null)throw new IllegalArgumentException("Faltan operaciones booleanas");
+  TreeMap<String,String> result=new TreeMap<>();
+  for(LinkedConvexIntersection recipe:booleans){
+   if(recipe==null||result.putIfAbsent(recipe.id,
+       recipe.firstId+"|"+recipe.secondId+"|"+recipe.operation.name())!=null)
+    throw new IllegalArgumentException("Booleana duplicada o nula");
+  }
+  return result;
+ }
+
  public static Plan build(Collection<LinkedConvexIntersection> booleans,
                           Map<String,LoopExtrusionFeature> features,
                           Map<String,ClosedSketchExtrusion.Segment> lines){
@@ -114,6 +147,7 @@ public final class LinkedBooleanRegenerationPlan {
    if(features.containsKey(feature.id))
     throw new IllegalArgumentException("ID de booleana colisiona con extrusión");
   }
+  Map<String,String> recipeSnapshot=captureRecipes(ordered.values());
   TreeSet<String> referenced=new TreeSet<>();
   for(LinkedConvexIntersection feature:ordered.values()){
    referenced.add(feature.firstId);
@@ -133,6 +167,8 @@ public final class LinkedBooleanRegenerationPlan {
   // Detect edits during a long batch, before the caller can publish anything.
   if(!sourceSnapshot.equals(captureSources(referenced,features,lines)))
    throw new IllegalArgumentException("Las fuentes cambiaron durante el preflight");
-  return new Plan(staged,totalFloats/9,sourceSnapshot);
+  if(!recipeSnapshot.equals(captureRecipes(booleans)))
+   throw new IllegalArgumentException("Las operaciones cambiaron durante el preflight");
+  return new Plan(staged,totalFloats/9,sourceSnapshot,recipeSnapshot);
  }
 }
