@@ -110,6 +110,8 @@ jobs:
           java -cp build/geometry-tests VariableHeightOrthogonalMeshTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/VariableHeightOrthogonalBRep.java tests/VariableHeightOrthogonalBRepTest.java
           java -cp build/geometry-tests VariableHeightOrthogonalBRepTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SteppedCoplanarFaceGroups.java tests/SteppedCoplanarFaceGroupsTest.java
+          java -cp build/geometry-tests SteppedCoplanarFaceGroupsTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedConvexIntersectionTest.java tests/LinkedAnalyticBooleanTest.java
           java -cp build/geometry-tests LinkedConvexIntersectionTest
           java -cp build/geometry-tests LinkedAnalyticBooleanTest
