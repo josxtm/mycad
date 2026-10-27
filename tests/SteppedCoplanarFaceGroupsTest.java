@@ -24,6 +24,19 @@ public final class SteppedCoplanarFaceGroupsTest {
     VariableHeightOrthogonalBRep shell=VariableHeightOrthogonalBRep.apply(first,second,op);
     int before=shell.faces().size();
     List<List<String>> groups=SteppedCoplanarFaceGroups.find(shell);
+    List<Double> patchAreas=SteppedCoplanarFaceGroups.areas(shell);
+    if(patchAreas.size()!=groups.size())
+     throw new AssertionError("Patch area count mismatch");
+    double sum=0;
+    for(double patchArea:patchAreas){
+     if(!Double.isFinite(patchArea)||patchArea<=0)
+      throw new AssertionError("Invalid patch area");
+     sum+=patchArea;
+    }
+    if(Math.abs(sum-shell.surfaceArea())>1e-5*Math.max(1,shell.surfaceArea()))
+     throw new AssertionError("Coplanar patch areas do not conserve surface area");
+    try{patchAreas.add(1.0);throw new AssertionError("Mutable patch areas");}
+    catch(UnsupportedOperationException expected){}
     if(groups.isEmpty()||groups.size()>before)
      throw new AssertionError("Invalid grouping");
     Set<String> ids=new HashSet<>();
