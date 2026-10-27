@@ -55,7 +55,10 @@ public final class LinkedBooleanRegenerationPlanTest {
     expected[0]=Float.NaN;
     ok(Float.isFinite(first.triangles(key)[0]),"defensive copy");
    }
-   reject(()->first.featureIds().clear(),"immutable feature ids");
+   boolean immutable=false;
+   try{first.featureIds().clear();}
+   catch(UnsupportedOperationException expected){immutable=true;}
+   ok(immutable,"immutable feature ids");
    reject(()->first.triangles(id("unknown")),"unknown feature");
    reject(()->LinkedBooleanRegenerationPlan.build(
        Arrays.asList(union,union),features,lines),"duplicate IDs");
