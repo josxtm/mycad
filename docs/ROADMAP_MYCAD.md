@@ -76,7 +76,7 @@ Estado: **no aceptado aún**. Las pruebas del motor no sustituyen esta secuencia
 - El botón Extruir permite elegir arrastre con dedo o el diálogo anterior.
   También se añade la opción al menú Boceto táctil.
 - Seleccionar rectángulo/círculo, activar arrastre, mover hacia arriba en el
-  lienzo y soltar. Escala inicial: 8 dp/mm, ajuste a 1 mm; 80 dp producen 10 mm.
+  perfil y soltar. Escala inicial: 8 dp/mm, ajuste a 1 mm; 80 dp producen 10 mm.
 - El contorno del boceto se proyecta punto a punto en 3D para que rectángulos y círculos permanezcan en su plano durante la vista previa.
 - La vista previa no entra en `parts`, JSON ni historial. Un cuerpo se publica
   al soltar con altura positiva y perfil todavía vigente; se conserva el vínculo
@@ -88,9 +88,50 @@ Estado: **no aceptado aún**. Las pruebas del motor no sustituyen esta secuencia
   vista previa aislada, B-Rep cerrada, cambio a 50 × 30 mm, deshacer y roundtrip
   del documento paramétrico independiente. Comprueba también fuente obsoleta,
   líneas abiertas, altura cero, límites y círculo.
-- Pendiente: prueba física de MotionEvents, guardado/apertura JSON Android y
-  el agujero por sustracción en el recorrido completo. No se declara el hito
+- Pendiente: aceptación física en móvil/tablet y el agujero por sustracción en el recorrido completo. No se declara el hito
   aceptado ni se genera APK de hito por esta implementación parcial.
 
 Siguiente tarea: validar el arrastre en Android y cerrar la prueba integrada
 rectángulo acotado → extrusión → sustracción → edición → JSON guardar/abrir.
+
+
+## Continuación de #117: propiedad de gestos y persistencia Android
+
+La extrusión se activa solo desde el interior o contorno proyectado del perfil
+seleccionado. Un toque fuera del perfil devuelve el control a navegación/selección;
+el ViewCube recibe sus propios gestos. Añadir un segundo dedo descarta la propuesta
+y entrega el mismo evento al desplazamiento/zoom, inicializando el punto medio.
+Los eventos restantes de un arrastre cancelado no pueden seleccionar ni orbitar
+accidentalmente. Se exige superar el umbral táctil Android para crear geometría.
+Cambiar de modo, pausar o guardar el estado de la Activity descarta la propuesta.
+
+El contorno proyectado usado para dibujar y seleccionar se comparte en XY/XZ/YZ,
+incluidos círculos vistos como elipses. La conversión de pantalla a boceto descuenta
+ahora el desplazamiento de cámara: dibujar después de navegar conserva las cotas
+respecto al plano de trabajo.
+
+Se incorpora una suite Android con Robolectric/Android 35, independiente de las
+pruebas Java geométricas. Cubre `MotionEvent`, ViewCube, órbita, selección,
+pan/zoom, cancelación, umbral táctil, densidad, deshacer/rehacer y ciclo de
+acotación mediante el diálogo real. También prueba el codec JSON, el borrador
+persistente y los callbacks de archivo Guardar/Abrir con archivos temporales;
+un proyecto corrupto debe conservar modelo e historial. Las comparaciones del
+modelo excluyen la vista previa diagnóstica opcional cuyos IDs se regeneran;
+se comprueban explícitamente los UUID reales de boceto/cuerpo y sus vínculos.
+
+El runtime de prueba Android 35 se resuelve por Gradle, se fija a una versión y
+se copia a `app/build/robolectric-sdks`; las pruebas no descargan jars ni crean
+candados en la carpeta personal. Es una dependencia exclusiva de pruebas.
+CI conserva los resultados JUnit y Lint en un artefacto separado del informe.
+
+Estas pruebas ejecutan la Activity en el runtime JVM de Android; no sustituyen
+aceptación física ni acreditan el selector de documentos de cada fabricante.
+El hito completo permanece abierto hasta verificar la sustracción, edición de
+sus dependencias y aceptación móvil/tablet. No se fusiona la PR automáticamente.
+
+
+Validación local de esta continuación: suite geométrica Java e integridad,
+compilación Android, **13 pruebas Robolectric correctas, 0 fallos/0 omitidas**,
+y `lintDebug` correctos. El recorrido de persistencia Android cubre tanto el
+borrador como los callbacks de Guardar/Abrir con un archivo real temporal.
+La CI remota debe comprobarse sobre el commit publicado antes de integrar.

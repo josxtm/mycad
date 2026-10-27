@@ -686,11 +686,13 @@ public class MainActivity extends Activity {
   }
   Sketch q=sketches.get(selectedSketch);
   try{
+   setInteractionMode(0);rotationMode=false;
+   scene.resetTouchOwnership();
    scene.pushPullSession=new es.josxtm.mycad.cad.SketchPushPullSession(
     q.id,q.type,q.plane,q.x1,q.y1,q.x2,q.y2);
    scene.pushPullSource=q;scene.pushPullDraft=null;scene.pushPullTracking=false;
    sketchTool=0;flat=false;scene.invalidate();
-   info.setText("EXTRUIR · Arrastra hacia arriba en el lienzo · Suelta para crear · Dos dedos cancelan");
+   info.setText("EXTRUIR · Arrastra el perfil hacia arriba · Suelta para crear · Dos dedos navegan");
   }catch(Exception invalid){toast("Selecciona un perfil cerrado válido");}
  }
  void extrudeSketch(){
@@ -784,7 +786,7 @@ public class MainActivity extends Activity {
 
  void settings(){String[] opts={"Tema: "+(darkMode?"Oscuro":"Claro"),"Velocidad de giro: "+rotateSensitivity,"Sensibilidad zoom: "+zoomSensitivity,"Sensibilidad arrastre: "+dragSensitivity,"Cuadrícula y precisión","Bloquear cámara al editar: "+(cameraLock?"Sí":"No"),"Modo película"};new AlertDialog.Builder(this).setTitle("Ajustes de MyCAD").setItems(opts,(d,n)->{if(n==0){darkMode=!darkMode;storeSettings();settings();}else if(n==4)gridSettings();else if(n==5){cameraLock=!cameraLock;storeSettings();settings();}else if(n==6)movieMenu();else{String name=new String[]{"","Giro 3D","Zoom","Arrastre"}[n];float current=n==1?rotateSensitivity:n==2?zoomSensitivity:dragSensitivity;SeekBar bar=new SeekBar(this);bar.setMax(195);bar.setProgress(Math.round(current*100)-5);new AlertDialog.Builder(this).setTitle(name+" · 5 % a 200 %").setView(bar).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,w)->{float v=(bar.getProgress()+5)/100f;if(n==1)rotateSensitivity=v;else if(n==2)zoomSensitivity=v;else dragSensitivity=v;storeSettings();settings();}).show();}}).show();}
  void gridSettings(){String[] opts={"Mostrar cuadrícula: "+(gridVisible?"Sí":"No"),"Ajustar a cuadrícula: "+(snapEnabled?"Sí":"No"),"Paso: "+gridStep+" mm","Plano: "+new String[]{"XY","XZ","YZ"}[gridPlane],"Mostrar ejes: "+(axesVisible?"Sí":"No")};new AlertDialog.Builder(this).setTitle("Cuadrícula y precisión").setItems(opts,(d,n)->{if(n==0)gridVisible=!gridVisible;else if(n==1)snapEnabled=!snapEnabled;else if(n==4)axesVisible=!axesVisible;else if(n==2){String[] steps={"1 mm","5 mm","10 mm","Personalizado"};new AlertDialog.Builder(this).setTitle("Separación de cuadrícula").setItems(steps,(di,k)->{if(k<3){gridStep=new float[]{1,5,10}[k];storeSettings();gridSettings();}else{EditText field=new EditText(this);field.setInputType(8194|4096);field.setText(""+gridStep);new AlertDialog.Builder(this).setTitle("Paso personalizado (mm)").setView(field).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(dd,w)->{try{float v=Float.parseFloat(field.getText().toString().replace(',','.'));if(!Float.isFinite(v)||v<.1f||v>1000)throw new Exception();gridStep=v;storeSettings();gridSettings();}catch(Exception ex){toast("Introduce un paso entre 0,1 y 1000 mm");}}).show();}}).show();return;}else if(n==3){new AlertDialog.Builder(this).setTitle("Plano de cuadrícula").setSingleChoiceItems(new String[]{"XY","XZ","YZ"},gridPlane,(di,k)->{gridPlane=k;di.dismiss();storeSettings();gridSettings();}).show();return;}storeSettings();gridSettings();}).setNegativeButton("Cerrar",null).show();}
- void setInteractionMode(int n){interactionMode=n;scene.movingEntity=n==1;info.setText(new String[]{"NAVEGAR · Arrastra para girar · Pellizca para zoom","MOVER · Usa flechas XYZ o arrastra el cuerpo","EDITAR · Arrastra los controladores"}[n]);scene.invalidate();}
+ void setInteractionMode(int n){if(scene.pushPullSession!=null)scene.cancelPushPull();interactionMode=n;scene.movingEntity=n==1;info.setText(new String[]{"NAVEGAR · Arrastra para girar · Pellizca para zoom","MOVER · Usa flechas XYZ o arrastra el cuerpo","EDITAR · Arrastra los controladores"}[n]);scene.invalidate();}
  void rotateSelectedZ(){if(selected<0){toast("Selecciona un cuerpo");return;}Part p=parts.get(selected);EditText e=new EditText(this);e.setInputType(8194|4096);e.setText(""+p.rotationZ);new AlertDialog.Builder(this).setTitle("Rotación Z (grados)").setView(e).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float a=Float.parseFloat(e.getText().toString().replace(',','.'));if(!Float.isFinite(a))throw new Exception();checkpoint();p.rotationZ=a;save();scene.invalidate();}catch(Exception ex){toast("Ángulo inválido");}}).show();}
  void rotateSelected3D(){if(selected<0){toast("Selecciona un cuerpo");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(18),dp(8),dp(18),dp(8));EditText[] fields=new EditText[3];float[] vals={p.rotationX,p.rotationY,p.rotationZ};String[] labels={"X rojo · grados","Y verde · grados","Z azul · grados"};for(int k=0;k<3;k++){TextView t=new TextView(this);t.setText(labels[k]);box.addView(t);fields[k]=new EditText(this);fields[k].setInputType(8194|4096);fields[k].setText(""+vals[k]);box.addView(fields[k]);}new AlertDialog.Builder(this).setTitle("GIRAR 3D · XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] a=new float[3];for(int k=0;k<3;k++){a[k]=Float.parseFloat(fields[k].getText().toString().replace(',','.'));if(!Float.isFinite(a[k])||Math.abs(a[k])>36000)throw new Exception();}checkpoint();p.rotationX=a[0];p.rotationY=a[1];p.rotationZ=a[2];save();scene.invalidate();}catch(Exception ex){toast("Introduce ángulos válidos");}}).show();}
  void booleanAnalysis(){
@@ -1988,6 +1990,10 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
  void save(){try{getPreferences(MODE_PRIVATE).edit().putString("design",encode()).apply();updateStep();}catch(Exception e){toast("No se pudo guardar el borrador interno");}}
  void load(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;loopExtrusionFeatures=restored.loops;intersectionRecipes=restored.intersections;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
+ protected void onPause(){
+  if(scene!=null&&scene.pushPullSession!=null)scene.cancelPushPull();
+  super.onPause();
+ }
  protected void onSaveInstanceState(Bundle b){if(scene!=null&&scene.pushPullSession!=null)scene.cancelPushPull();super.onSaveInstanceState(b);b.putString("pendingExport",pendingExport);}
 
  void addTri(java.util.ArrayList<Float> a,float[] p,float[] q,float[] r){for(float v:p)a.add(v);for(float v:q)a.add(v);for(float v:r)a.add(v);}
@@ -3460,9 +3466,19 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  class Scene extends View{
  Paint paint=new Paint(3);int selectedFaceBody=-1,selectedFaceIndex=-1;int partHandle=-1;float originalW,originalD,originalH,originalX,originalY,originalZ;boolean geometryChanged=false,entityDrag=false;int activeMoveAxis=-1,activeRotateAxis=-1;float rotationStart,rotationOriginal;float yaw=.65f,pitch=.6f,zoom=3,lastX,lastY,multiMidX,multiMidY,panX,panY;boolean movingEntity=false,editingHandle=false,gestureMulti=false;int handleIndex=-1,tapCount=0,lastTapEntity=-999;long lastTapTime=0;float movieYaw,movieOldYaw,movieOldPitch,movieOldZoom,moviePivotX,moviePivotY,moviePivotZ;boolean movieOldFlat,movieCameraSaved=false;long movieLast;android.os.Handler movieHandler=new android.os.Handler(android.os.Looper.getMainLooper());Runnable movieFrame;ScaleGestureDetector scale;
  es.josxtm.mycad.cad.SketchPushPullSession pushPullSession;
- Sketch pushPullSource;Part pushPullDraft;boolean pushPullTracking=false;float pushPullDownY;
+ Sketch pushPullSource;Part pushPullDraft;
+ boolean pushPullTracking=false,pushPullMoved=false,suppressTouchUntilUp=false;
+ float pushPullDownY;
+ void resetTouchOwnership(){
+  cubeDragging=false;gestureMulti=false;partHandle=-1;handleIndex=-1;
+  editingHandle=false;entityDrag=false;activeMoveAxis=-1;activeRotateAxis=-1;
+  moved=false;geometryChanged=false;preview=null;
+ }
  void cancelPushPull(){
-  pushPullSession=null;pushPullSource=null;pushPullDraft=null;pushPullTracking=false;
+  // A cancelled single-finger drag must not become an orbit or selection on UP.
+  suppressTouchUntilUp=pushPullTracking;
+  pushPullSession=null;pushPullSource=null;pushPullDraft=null;
+  pushPullTracking=false;pushPullMoved=false;
   invalidate();info.setText("Extrusión cancelada · proyecto sin cambios");
  }
  boolean pushPullIsCurrent(){
@@ -3473,26 +3489,42 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  }
  boolean handlePushPull(android.view.MotionEvent event){
   int action=event.getActionMasked();
-  if(action==android.view.MotionEvent.ACTION_CANCEL||event.getPointerCount()>1||!pushPullIsCurrent()){
-   cancelPushPull();gestureMulti=event.getPointerCount()>1;return true;
+  if(action==android.view.MotionEvent.ACTION_CANCEL||!pushPullIsCurrent()){
+   cancelPushPull();scale.onTouchEvent(event);return true;
+  }
+  if(event.getPointerCount()>1){
+   cancelPushPull();suppressTouchUntilUp=false;resetTouchOwnership();
+   // Forward POINTER_DOWN to the normal pan/zoom route, with a fresh midpoint.
+   return false;
   }
   if(action==android.view.MotionEvent.ACTION_DOWN){
-   pushPullDownY=event.getY();pushPullTracking=true;return true;
+   if(inCube(event.getX(),event.getY())||!hitsClosedProfile(pushPullSource,event.getX(),event.getY())){
+    cancelPushPull();suppressTouchUntilUp=false;return false;
+   }
+   pushPullDownY=event.getY();pushPullTracking=true;pushPullMoved=false;
+   // Seed the detector so a subsequent second finger can start normal zoom.
+   scale.onTouchEvent(event);return true;
   }
   if(!pushPullTracking)return true;
   if(action==android.view.MotionEvent.ACTION_MOVE||action==android.view.MotionEvent.ACTION_UP){
    try{
-    double height=pushPullSession.heightForTravel((pushPullDownY-event.getY())/getResources().getDisplayMetrics().density);
+    float travel=pushPullDownY-event.getY();
+    if(Math.abs(travel)>ViewConfiguration.get(MainActivity.this).getScaledTouchSlop())pushPullMoved=true;
+    double height=pushPullMoved?pushPullSession.heightForTravel(travel/getResources().getDisplayMetrics().density):0;
     pushPullDraft=height>0?partFromSketchPlan(pushPullSession.sketchId,pushPullSession.propose(height)):null;
-    info.setText(String.format(java.util.Locale.US,"EXTRUIR · %.0f mm · Suelta para crear · Dos dedos cancelan",height));
+    info.setText(String.format(java.util.Locale.US,"EXTRUIR · %.0f mm · Suelta para crear · Dos dedos navegan",height));
     invalidate();
     if(action==android.view.MotionEvent.ACTION_UP){
-     if(pushPullDraft==null){cancelPushPull();return true;}
+     scale.onTouchEvent(event);
+     if(pushPullDraft==null){cancelPushPull();suppressTouchUntilUp=false;return true;}
      Part result=pushPullDraft;
-     // The preview has never entered parts: undo and saved JSON contain only committed bodies.
+     // Preview has never entered parts: one committed body and one undo revision.
      checkpoint();parts.add(result);selected=parts.size()-1;
      selectedSketch=-1;selectedFaceBody=-1;selectedFaceIndex=-1;
-     pushPullDraft=null;pushPullSession=null;pushPullSource=null;pushPullTracking=false;
+     activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
+     activeExactFaceHit=null;activeExactEdgeHit=null;
+     pushPullDraft=null;pushPullSession=null;pushPullSource=null;
+     pushPullTracking=false;pushPullMoved=false;resetTouchOwnership();
      save();invalidate();
      info.setText(String.format(java.util.Locale.US,"Extrusión %.0f mm · Deshacer disponible",height));
     }
@@ -3554,10 +3586,10 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  }
  Collections.sort(faces,(a,b)->Float.compare(a.depth,b.depth));
  for(Face f:faces){Path path=new Path();path.moveTo(f.vertices[0][0],f.vertices[0][1]);for(int i=1;i<f.vertices.length;i++)path.lineTo(f.vertices[i][0],f.vertices[i][1]);path.close();paint.setStyle(Paint.Style.FILL);paint.setColor(f.color);c.drawPath(path,paint);paint.setStyle(Paint.Style.STROKE);paint.setColor(Color.rgb(23,65,85));c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}drawSelectedFace(c);if(selected>=0&&selected<parts.size()){if(rotationMode)drawRotationRings(c,parts.get(selected));else if(interactionMode==1)drawMoveGizmo(c,parts.get(selected));else if(interactionMode==2)drawPartHandles(c,parts.get(selected));}
- paint.setColor(darkMode?Color.WHITE:Color.rgb(25,38,55));paint.setTextSize(30);c.drawText(flat?"PLANTA · 2D":"VISTA · 3D",20,40,paint);paint.setStrokeWidth(3);paint.setStyle(Paint.Style.STROKE);for(int i=0;i<sketches.size();i++){paint.setColor(i==selectedSketch?Color.rgb(255,193,91):Color.rgb(112,220,229));paint.setStrokeWidth(i==selectedSketch?6:3);drawSketch(c,sketches.get(i));if(i==selectedSketch)drawHandles(c,sketches.get(i));}if(preview!=null)drawSketch(c,preview);paint.setStyle(Paint.Style.FILL);if(sketchTool>0){paint.setColor(Color.WHITE);c.drawText("BOCETO "+new String[]{"","LÍNEA","RECTÁNGULO","CÍRCULO"}[sketchTool],20,40,paint);}else if(parts.isEmpty()&&sketches.isEmpty())c.drawText("Añade una figura para empezar",20,getHeight()/2f,paint);
+ paint.setColor(darkMode?Color.WHITE:Color.rgb(25,38,55));paint.setTextSize(30);c.drawText(flat?"PLANTA · 2D":"VISTA · 3D",20,40,paint);paint.setStrokeWidth(3);paint.setStyle(Paint.Style.STROKE);for(int i=0;i<sketches.size();i++){paint.setColor(i==selectedSketch?Color.rgb(255,193,91):Color.rgb(112,220,229));paint.setStrokeWidth(i==selectedSketch?6:3);drawSketch(c,sketches.get(i));if(i==selectedSketch&&pushPullSession==null)drawHandles(c,sketches.get(i));}if(preview!=null)drawSketch(c,preview);paint.setStyle(Paint.Style.FILL);if(sketchTool>0){paint.setColor(Color.WHITE);c.drawText("BOCETO "+new String[]{"","LÍNEA","RECTÁNGULO","CÍRCULO"}[sketchTool],20,40,paint);}else if(parts.isEmpty()&&sketches.isEmpty())c.drawText("Añade una figura para empezar",20,getHeight()/2f,paint);
  drawOrientationCube(c);
  }
- Sketch preview;float mmX(float px){return (px-getWidth()/2f)/zoom;}float mmY(float py){return (getHeight()/2f-py)/zoom;}
+ Sketch preview;float mmX(float px){return (px-getWidth()/2f)/zoom-panX;}float mmY(float py){return (getHeight()/2f-py)/zoom-panY;}
  void handle(Canvas c,float x,float y){paint.setStyle(Paint.Style.FILL);paint.setColor(Color.rgb(255,185,65));c.drawCircle(x,y,dp(6),paint);paint.setColor(Color.WHITE);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);c.drawCircle(x,y,dp(6),paint);}
  void drawHandles(Canvas c,Sketch q){float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);if(q.type==1){handle(c,a[0],a[1]);handle(c,b[0],b[1]);}else if(q.type==2){handle(c,a[0],a[1]);handle(c,a[0],b[1]);handle(c,b[0],a[1]);handle(c,b[0],b[1]);handle(c,(a[0]+b[0])/2,(a[1]+b[1])/2);}else{handle(c,a[0],a[1]);handle(c,b[0],b[1]);}paint.setStyle(Paint.Style.STROKE);}
  int hitHandle(float sx,float sy){if(selectedSketch<0||selectedSketch>=sketches.size())return -1;Sketch q=sketches.get(selectedSketch);float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);float[][] pts=q.type==1||q.type==3?new float[][]{a,b}:new float[][]{a,{a[0],b[1]},{b[0],a[1]},b,{(a[0]+b[0])/2,(a[1]+b[1])/2}};for(int i=0;i<pts.length;i++)if(Math.hypot(sx-pts[i][0],sy-pts[i][1])<dp(22))return i;return -1;}
@@ -3577,25 +3609,52 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   void drawMoveGizmo(Canvas c,Part p){float[] center=project(p.x,p.y,p.z+p.h/2);float len=dp(55);for(int axis=0;axis<3;axis++){float[] end=axis==0?project(p.x+25,p.y,p.z+p.h/2):axis==1?project(p.x,p.y+25,p.z+p.h/2):project(p.x,p.y,p.z+p.h/2+25);float vx=end[0]-center[0],vy=end[1]-center[1],norm=(float)Math.hypot(vx,vy);if(norm<1){vx=axis==2?0:1;vy=axis==2?-1:0;norm=1;}vx=vx/norm*len;vy=vy/norm*len;paint.setColor(new int[]{Color.rgb(235,90,90),Color.rgb(70,208,120),Color.rgb(75,140,255)}[axis]);paint.setStrokeWidth(dp(4));c.drawLine(center[0],center[1],center[0]+vx,center[1]+vy,paint);c.drawCircle(center[0]+vx,center[1]+vy,dp(11),paint);paint.setColor(Color.WHITE);paint.setTextSize(dp(13));c.drawText(new String[]{"X","Y","Z"}[axis],center[0]+vx-dp(5),center[1]+vy+dp(5),paint);}paint.setColor(Color.WHITE);paint.setTextSize(dp(11));c.drawText(String.format(java.util.Locale.US,"X %.1f  Y %.1f  Z %.1f mm",p.x,p.y,p.z),Math.max(5,center[0]-dp(70)),center[1]+dp(80),paint);}
  int hitMoveGizmo(float sx,float sy){if(selected<0||selected>=parts.size()||interactionMode!=1)return -1;Part p=parts.get(selected);float[] center=project(p.x,p.y,p.z+p.h/2);for(int axis=2;axis>=0;axis--){float[] end=axis==0?project(p.x+25,p.y,p.z+p.h/2):axis==1?project(p.x,p.y+25,p.z+p.h/2):project(p.x,p.y,p.z+p.h/2+25);float vx=end[0]-center[0],vy=end[1]-center[1],norm=(float)Math.hypot(vx,vy);if(norm<1){vx=axis==2?0:1;vy=axis==2?-1:0;norm=1;}float ex=center[0]+vx/norm*dp(55),ey=center[1]+vy/norm*dp(55);if(Math.hypot(sx-ex,sy-ey)<dp(24))return axis;}return -1;}
  float[] sketchPoint(Sketch q,float a,float b){if(flat)return new float[]{getWidth()/2f+a*zoom+panX*zoom,getHeight()/2f-b*zoom-panY*zoom,0};return q.plane==0?project(a,b,0):q.plane==1?project(a,0,b):project(0,a,b);}
- void drawSketch(Canvas c,Sketch q){
-  float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);
-  if(q.type==1){c.drawLine(a[0],a[1],b[0],b[1],paint);return;}
-  // Project every point from the sketch plane. A projected rectangle is not
-  // generally an axis-aligned screen rectangle, nor is a circle a screen circle.
-  Path path=new Path();
-  int count=q.type==2?4:64;
+ float[][] sketchOutline(Sketch q){
+  int count=q.type==1?2:q.type==2?4:64;
+  float[][] points=new float[count][];
   double radius=Math.hypot(q.x2-q.x1,q.y2-q.y1);
   for(int i=0;i<count;i++){
    float u,v;
-   if(q.type==2){u=(i==0||i==3)?q.x1:q.x2;v=i<2?q.y1:q.y2;}
+   if(q.type==1){u=i==0?q.x1:q.x2;v=i==0?q.y1:q.y2;}
+   else if(q.type==2){u=(i==0||i==3)?q.x1:q.x2;v=i<2?q.y1:q.y2;}
    else{u=q.x1+(float)(radius*Math.cos(2*Math.PI*i/count));
         v=q.y1+(float)(radius*Math.sin(2*Math.PI*i/count));}
-   float[] point=sketchPoint(q,u,v);
-   if(i==0)path.moveTo(point[0],point[1]);else path.lineTo(point[0],point[1]);
+   points[i]=sketchPoint(q,u,v);
   }
-  path.close();c.drawPath(path,paint);
+  return points;
  }
- int hitSketch(float sx,float sy){int best=-1;float distance=dp(18);for(int i=0;i<sketches.size();i++){Sketch q=sketches.get(i);float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);float d;if(q.type==1){float vx=b[0]-a[0],vy=b[1]-a[1],len=vx*vx+vy*vy;float t=len<.01f?0:Math.max(0,Math.min(1,((sx-a[0])*vx+(sy-a[1])*vy)/len));d=(float)Math.hypot(sx-a[0]-t*vx,sy-a[1]-t*vy);}else if(q.type==2){float l=Math.min(a[0],b[0]),r=Math.max(a[0],b[0]),t=Math.min(a[1],b[1]),bt=Math.max(a[1],b[1]);d=Math.min(Math.min(Math.abs(sx-l),Math.abs(sx-r)),Math.min(Math.abs(sy-t),Math.abs(sy-bt)));if(sx<l-distance||sx>r+distance||sy<t-distance||sy>bt+distance)d=Float.MAX_VALUE;}else{float radius=(float)Math.hypot(b[0]-a[0],b[1]-a[1]);d=Math.abs((float)Math.hypot(sx-a[0],sy-a[1])-radius);}if(d<distance){distance=d;best=i;}}return best;}
+ void drawSketch(Canvas c,Sketch q){
+  float[][] points=sketchOutline(q);Path path=new Path();
+  path.moveTo(points[0][0],points[0][1]);
+  for(int i=1;i<points.length;i++)path.lineTo(points[i][0],points[i][1]);
+  if(q.type!=1)path.close();
+  c.drawPath(path,paint);
+ }
+ float profileEdgeDistance(Sketch q,float[][] points,float x,float y){
+  float nearest=Float.MAX_VALUE;
+  int edges=q.type==1?1:points.length;
+  for(int i=0;i<edges;i++){
+   float[] a=points[i],b=points[(i+1)%points.length];
+   float vx=b[0]-a[0],vy=b[1]-a[1],length=vx*vx+vy*vy;
+   float t=length<.01f?0:Math.max(0,Math.min(1,((x-a[0])*vx+(y-a[1])*vy)/length));
+   nearest=Math.min(nearest,(float)Math.hypot(x-a[0]-t*vx,y-a[1]-t*vy));
+  }
+  return nearest;
+ }
+ boolean hitsClosedProfile(Sketch q,float x,float y){
+  if(q.type!=2&&q.type!=3)return false;
+  float[][] points=sketchOutline(q);
+  return insidePolygon(x,y,points)||profileEdgeDistance(q,points,x,y)<=dp(12);
+ }
+ int hitSketch(float x,float y){
+  int best=-1;float nearest=dp(18);
+  for(int i=0;i<sketches.size();i++){
+   Sketch q=sketches.get(i);
+   float distance=profileEdgeDistance(q,sketchOutline(q),x,y);
+   if(distance<nearest){nearest=distance;best=i;}
+  }
+  return best;
+ }
  long downAt;float downX,downY;boolean moved,drag;
  float[][] facePolygon(Part p,int face){
   float[][] corners=new float[8][];
@@ -3651,7 +3710,12 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
 
  public boolean onTouchEvent(android.view.MotionEvent e){
   int action=e.getActionMasked();
-  if(pushPullSession!=null)return handlePushPull(e);
+  if(action==android.view.MotionEvent.ACTION_DOWN)suppressTouchUntilUp=false;
+  if(suppressTouchUntilUp){
+   if(action==android.view.MotionEvent.ACTION_UP||action==android.view.MotionEvent.ACTION_CANCEL)suppressTouchUntilUp=false;
+   return true;
+  }
+  if(pushPullSession!=null&&handlePushPull(e))return true;
   if(action==android.view.MotionEvent.ACTION_DOWN&&inCube(e.getX(),e.getY())){
    cubeDragging=true;cubeDownX=downX=e.getX();cubeDownY=downY=e.getY();return true;
   }
