@@ -36,7 +36,7 @@ public final class OrthogonalPolygonBRepBoolean {
   return plane==0?new double[]{v.x,v.y}:
          plane==1?new double[]{v.x,v.z}:new double[]{v.y,v.z};
  }
- private static List<double[]> points(PolygonPrismBRep body){
+ static List<double[]> points(PolygonPrismBRep body){
   int n=body.vertices().size()/2;
   if(n<4||body.vertices().size()!=2*n||n>MAX_AXES*2)
    throw new IllegalArgumentException("Perfil ortogonal fuera de límites");
@@ -51,7 +51,7 @@ public final class OrthogonalPolygonBRepBoolean {
   }
   return p;
  }
- private static double[] coordinates(List<double[]> a,List<double[]> b,int dimension){
+ static double[] coordinates(List<double[]> a,List<double[]> b,int dimension){
   ArrayList<Double> all=new ArrayList<>();
   for(double[] point:a)all.add(point[dimension]);
   for(double[] point:b)all.add(point[dimension]);
@@ -69,7 +69,7 @@ public final class OrthogonalPolygonBRepBoolean {
   for(int i=0;i<out.length;i++)out[i]=unique.get(i);
   return out;
  }
- private static boolean inside(List<double[]> poly,double x,double y){
+ static boolean inside(List<double[]> poly,double x,double y){
   boolean result=false;
   for(int i=0,j=poly.size()-1;i<poly.size();j=i++){
    double[] a=poly.get(i),b=poly.get(j);
@@ -79,7 +79,7 @@ public final class OrthogonalPolygonBRepBoolean {
   }
   return result;
  }
- private static boolean retain(boolean a,boolean b,Operation operation){
+ static boolean retain(boolean a,boolean b,Operation operation){
   switch(operation){
    case UNION:return a||b;
    case DIFFERENCE:return a&&!b;

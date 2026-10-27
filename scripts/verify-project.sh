@@ -897,7 +897,7 @@ for k in (
 ):
  assert k in a,k
 assert "this(id,firstId,secondId,Operation.INTERSECTION);" in feature
-assert "Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL, UNION_MULTISHELL, DIFFERENCE_MULTISHELL, INTERSECTION_MULTISHELL }" in feature
+assert "Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL, UNION_MULTISHELL, DIFFERENCE_MULTISHELL, INTERSECTION_MULTISHELL, UNION_WITH_HOLES, DIFFERENCE_WITH_HOLES, INTERSECTION_WITH_HOLES }" in feature
 assert "OrthogonalPrismBRepUnion.union(" in feature
 assert "LinkedOrthogonalUnionTest" in workflow
 print("Unión B-Rep vinculada: JSON v1, undo, regeneración y pruebas: OK")
@@ -993,4 +993,36 @@ for op in ("UNION_MULTISHELL","DIFFERENCE_MULTISHELL","INTERSECTION_MULTISHELL")
 assert "OrthogonalMultiShellBRepBooleanTest" in workflow
 assert "LinkedMultiShellBooleanTest" in workflow
 print("Multi-shell: B-Rep analítica y selección/reconstrucción JSON vinculada: OK")
+PY
+
+# Through-hole B-Rep cell complex must preserve analytic oriented halfedges,
+# closed/manifold preview topology, undo/JSON-linked feature boundaries.
+python3 - <<'PY'
+from pathlib import Path
+main=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
+kernel=Path("app/src/main/java/es/josxtm/mycad/cad/OrthogonalGridHoleBRep.java").read_text(encoding="utf-8")
+feature=Path("app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java").read_text(encoding="utf-8")
+flow=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
+for marker in (
+ "void booleanLinkedGridHoles(int first)",
+ "OrthogonalGridHoleBRep.apply(left,right,operation)",
+ "if(choice==13){booleanLinkedGridHoles(index);}",
+ "if(option==9){booleanLinkedGridHoles(index);return;}",
+ "LinkedConvexIntersection.Operation.DIFFERENCE_WITH_HOLES",
+ "linked.regenerateTriangles(refs,lines)",
+):
+ assert marker in main,marker
+block=main[main.index("void chooseLinkedOrthogonalOperand("):main.index("void booleanMeshManager()")]
+assert block.index("OrthogonalGridHoleBRep.apply(")<block.index("checkpoint();")
+assert block.count("intersectionRecipes.add(linked);")==1
+for marker in ("public static final class HalfEdge","public static final class Face",
+ "public static final class Edge","TriangleMeshHealth.inspect(mesh)",
+ "2*solidCount-2*holeCount","halfEdges=Collections.unmodifiableList"):
+ assert marker in kernel,marker
+for op in ("UNION_WITH_HOLES","DIFFERENCE_WITH_HOLES","INTERSECTION_WITH_HOLES"):
+ assert "Operation."+op in feature,op
+assert "OrthogonalGridHoleBRepTest" in flow
+assert "LinkedHoleBRepTest" in flow
+assert "this(id,firstId,secondId,Operation.INTERSECTION);" in feature
+print("B-Rep con agujeros: topología, malla, UI y JSON de recetas parametrizadas: OK")
 PY
