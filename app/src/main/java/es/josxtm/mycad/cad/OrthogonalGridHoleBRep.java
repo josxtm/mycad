@@ -102,17 +102,17 @@ public final class OrthogonalGridHoleBRep {
   final boolean flipAxes=plane==1;
   for(int i=0;i<nx;i++)for(int j=0;j<ny;j++){
    if(!data.filled[i][j])continue;
-   int a=nodeIndex(nodeIndices,v,id,plane,data,0,i,j),
-       b=nodeIndex(nodeIndices,v,id,plane,data,0,i+1,j),
-       c=nodeIndex(nodeIndices,v,id,plane,data,0,i+1,j+1),
-       d=nodeIndex(nodeIndices,v,id,plane,data,0,i,j+1),
-       A=nodeIndex(nodeIndices,v,id,plane,data,1,i,j),
-       B=nodeIndex(nodeIndices,v,id,plane,data,1,i+1,j),
-       C=nodeIndex(nodeIndices,v,id,plane,data,1,i+1,j+1),
-       D=nodeIndex(nodeIndices,v,id,plane,data,1,i,j+1);
+   int a=nodeIndex(nodeIndices,v,id,plane,data,height,0,i,j),
+       b=nodeIndex(nodeIndices,v,id,plane,data,height,0,i+1,j),
+       c=nodeIndex(nodeIndices,v,id,plane,data,height,0,i+1,j+1),
+       d=nodeIndex(nodeIndices,v,id,plane,data,height,0,i,j+1),
+       A=nodeIndex(nodeIndices,v,id,plane,data,height,1,i,j),
+       B=nodeIndex(nodeIndices,v,id,plane,data,height,1,i+1,j),
+       C=nodeIndex(nodeIndices,v,id,plane,data,height,1,i+1,j+1),
+       D=nodeIndex(nodeIndices,v,id,plane,data,height,1,i,j+1);
    double cap=(data.xs[i+1]-data.xs[i])*(data.ys[j+1]-data.ys[j]);
-   addQuad(quads,id,"bottom/"+i+"/"+j,new int[]{a,b,c,d},cap,flipBase==flipAxes);
-   addQuad(quads,id,"top/"+i+"/"+j,new int[]{A,B,C,D},cap,flipBase!=flipAxes);
+   addQuad(quads,id,"bottom/"+i+"/"+j,new int[]{a,b,c,d},cap,flipBase!=flipAxes);
+   addQuad(quads,id,"top/"+i+"/"+j,new int[]{A,B,C,D},cap,!flipBase!=flipAxes);
    // The material is always LEFT of a CCW boundary segment. The default
    // side quad is (base from,base to,tip to,tip from) for positive height.
    if(j==0||!data.filled[i][j-1])
@@ -208,12 +208,12 @@ public final class OrthogonalGridHoleBRep {
           width*Math.abs(height),(height>0)!=flipAxes);
  }
  private static int nodeIndex(Map<Integer,Integer> index,List<Vertex> v,
-    String seed,int plane,Data data,int layer,int i,int j){
+    String seed,int plane,Data data,double height,int layer,int i,int j){
   int key=(layer*data.ys.length+j)*data.xs.length+i;
   Integer found=index.get(key);
   if(found!=null)return found;
   double u=data.xs[i],w=data.ys[j];
-  double h=layer==0?0:OrthogonalGridHoleBRep.heightForSeed.get();
+  double h=layer==0?0:height;
   double[] p=plane==0?new double[]{u,w,h}:
              plane==1?new double[]{u,h,w}:new double[]{h,u,w};
   int created=v.size();
@@ -246,7 +246,6 @@ public final class OrthogonalGridHoleBRep {
   }
   return parts;
  }
- private static final ThreadLocal<Double> heightForSeed=new ThreadLocal<>();
  public static OrthogonalGridHoleBRep apply(
     PolygonPrismBRep first,PolygonPrismBRep second,
     OrthogonalPolygonBRepBoolean.Operation operation){
@@ -281,9 +280,7 @@ public final class OrthogonalGridHoleBRep {
   String seed=left+"|"+right+"|GRID_HOLES|"+operation+"|"+h+"|"+first.plane();
   for(double[] corner:a)seed+="|a"+(float)corner[0]+","+(float)corner[1];
   for(double[] corner:b)seed+="|b"+(float)corner[0]+","+(float)corner[1];
-  heightForSeed.set(h);
-  try{return new OrthogonalGridHoleBRep(stable(seed),first.plane(),h,data);}
-  finally{heightForSeed.remove();}
+  return new OrthogonalGridHoleBRep(stable(seed),first.plane(),h,data);
  }
  public List<Vertex> vertices(){return vertices;}
  public List<Face> faces(){return faces;}
