@@ -9,7 +9,7 @@ import java.util.*;
  * Rebuild is read-only and can be committed transactionally.
  */
 public final class LinkedConvexIntersection {
- public enum Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL, UNION_MULTISHELL, DIFFERENCE_MULTISHELL, INTERSECTION_MULTISHELL }
+ public enum Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL, UNION_MULTISHELL, DIFFERENCE_MULTISHELL, INTERSECTION_MULTISHELL, UNION_WITH_HOLES, DIFFERENCE_WITH_HOLES, INTERSECTION_WITH_HOLES }
  public final String id,firstId,secondId;
  public final Operation operation;
 
@@ -61,6 +61,16 @@ public final class LinkedConvexIntersection {
   LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
   if(a==null||b==null||!firstId.equals(a.id)||!secondId.equals(b.id))
    throw new IllegalArgumentException("Se eliminó un sólido de la unión");
+  if(operation==Operation.UNION_WITH_HOLES||
+     operation==Operation.DIFFERENCE_WITH_HOLES||
+     operation==Operation.INTERSECTION_WITH_HOLES){
+   OrthogonalPolygonBRepBoolean.Operation op=
+     operation==Operation.UNION_WITH_HOLES?OrthogonalPolygonBRepBoolean.Operation.UNION:
+     operation==Operation.DIFFERENCE_WITH_HOLES?OrthogonalPolygonBRepBoolean.Operation.DIFFERENCE:
+      OrthogonalPolygonBRepBoolean.Operation.INTERSECTION;
+   return OrthogonalGridHoleBRep.apply(
+     a.asBRep(lines),b.asBRep(lines),op).triangles();
+  }
   if(operation==Operation.UNION_MULTISHELL||
      operation==Operation.DIFFERENCE_MULTISHELL||
      operation==Operation.INTERSECTION_MULTISHELL){
