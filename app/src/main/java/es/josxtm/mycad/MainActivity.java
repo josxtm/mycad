@@ -294,22 +294,36 @@ public class MainActivity extends Activity {
   if(replacements!=null)for(es.josxtm.mycad.cad.LoopExtrusionFeature f:replacements.values())
    if(f!=null)touched.add(f.id);
   if(touched.isEmpty())return out;
+  // Rebuild all affected Boolean results from ONE proposed source snapshot.
+  // No mesh is replaced until the complete B-Rep plan has passed validation.
+  java.util.ArrayList<es.josxtm.mycad.cad.LinkedConvexIntersection> affected=
+   new java.util.ArrayList<>();
+  java.util.LinkedHashMap<String,Integer> meshById=new java.util.LinkedHashMap<>();
+  java.util.TreeSet<String> requiredSources=new java.util.TreeSet<>();
   for(int i=0;i<intersectionRecipes.size();i++){
    es.josxtm.mycad.cad.LinkedConvexIntersection recipe=intersectionRecipes.get(i);
    if(recipe==null||(!touched.contains(recipe.firstId)&&!touched.contains(recipe.secondId)))
     continue;
-   java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
-    new java.util.LinkedHashMap<>();
-   for(String sourceId:new String[]{recipe.firstId,recipe.secondId}){
-    es.josxtm.mycad.cad.LoopExtrusionFeature f=sources.get(sourceId);
-    if(f==null)throw new IllegalArgumentException("Se eliminó un sólido de una intersección");
-    lines.putAll(loopSketchSegments(f,null,0,0,0,0));
-   }
-   if(changes!=null)for(java.util.Map.Entry<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> e:changes.entrySet())
-    if(lines.containsKey(e.getKey()))lines.put(e.getKey(),e.getValue());
-   float[] geometry=recipe.regenerateTriangles(sources,lines);
-   out.put(i,new MeshEngine.Mesh(geometry));
+   if(meshById.putIfAbsent(recipe.id,i)!=null)
+    throw new IllegalArgumentException("Booleana B-Rep duplicada en el historial");
+   affected.add(recipe);
+   requiredSources.add(recipe.firstId);
+   requiredSources.add(recipe.secondId);
   }
+  if(affected.isEmpty())return out;
+  java.util.LinkedHashMap<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
+   new java.util.LinkedHashMap<>();
+  for(String sourceId:requiredSources){
+   es.josxtm.mycad.cad.LoopExtrusionFeature source=sources.get(sourceId);
+   if(source==null)throw new IllegalArgumentException("Se eliminó un sólido de una intersección");
+   lines.putAll(loopSketchSegments(source,null,0,0,0,0));
+  }
+  if(changes!=null)for(java.util.Map.Entry<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> e:changes.entrySet())
+   if(lines.containsKey(e.getKey()))lines.put(e.getKey(),e.getValue());
+  es.josxtm.mycad.cad.LinkedBooleanRegenerationPlan.Plan plan=
+   es.josxtm.mycad.cad.LinkedBooleanRegenerationPlan.build(affected,sources,lines);
+  for(String id:plan.featureIds())
+   out.put(meshById.get(id),new MeshEngine.Mesh(plan.triangles(id)));
   return out;
  }
 
