@@ -28,6 +28,21 @@ public final class SteppedCoplanarFaceGroupsTest {
     List<List<List<String>>> loops=SteppedCoplanarFaceGroups.boundaryLoops(shell);
     List<List<Double>> signedAreas=SteppedCoplanarFaceGroups.boundaryLoopAreas(shell);
     List<List<Integer>> counts=SteppedCoplanarFaceGroups.loopCounts(shell);
+    List<SteppedCoplanarFaceGroups.Patch> descriptors=SteppedCoplanarFaceGroups.describe(shell);
+    if(descriptors.size()!=groups.size())throw new AssertionError("Missing analytic patches");
+    for(int i=0;i<descriptors.size();i++){
+     SteppedCoplanarFaceGroups.Patch patch=descriptors.get(i);
+     if(!patch.faceIds.equals(groups.get(i))||
+        !patch.boundaryHalfEdgeLoops.equals(SteppedCoplanarFaceGroups.boundaryLoops(shell).get(i))||
+        !patch.signedLoopAreas.equals(SteppedCoplanarFaceGroups.boundaryLoopAreas(shell).get(i))||
+        Math.abs(patch.area-SteppedCoplanarFaceGroups.areas(shell).get(i))>1e-5||
+        patch.exteriorCount+patch.holeCount!=patch.boundaryHalfEdgeLoops.size())
+      throw new AssertionError("Inconsistent analytic patch descriptor");
+    }
+    try{descriptors.add(descriptors.get(0));throw new AssertionError("Mutable descriptors");}
+    catch(UnsupportedOperationException expected){}
+    try{descriptors.get(0).faceIds.clear();throw new AssertionError("Mutable descriptor faces");}
+    catch(UnsupportedOperationException expected){}
     if(counts.size()!=groups.size()||
        !counts.equals(SteppedCoplanarFaceGroups.loopCounts(shell)))
      throw new AssertionError("Invalid or nondeterministic loop counts");
