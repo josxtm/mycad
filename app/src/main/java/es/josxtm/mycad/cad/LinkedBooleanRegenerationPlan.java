@@ -60,6 +60,24 @@ public final class LinkedBooleanRegenerationPlan {
    if(!isCurrent(booleans,features,lines))
     throw new IllegalArgumentException("La operación o geometría B-Rep cambió tras el preflight");
   }
+  /**
+   * Checked, defensive publication snapshot. A caller must supply the CURRENT
+   * recipe set and source geometry; stale preflight batches cannot be exported.
+   * The returned map and each float array are independent of the saved plan.
+   */
+  public Map<String,float[]> publishIfCurrent(
+      Collection<LinkedConvexIntersection> booleans,
+      Map<String,LoopExtrusionFeature> features,
+      Map<String,ClosedSketchExtrusion.Segment> lines){
+   requireCurrent(booleans,features,lines);
+   LinkedHashMap<String,float[]> copy=new LinkedHashMap<>();
+   for(Map.Entry<String,float[]> entry:staged.entrySet())
+    copy.put(entry.getKey(),entry.getValue().clone());
+   // Check once more in case caller-owned maps changed while copying.
+   requireCurrent(booleans,features,lines);
+   return Collections.unmodifiableMap(copy);
+  }
+
   /** Always return a copy: editing a mesh cannot corrupt the preflight. */
   public float[] triangles(String featureId){
    float[] mesh=staged.get(featureId);
