@@ -1,5 +1,8 @@
 package es.josxtm.mycad.cad;
 
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
 /**
  * Unified analytic Boolean entry point for supported single-shell prisms.
  *
@@ -28,6 +31,32 @@ public final class PrismBRepBoolean {
   public float[] triangles(){return solid.triangles();}
  }
 
+ /**
+  * The intersection of same-origin, same-direction extrusions is the planar
+  * intersection extruded by the shorter height. Rebuild only the temporary
+  * operand shell; never alter the persisted source feature or its mesh.
+  */
+ private static PolygonPrismBRep clippedHeight(PolygonPrismBRep body,double height){
+  if(body.distance()==height)return body;
+  int n=body.vertices().size()/2;
+  ArrayList<String> ids=new ArrayList<>(n);
+  LinkedHashMap<String,ClosedSketchExtrusion.Segment> lines=new LinkedHashMap<>();
+  for(int i=0;i<n;i++){
+   PolygonPrismBRep.Vertex a=body.vertices().get(i);
+   PolygonPrismBRep.Vertex b=body.vertices().get((i+1)%n);
+   int plane=body.plane();
+   double au=plane==2?a.y:a.x,av=plane==0?a.y:plane==1?a.z:a.z;
+   double bu=plane==2?b.y:b.x,bv=plane==0?b.y:plane==1?b.z:b.z;
+   String edge=UUID.nameUUIDFromBytes(
+       (body.id()+"/intersection-height/edge/"+i).getBytes(StandardCharsets.UTF_8))
+       .toString();
+   ids.add(edge);
+   lines.put(edge,new ClosedSketchExtrusion.Segment(plane,au,av,bu,bv));
+  }
+  return new LoopExtrusionFeature(body.id(),ids.get(0),body.plane(),height,ids)
+      .asBRep(lines);
+ }
+
  public static Result apply(PolygonPrismBRep first,PolygonPrismBRep second,
                             Operation operation){
   if(first==null||second==null||operation==null||
@@ -47,7 +76,9 @@ public final class PrismBRepBoolean {
      body=ConvexPrismBRepIntersection.intersect(first,second).solid;
     }catch(IllegalArgumentException unsupportedConvex){
      try{
-      body=OrthogonalPolygonBRepBoolean.apply(first,second,
+      double commonHeight=Math.copySign(Math.min(Math.abs(a),Math.abs(b)),a);
+      body=OrthogonalPolygonBRepBoolean.apply(
+          clippedHeight(first,commonHeight),clippedHeight(second,commonHeight),
           OrthogonalPolygonBRepBoolean.Operation.INTERSECTION).solid;
      }catch(IllegalArgumentException unsupportedOrthogonal){
       throw new IllegalArgumentException(
