@@ -106,6 +106,8 @@ jobs:
           java -cp build/geometry-tests PrismBRepBooleanTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/VariableHeightPrismVolume.java tests/VariableHeightPrismVolumeTest.java
           java -cp build/geometry-tests VariableHeightPrismVolumeTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/VariableHeightOrthogonalMesh.java tests/VariableHeightOrthogonalMeshTest.java
+          java -cp build/geometry-tests VariableHeightOrthogonalMeshTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedConvexIntersectionTest.java tests/LinkedAnalyticBooleanTest.java
           java -cp build/geometry-tests LinkedConvexIntersectionTest
           java -cp build/geometry-tests LinkedAnalyticBooleanTest
