@@ -231,7 +231,8 @@ public final class OrthogonalGridHoleBRep {
    queue.add(new int[]{i,j});visited[i][j]=true;
    boolean boundary=false;
    while(!queue.isEmpty()){
-    int[] pos=queue.removeFirst(),x=pos[0],y=pos[1];
+    int[] pos=queue.removeFirst();
+    int x=pos[0],y=pos[1];
     if(x==0||y==0||x==nx-1||y==ny-1)boundary=true;
     for(int k=0;k<4;k++){
      int a=x+dx[k],b=y+dy[k];
