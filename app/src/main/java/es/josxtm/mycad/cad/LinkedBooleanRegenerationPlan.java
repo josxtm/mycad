@@ -40,8 +40,11 @@ public final class LinkedBooleanRegenerationPlan {
   if(mesh==null||mesh.length==0||mesh.length%9!=0||mesh.length>18000)
    throw new IllegalArgumentException("Malla de booleana inválida o demasiado grande");
   TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(mesh);
-  if(!health.isWatertight()||!Double.isFinite(health.signedVolume)||
-     health.signedVolume<=0)
+  // A positive total volume can hide an inside-out disconnected shell.
+  // Saved Boolean multi-shell results represent separate solid components;
+  // internal cavity shells are not emitted by these prism operations.
+  if(!health.isWatertight()||health.negativeVolumeShells!=0||
+     !Double.isFinite(health.signedVolume)||health.signedVolume<=0)
    throw new IllegalArgumentException("Booleana B-Rep no es un sólido cerrado y orientado");
  }
 
