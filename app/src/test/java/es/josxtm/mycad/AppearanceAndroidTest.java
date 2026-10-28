@@ -104,8 +104,9 @@ public class AppearanceAndroidTest {
   Object adapter=choice.getAdapter();AppearanceStyler.tree(choice,CadAppearance.preset(2),CadAppearance.preset(2).color(PANEL));assertSame(adapter,choice.getAdapter());assertEquals(2,choice.getSelectedItemPosition());
  }
 
- @Test public void systemBarsUseContrastOfTheirCustomPanelInsteadOfTheCanvas(){
+ @Test public void systemBarsFollowTheRootSurfaceUnderAndroid15EdgeToEdge(){
   CadAppearance mixed=CadAppearance.preset(1).with(PANEL,0xffffffff);app.selectAppearance(5,mixed);
-  assertTrue(app.appearance.dark());assertEquals(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR,app.getWindow().getDecorView().getSystemUiVisibility()&View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+  assertTrue(app.appearance.dark());assertEquals(0,app.getWindow().getDecorView().getSystemUiVisibility()&View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+  app.selectAppearance(5,mixed.with(BACKGROUND,0xffffffff));assertEquals(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR,app.getWindow().getDecorView().getSystemUiVisibility()&View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
  }
 }

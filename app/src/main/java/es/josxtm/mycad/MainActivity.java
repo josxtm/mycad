@@ -897,7 +897,15 @@ public class MainActivity extends Activity {
   if(meshView!=null)meshView.setAppearance(appearance);
   android.view.Window window=getWindow();window.setStatusBarColor(panel);window.setNavigationBarColor(panel);
   int flags=window.getDecorView().getSystemUiVisibility();int mask=View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-  window.getDecorView().setSystemUiVisibility((flags&~mask)|(CadAppearance.onColor(panel)==0xff000000?mask:0));
+    // Android 15 enforces transparent system bars for target 35: the root
+  // background, rather than the legacy requested panel color, is behind them.
+  int systemSurface=Build.VERSION.SDK_INT>=35?background:panel;
+  boolean darkSystemInk=CadAppearance.onColor(systemSurface)==0xff000000;
+  window.getDecorView().setSystemUiVisibility((flags&~mask)|(darkSystemInk?mask:0));
+  if(Build.VERSION.SDK_INT>=30&&window.getInsetsController()!=null){
+   int systemMask=android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+   window.getInsetsController().setSystemBarsAppearance(darkSystemInk?systemMask:0,systemMask);
+  }
   scene.invalidate();
  }
  void storeSettings(){getPreferences(MODE_PRIVATE).edit().putBoolean("dark",darkMode).putFloat("rot",rotateSensitivity).putFloat("zoom",zoomSensitivity).putFloat("drag",dragSensitivity).putBoolean("gridVisible",gridVisible).putBoolean("snap",snapEnabled).putFloat("gridStep",gridStep).putInt("gridPlane",gridPlane).putBoolean("axes",axesVisible).putBoolean("cameraLock",cameraLock).putInt("moveMode",moveMode).putInt("moveAxis",moveAxis).apply();applyTheme();}

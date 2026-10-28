@@ -32,7 +32,9 @@ persiste la selección y los colores, conservados al recrear/reiniciar la activi
 
 La misma paleta alcanza barras, paneles, botones, iconos dibujados, Canvas, su
 cuadrícula/ejes, cuerpos y selección, tiradores, ViewCube Canvas/GPU y controles
-nativos de diálogos/menús/dropdowns. Los desplegables mantienen datos, ID y opción
+nativos de diálogos/menús/dropdowns. En Android 15, las barras de sistema
+transparentes eligen contraste sobre el fondo real del modo edge-to-edge; en
+versiones anteriores se utiliza el color de panel solicitado. Los desplegables mantienen datos, ID y opción
 seleccionada. El estilo de los diálogos conserva los listeners originales.
 GPU usa una referencia inmutable para fondo, cuerpos, selección y tiradores:
 no modifica cámaras, origen relativo, revisión de escena, triángulos ni picking.
