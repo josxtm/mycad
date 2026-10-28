@@ -241,3 +241,69 @@ Prueba de aceptación física pendiente: rectángulo 40×30, cota, arrastre 10 m
 ViewCube, agujero Ø6, edición de ancho/fondo y altura/profundidad del taladro,
 guardar/abrir y exportar STL/OBJ. Repetir en móvil y tablet; registrar gestos,
 fluidez y resultados antes de declarar aceptado el primer hito.
+
+
+## PUNTO DE GUARDADO SEGURO — 2026-10-28
+
+Repositorio exclusivo: `https://github.com/josxtm/mycad.git`.
+Rama de continuación: `feature/sketch-push-pull-touch`; PR abierta #118.
+Los avances funcionales están en `fc663b7`; la fusión `420518a` conserva además
+la integración remota de #116. El commit de este punto de guardado incorpora
+este registro y actualiza dos comprobaciones estáticas a las rutas de edición
+nuevas; no elimina las comprobaciones de persistencia ni selección.
+
+**Verificado por alcance:** Push/Pull rectangular/circular; gestos, ViewCube y
+selección del resultado perforado; receta circular vinculada; edición conjunta
+de altura/profundidad y cotas; persistencia/undo; corrección OBJ y roundtrips
+STL/OBJ; controles de modos desplazables en móvil/tablet. Suite actual:
+20 pruebas Android y 4 MeshIO. Se han ejecutado geometría completa, integridad,
+Lint y ensamblado debug. La CI del commit publicado es la autoridad de integración.
+
+**No completado:** kernel B-Rep general, solver general de restricciones,
+booleanas arbitrarias, historial universal, caras curvas analíticas editables,
+DXF completo, Revolve/Sweep/Loft/Shell/Fillet/Chamfer y rendimiento en hardware.
+No se declara aceptado el primer hito físico. Solo hay pruebas Robolectric;
+`adb devices -l` no encuentra dispositivos. Seleccionar una perforación edita
+su receta, no entidades B-Rep curvas. OBJ triangula polígonos por abanico;
+no se declara soporte general de polígonos cóncavos.
+
+**Artefactos locales conservados:** APK debug firmada en
+`build/checkpoint/mycad-preview.apk` y resultados en `app/build/test-results/`
+y `app/build/reports/`. `.gradle/`, `app/build/`, `build/` y `reports/` son
+cachés/artefactos generados, no código pendiente. La clave de depuración permanece
+fuera del repositorio. No se suben claves ni cachés a Git. No queda una función
+incompleta sin commit que requiera rama WIP independiente.
+
+### Reanudar exactamente
+
+1. Clonar `josxtm/mycad` o entrar en su copia. Confirmar remoto y rama antes de tocar código.
+2. Ejecutar:
+
+```bash
+cd /workspace/mycad
+git remote -v
+git fetch origin
+git switch feature/sketch-push-pull-touch
+git pull --ff-only origin feature/sketch-push-pull-touch
+git status --short --branch
+cat docs/ROADMAP_MYCAD.md
+```
+
+3. Usar JDK 17, Gradle 8.9 y SDK Android 35. En este entorno:
+
+```bash
+source /workspace/.mycad-tools/env.sh
+bash scripts/verify-project.sh
+gradle :app:testDebugUnitTest :app:lintDebug --no-daemon
+```
+
+4. Comprobar PR #118 y Actions del SHA remoto actual. Si #118 fue fusionada,
+   incorporar `origin/main` mediante una fusión normal en la rama de trabajo y
+   abrir una PR sucesora. No rebasar ni forzar una rama compartida; nunca editar main.
+5. Prioridad siguiente: instalar la APK de pruebas en teléfono/tablet y verificar
+   40×30 → extrusión 10 → ViewCube → agujero Ø6 → editar cotas/altura → guardar/abrir.
+   Registrar fallos y rendimiento. Después continuar las fases pendientes en el
+   orden del guion. No fusionar con verificaciones pendientes o fallidas.
+
+Este punto de guardado pausa el desarrollo por instrucción del usuario; no
+programa tareas en segundo plano ni considera completadas las fases restantes.
