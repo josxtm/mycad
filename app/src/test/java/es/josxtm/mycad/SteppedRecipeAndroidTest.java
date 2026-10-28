@@ -454,4 +454,21 @@ public class SteppedRecipeAndroidTest {
   assertArrayEquals(expected,scene.get(0).worldCoordinates(),0);
   assertArrayEquals(body.triangles(48),scene.get(0).vertices,0);
  }
+
+ @Test public void linkedProfileSceneRetainsExactHeightAfterSaveAndReload()throws Exception{
+  LoopExtrusionFeature feature=polygonOperand(new float[][]{{0,0},{5,0},{4,3},{1,4}},4.123456789);
+  double[] exact=feature.asBRep(app.loopSketchSegments(feature,null,0,0,0,0)).triangleCoordinates();
+  float[] legacy=app.booleanMeshes.get(0).vertices.clone();
+  assertArrayEquals(exact,app.currentSceneMeshes().get(0).worldCoordinates(),0);
+  app.save();app.load();
+  assertEquals(feature.distance,app.loopExtrusionFeatures.get(0).distance,0);
+  assertArrayEquals(exact,app.currentSceneMeshes().get(0).worldCoordinates(),0);
+  assertArrayEquals(legacy,app.booleanMeshes.get(0).vertices,0);
+ }
+ @Test public void namedPlanarBooleanSceneCarriesItsExactSourceInHistoricalTriangleOrder(){
+  planarRecipe(LinkedConvexIntersection.Operation.DIFFERENCE_ANALYTIC,false);
+  List<MeshEngine.Mesh> meshes=app.currentSceneMeshes();MainActivity.PlanarStoredBinding binding=app.renderedPlanarBindings.get(0);
+  assertArrayEquals(binding.view.worldCoordinates(),meshes.get(2).worldCoordinates(),0);
+  assertArrayEquals(app.booleanMeshes.get(2).vertices,meshes.get(2).vertices,0);
+ }
 }

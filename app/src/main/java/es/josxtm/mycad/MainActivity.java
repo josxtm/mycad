@@ -960,6 +960,7 @@ public class MainActivity extends Activity {
    }
    if(!intersectionRecipes.get(storedIndex).isStepped()){
     for(PlanarStoredBinding binding:renderedPlanarBindings)if(binding.index==storedIndex){
+     display=MeshEngine.Mesh.withWorldCoordinates(mesh.vertices,binding.view.worldCoordinates());
      renderedPlanarBindings=java.util.Collections.singletonList(new PlanarStoredBinding(binding,0));break;
     }
     renderedSteppedBindings=java.util.Collections.emptyList();
@@ -967,6 +968,12 @@ public class MainActivity extends Activity {
   }else{
    renderedSteppedBindings=java.util.Collections.emptyList();
    renderedPlanarBindings=java.util.Collections.emptyList();
+   if(storedIndex>=0&&storedIndex<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(storedIndex)!=null){
+    es.josxtm.mycad.cad.LoopExtrusionFeature source=loopExtrusionFeatures.get(storedIndex);
+    es.josxtm.mycad.cad.PolygonPrismBRep shell=source.asBRep(loopSketchSegments(source,null,0,0,0,0));
+    if(!java.util.Arrays.equals(mesh.vertices,shell.triangles()))throw new IllegalArgumentException("Perfil vinculado obsoleto");
+    display=MeshEngine.Mesh.withWorldCoordinates(mesh.vertices,shell.triangleCoordinates());
+   }
   }
   meshMode=true;meshView.setVisibility(View.VISIBLE);
   meshPanel.setVisibility(View.VISIBLE);
@@ -3672,6 +3679,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     if(!java.util.Arrays.equals(identity.shell.triangles(),stored.vertices))
      throw new IllegalArgumentException("La malla B-Rep con agujeros está obsoleta");
     PlanarStoredBinding binding=new PlanarStoredBinding(i,first,stored,recipe,identity);
+    rendered=MeshEngine.Mesh.withWorldCoordinates(stored.vertices,binding.view.worldCoordinates());
     grids.add(binding);addTopologySnapshot(snapshots,binding.view.topology);
    }else if(recipe!=null&&recipe.isConvexIntersection()){
     java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=new java.util.LinkedHashMap<>();
@@ -3682,6 +3690,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     if(!java.util.Arrays.equals(identity.shell.triangles(),stored.vertices))
      throw new IllegalArgumentException("La malla de intersección está obsoleta");
     PlanarStoredBinding binding=new PlanarStoredBinding(i,first,stored,recipe,identity);
+    rendered=MeshEngine.Mesh.withWorldCoordinates(stored.vertices,binding.view.worldCoordinates());
     grids.add(binding);addTopologySnapshot(snapshots,binding.view.topology);
    }else if(recipe!=null&&recipe.isNamedPlanar()){
     java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=new java.util.LinkedHashMap<>();
@@ -3692,12 +3701,14 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     if(!java.util.Arrays.equals(identity.triangles(),stored.vertices))
      throw new IllegalArgumentException("La malla de booleana planar está obsoleta");
     PlanarStoredBinding binding=new PlanarStoredBinding(i,first,stored,recipe,identity);
+    rendered=MeshEngine.Mesh.withWorldCoordinates(stored.vertices,binding.view.worldCoordinates());
     grids.add(binding);addTopologySnapshot(snapshots,binding.view.topology);
    }else if(i<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(i)!=null){
     es.josxtm.mycad.cad.LoopExtrusionFeature feature=loopExtrusionFeatures.get(i);
     es.josxtm.mycad.cad.PolygonPrismBRep polygon=feature.asBRep(loopSketchSegments(feature,null,0,0,0,0));
     if(!java.util.Arrays.equals(polygon.triangles(),stored.vertices))
      throw new IllegalArgumentException("La malla del perfil vinculado está obsoleta");
+    rendered=MeshEngine.Mesh.withWorldCoordinates(stored.vertices,polygon.triangleCoordinates());
     addTopologySnapshot(snapshots,es.josxtm.mycad.cad.TopologySnapshot.from(polygon));
    }
    meshes.add(rendered);first+=stored.triangles();

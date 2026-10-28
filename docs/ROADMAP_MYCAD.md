@@ -458,3 +458,13 @@ resultados cóncavos generales ni todas las familias curvas.
 - Regresiones de precisión lejana, superficie local cerrada, no mutación y puente real de Android. 60 pruebas Android/IO, geometría completa e integridad superadas localmente; nuevo CI obligatorio antes de integrar.
 - Se mantienen los límites del editor y el formato JSON; la exportación float histórica no obtiene precisión double por este cambio.
 - Próximo motor B-Rep: fuentes de perfiles/booleanas y degeneración; validación física/EGL y memoria pendientes.
+
+## Motor B-Rep: fuentes double de extrusiones y resultados planares
+
+- Base main `74f7a6b`, PR #147 integrada tras #625 verde. Hito [#626](https://github.com/josxtm/mycad/actions/runs/40764258161) con APK compilada y verificada.
+- Rama `feature/cad-double-profile-preview`. ClosedSketchExtrusion retiene coordenadas exactas; PolygonPrismBRep las expone sin alterar la teselación publicada.
+- Digest de doce fixtures históricos de perfiles; se conserva winding en XY/XZ/YZ y extrusión positiva/negativa.
+- PlanarBooleanView y escena Android conectan fuentes de perfiles vinculados y booleanas nombradas; vista aislada coherente, buffers exportados y JSON sin cambios.
+- Regresiones de altura double, no mutación, guardado/reapertura, cascarones múltiples y correspondencia de los índices globales.
+- Grids/escalonados, algunas previsualizaciones y kernels con casts internos requieren auditoría posterior. No se atribuye recuperación de detalle ya perdido.
+- Validación física Android/EGL en Nothing Phone 2a y tablet 12 pulgadas, memoria y rendimiento pendientes.
