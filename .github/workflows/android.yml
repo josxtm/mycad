@@ -183,6 +183,8 @@ jobs:
           java -cp build/geometry-tests ChainTriangleMapTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/CadIntegrationProbe.java tests/CadIntegrationProbeTest.java
           java -cp build/geometry-tests CadIntegrationProbeTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/DragPrecision.java app/src/main/java/es/josxtm/mycad/cad/BoxBRep.java app/src/main/java/es/josxtm/mycad/cad/SketchPushPullSession.java tests/SketchPushPullSessionTest.java
+          java -cp build/geometry-tests SketchPushPullSessionTest
           } 2>&1 | tee reports/geometria.log
       # CI habitual valida Java, tests Android y Lint, SIN generar un APK.
       - name: Compilar código y comprobar pruebas y Lint (sin APK)
@@ -265,6 +267,17 @@ jobs:
           name: informe-mycad-${{ github.run_number }}
           path: reports/
           if-no-files-found: warn
+          retention-days: 30
+      - name: Publicar resultados Android y Lint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pruebas-android-mycad-${{ github.run_number }}
+          path: |
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/testDebugUnitTest/
+            app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
           retention-days: 30
       - name: Publicar APK solo tras superar verificaciones
         if: steps.apk.outcome == 'success'
