@@ -159,3 +159,151 @@ Verificación local del segundo avance: **14 pruebas Android correctas,
 completas ya pasaron en #554 y se volverán a ejecutar en la CI del nuevo commit.
 Siguiente tarea: sustracción sobre el sólido vinculado, con regeneración y
 persistencia de sus dependencias; aceptación física móvil/tablet pendiente.
+
+## Sustracción circular vinculada — 2026-10-28
+
+- `Proyecto → Perforar prisma (circular)` admite una extrusión rectangular
+  vinculada, en su posición original respecto al boceto. La receta conserva
+  UUID de boceto y altura de extrusión; el resultado sustituye al prisma por
+  una malla de perforación editable. Las perforaciones independientes se conservan.
+- Cambiar ancho/fondo del perfil prepara todas las recetas dependientes antes
+  de publicar geometría. Si el agujero deja de caber, se rechaza la edición sin
+  cambiar perfil, malla ni historial. No se permite borrar un perfil con una
+  perforación dependiente; primero debe eliminarse el resultado.
+- En Resultados booleanos, editar la perforación ofrece `Acotar perfil origen`.
+  La receta mantiene el enlace al cambiar diámetro, posición, eje o profundidad.
+- JSON incluye campos opcionales `sourceSketchId`/`sourceHeight`. Al abrir se
+  exige un origen rectangular único y coincidencia de la malla con su receta
+  regenerada. Se mantiene compatibilidad con recetas anteriores independientes.
+- La perforación vinculada se dibuja también en Canvas; GPU y exportación
+  utilizan la malla unificada existente.
+- Dos regresiones Android nuevas recorren rectángulo 40×30 → extrusión 10 →
+  agujero de diámetro 6 → cotas 50×30 → deshacer/rehacer → guardar y abrir,
+  en XY/XZ/YZ. Verifican malla cerrada, volumen nominal, rechazo atómico,
+  dependencia huérfana y callbacks reales de archivo. Suite Android: 16 pruebas.
+
+Alcance: cortador circular parametrizado sobre prisma rectangular, con resultado
+triangulado y receta regenerable; no es una booleana B-Rep general ni conserva
+el UUID del prisma sustituido. La edición de altura del resultado perforado y
+la selección analítica de sus caras siguen pendientes. No se ha validado en
+hardware físico ni se declara aceptado el hito completo.
+
+Validación local: suites geométricas completas e integridad correctas;
+16 pruebas Android con Robolectric, 0 fallos/0 omitidas; compilación y Lint
+correctos. Pendiente comprobar Actions sobre el commit publicado.
+
+Publicación: al comprobar GitHub se detectó que #117 ya estaba fusionada en
+`285a74b`. La continuación de perforaciones se publicará en una PR sucesora.
+Se incorporó `origin/main` a la rama de trabajo mediante una fusión normal,
+sin modificar `main`, rebase ni force push. La fusión no cambió el árbol de
+archivos de la implementación local validada.
+
+## Continuación del guion maestro — altura, selección e intercambio
+
+- El editor de perforación vinculada admite la altura de extrusión. Altura,
+  eje, diámetro y profundidad se preparan conjuntamente antes de publicar una
+  receta: permite reducir a la vez altura y profundidad y rechaza un taladro
+  ciego que ya no cabe. Recalcula posición/orientación desde el boceto en XY/XZ/YZ.
+- Un toque selecciona la superficie del corte en Canvas; otro abre sus parámetros.
+  Usa rayos contra la escena completa y su índice de triángulos: un agujero vacío
+  no selecciona material y un cuerpo delante impide seleccionar el corte oculto.
+  Se resalta el resultado seleccionado. La selección de caras B-Rep curvas sigue
+  pendiente; el control actual edita la receta completa.
+- Corregida la exportación OBJ: escribía secuencias literales de nueva línea,
+  dejando un archivo que no podía reabrirse. Se verifican roundtrips OBJ/STL,
+  STL ASCII externo e índices OBJ negativos. Se rechazan mallas vacías y
+  coordenadas no finitas, incluidas las de STL binario.
+- Verificación local: 18 pruebas Android Robolectric y 4 de MeshIO, todas correctas;
+  compilación y Lint correctos. Se ejecutan de nuevo las suites geométricas completas.
+- Se prepara APK debug del recorrido de prueba; no es una versión de producción.
+  La aceptación física depende de disponer de teléfono/tablet conectado.
+
+El guion completo continúa abierto: B-Rep general, restricciones generales,
+booleanas arbitrarias, historial general, optimización en hardware y herramientas
+Revolve/Sweep/Loft/Shell/Fillet/Chamfer necesitan desarrollo y pruebas adicionales.
+La evidencia de este bloque cubre el subconjunto descrito, no esas fases pendientes.
+
+### UI móvil/tablet y APK del recorrido
+
+La fila de modos pasa a un contenedor horizontal desplazable con área mínima
+88×48 dp por control. El cambio se limita a esa fila y no altera botones de
+otros paneles; no fusiona #80 ni #86. Pruebas de layout a 320×640 dp y
+1280×800 dp verifican dimensiones, desplazamiento y espacio de lienzo.
+La guía de la app explica la edición por toque del resultado perforado.
+
+Verificación del bloque: **24 pruebas correctas (20 Android Robolectric y 4
+MeshIO), 0 fallos/omitidas**, geometría completa, integridad, compilación y Lint.
+Se genera una APK debug para pruebas del hito con firma de depuración; todavía
+no es aceptación física ni finalización de todas las fases del guion.
+`adb devices -l` no detecta dispositivos Android conectados en este entorno.
+
+Prueba de aceptación física pendiente: rectángulo 40×30, cota, arrastre 10 mm,
+ViewCube, agujero Ø6, edición de ancho/fondo y altura/profundidad del taladro,
+guardar/abrir y exportar STL/OBJ. Repetir en móvil y tablet; registrar gestos,
+fluidez y resultados antes de declarar aceptado el primer hito.
+
+
+## PUNTO DE GUARDADO SEGURO — 2026-10-28
+
+Repositorio exclusivo: `https://github.com/josxtm/mycad.git`.
+Rama de continuación: `feature/sketch-push-pull-touch`; PR abierta #118.
+Los avances funcionales están en `fc663b7`; la fusión `420518a` conserva además
+la integración remota de #116. El commit de este punto de guardado incorpora
+este registro y actualiza dos comprobaciones estáticas a las rutas de edición
+nuevas; no elimina las comprobaciones de persistencia ni selección.
+
+**Verificado por alcance:** Push/Pull rectangular/circular; gestos, ViewCube y
+selección del resultado perforado; receta circular vinculada; edición conjunta
+de altura/profundidad y cotas; persistencia/undo; corrección OBJ y roundtrips
+STL/OBJ; controles de modos desplazables en móvil/tablet. Suite actual:
+20 pruebas Android y 4 MeshIO. Se han ejecutado geometría completa, integridad,
+Lint y ensamblado debug. La CI del commit publicado es la autoridad de integración.
+
+**No completado:** kernel B-Rep general, solver general de restricciones,
+booleanas arbitrarias, historial universal, caras curvas analíticas editables,
+DXF completo, Revolve/Sweep/Loft/Shell/Fillet/Chamfer y rendimiento en hardware.
+No se declara aceptado el primer hito físico. Solo hay pruebas Robolectric;
+`adb devices -l` no encuentra dispositivos. Seleccionar una perforación edita
+su receta, no entidades B-Rep curvas. OBJ triangula polígonos por abanico;
+no se declara soporte general de polígonos cóncavos.
+
+**Artefactos locales conservados:** APK debug firmada en
+`build/checkpoint/mycad-preview.apk` y resultados en `app/build/test-results/`
+y `app/build/reports/`. `.gradle/`, `app/build/`, `build/` y `reports/` son
+cachés/artefactos generados, no código pendiente. La clave de depuración permanece
+fuera del repositorio. No se suben claves ni cachés a Git. No queda una función
+incompleta sin commit que requiera rama WIP independiente.
+
+### Reanudar exactamente
+
+1. Clonar `josxtm/mycad` o entrar en su copia. Confirmar remoto y rama antes de tocar código.
+2. Ejecutar:
+
+```bash
+cd /workspace/mycad
+git remote -v
+git fetch origin
+git switch feature/sketch-push-pull-touch
+git pull --ff-only origin feature/sketch-push-pull-touch
+git status --short --branch
+cat docs/ROADMAP_MYCAD.md
+```
+
+3. Usar JDK 17, Gradle 8.9 y SDK Android 35. En este entorno:
+
+```bash
+source /workspace/.mycad-tools/env.sh
+bash scripts/verify-project.sh
+gradle :app:testDebugUnitTest :app:lintDebug --no-daemon
+```
+
+4. Comprobar PR #118 y Actions del SHA remoto actual. Si #118 fue fusionada,
+   incorporar `origin/main` mediante una fusión normal en la rama de trabajo y
+   abrir una PR sucesora. No rebasar ni forzar una rama compartida; nunca editar main.
+5. Prioridad siguiente: instalar la APK de pruebas en teléfono/tablet y verificar
+   40×30 → extrusión 10 → ViewCube → agujero Ø6 → editar cotas/altura → guardar/abrir.
+   Registrar fallos y rendimiento. Después continuar las fases pendientes en el
+   orden del guion. No fusionar con verificaciones pendientes o fallidas.
+
+Este punto de guardado pausa el desarrollo por instrucción del usuario; no
+programa tareas en segundo plano ni considera completadas las fases restantes.

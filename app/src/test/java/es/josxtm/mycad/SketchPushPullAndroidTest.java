@@ -121,6 +121,115 @@ public class SketchPushPullAndroidTest {
   app.history(false);assertEquals(id,app.parts.get(0).id);
   assertEquals(15000,app.parts.get(0).w*app.parts.get(0).d*app.parts.get(0).h,.001f);
  }
+ private void drillSelected(double diameter){
+  app.drillSelectedBox();AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();
+  ArrayList<EditText> inputs=new ArrayList<>();collectInputs(dialog.getWindow().getDecorView(),inputs);
+  assertEquals(4,inputs.size());inputs.get(0).setText("0");inputs.get(1).setText("0");
+  inputs.get(2).setText(String.valueOf(diameter));inputs.get(3).setText("0");
+  dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();
+ }
+ @Test public void linkedHoleRegeneratesInAllPlanesAndRejectsInvalidEdits() throws Exception {
+  for(int plane=0;plane<3;plane++){
+   app.parts.clear();app.sketches.clear();app.booleanMeshes.clear();app.holeRecipes.clear();
+   app.unionRecipes.clear();app.loopExtrusionFeatures.clear();app.intersectionRecipes.clear();
+   app.undo.clear();app.redo.clear();
+   MainActivity.Sketch q=rectangle(plane);app.startSketchPushPull();dragTen(q);drillSelected(6);
+   assertTrue(app.parts.isEmpty());assertEquals(1,app.holeRecipes.size());
+   assertEquals(q.id,app.holeRecipes.get(0).sourceSketchId);
+   assertEquals(12000-90*Math.PI,app.holeRecipes.get(0).nominalVolume(),.001);
+   assertTrue(es.josxtm.mycad.cad.TriangleMeshHealth.inspect(app.booleanMeshes.get(0).vertices).isWatertight());
+   app.selectedSketch=0;dimension(50,30);
+   assertEquals(15000-90*Math.PI,app.holeRecipes.get(0).nominalVolume(),.001);
+   String expected=documentJson();int revisions=app.undo.size();dimension(4,30);
+   assertEquals(expected,documentJson());assertEquals(revisions,app.undo.size());
+   app.requestSketchDeletion(true);assertEquals(1,app.sketches.size());
+   app.history(true);assertEquals(12000-90*Math.PI,app.holeRecipes.get(0).nominalVolume(),.001);
+   app.history(false);assertEquals(expected,documentJson());
+   app.save();app.load();assertEquals(expected,documentJson());
+   JSONObject damaged=new JSONObject(app.encode());
+   damaged.getJSONArray("throughHoleRecipes").getJSONObject(0).put("sourceSketchId",java.util.UUID.randomUUID().toString());
+   try{app.decode(damaged.toString());fail("Orphan drilling accepted");}catch(java.io.IOException correct){}
+  }
+ }
+ @Test public void linkedHoleSurvivesFileRoundtripAndRecipeEditing() throws Exception {
+  MainActivity.Sketch q=rectangle(0);app.startSketchPushPull();dragTen(q);drillSelected(6);
+  app.editHoleRecipe(0);AlertDialog editor=ShadowAlertDialog.getLatestAlertDialog();
+  editor.getButton(AlertDialog.BUTTON_NEUTRAL).performClick();shadowOf(Looper.getMainLooper()).idle();
+  applyDimensions(ShadowAlertDialog.getLatestAlertDialog(),50,30);
+  String expected=documentJson();File file=File.createTempFile("drilled-", ".mycad.json",app.getCacheDir());
+  try{
+   Intent data=new Intent().setData(Uri.fromFile(file));app.exportFile();
+   app.onActivityResult(MainActivity.SAVE_FILE,MainActivity.RESULT_OK,data);awaitFileOperation();
+   app.booleanMeshes.clear();app.holeRecipes.clear();app.unionRecipes.clear();
+   app.loopExtrusionFeatures.clear();app.intersectionRecipes.clear();app.sketches.clear();
+   app.onActivityResult(MainActivity.OPEN_FILE,MainActivity.RESULT_OK,data);awaitFileOperation();
+   assertEquals(expected,documentJson());assertEquals(q.id,app.holeRecipes.get(0).sourceSketchId);
+   assertTrue(es.josxtm.mycad.cad.TriangleMeshHealth.inspect(app.currentMesh().vertices).isWatertight());
+  }finally{file.delete();}
+ }
+ private void editDrillHeight(double height,double depth){
+  app.editHoleRecipe(0);AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();
+  ArrayList<EditText> inputs=new ArrayList<>();collectInputs(dialog.getWindow().getDecorView(),inputs);
+  assertEquals(5,inputs.size());inputs.get(3).setText(String.valueOf(depth));inputs.get(4).setText(String.valueOf(height));
+  dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();
+ }
+ @Test public void drilledHeightAndDepthEditAtomicallyAndSurviveReopen() throws Exception {
+  for(int plane=0;plane<3;plane++){
+   app.parts.clear();app.sketches.clear();app.booleanMeshes.clear();app.holeRecipes.clear();
+   app.unionRecipes.clear();app.loopExtrusionFeatures.clear();app.intersectionRecipes.clear();app.undo.clear();app.redo.clear();
+   MainActivity.Sketch q=rectangle(plane);app.startSketchPushPull();dragTen(q);drillSelected(6);
+   editDrillHeight(20,8);assertEquals(20,app.holeRecipes.get(0).sourceHeight,0);
+   assertEquals(24000-72*Math.PI,app.holeRecipes.get(0).nominalVolume(),.001);
+   String before=documentJson();int revisions=app.undo.size();editDrillHeight(5,8);
+   assertEquals(before,documentJson());assertEquals(revisions,app.undo.size());
+   editDrillHeight(5,2);assertEquals(6000-18*Math.PI,app.holeRecipes.get(0).nominalVolume(),.001);
+   assertTrue(es.josxtm.mycad.cad.TriangleMeshHealth.inspect(app.currentMesh().vertices).isWatertight());
+   String after=documentJson();app.history(true);assertEquals(before,documentJson());app.history(false);assertEquals(after,documentJson());
+   app.save();app.load();assertEquals(after,documentJson());assertEquals(q.id,app.holeRecipes.get(0).sourceSketchId);
+  }
+ }
+ @Test public void canvasSelectsCutSurfaceButNotHoleOrOccludedGeometry() throws Exception {
+  MainActivity.Sketch q=rectangle(0);app.startSketchPushPull();dragTen(q);drillSelected(6);
+  app.scene.pitch=(float)(Math.PI/2);app.scene.yaw=0;app.scene.panX=12;app.scene.panY=-5;app.scene.zoom=5;
+  float[] hole=app.scene.project(0,0,10);
+  touch(MotionEvent.ACTION_DOWN,hole[0],hole[1]);touch(MotionEvent.ACTION_UP,hole[0],hole[1]);
+  assertEquals(-1,app.selectedStoredMeshIndex);
+  float[] surface=app.scene.project(10,0,10);
+  touch(MotionEvent.ACTION_DOWN,surface[0],surface[1]);touch(MotionEvent.ACTION_UP,surface[0],surface[1]);
+  assertEquals(0,app.selectedStoredMeshIndex);
+  touch(MotionEvent.ACTION_DOWN,surface[0],surface[1]);touch(MotionEvent.ACTION_UP,surface[0],surface[1]);
+  AlertDialog editor=ShadowAlertDialog.getLatestAlertDialog();
+  ArrayList<EditText> inputs=new ArrayList<>();collectInputs(editor.getWindow().getDecorView(),inputs);
+  assertEquals(5,inputs.size());editor.dismiss();
+  MainActivity.Part front=app.new Part(false,10,10,5,10);front.z=20;app.parts.add(front);
+  touch(MotionEvent.ACTION_DOWN,surface[0],surface[1]);touch(MotionEvent.ACTION_UP,surface[0],surface[1]);
+  assertEquals(-1,app.selectedStoredMeshIndex);assertEquals(0,app.selected);
+ }
+ private View findText(View view,String text){
+  if(view instanceof android.widget.TextView&&text.contentEquals(((android.widget.TextView)view).getText()))return view;
+  if(view instanceof ViewGroup)for(int i=0;i<((ViewGroup)view).getChildCount();i++){
+   View found=findText(((ViewGroup)view).getChildAt(i),text);if(found!=null)return found;
+  }
+  return null;
+ }
+ private void verifyModeRow(int width,int height){
+  app.rootLayout.measure(View.MeasureSpec.makeMeasureSpec(app.dp(width),View.MeasureSpec.EXACTLY),
+   View.MeasureSpec.makeMeasureSpec(app.dp(height),View.MeasureSpec.EXACTLY));
+  app.rootLayout.layout(0,0,app.dp(width),app.dp(height));
+  View navigate=findText(app.rootLayout,"NAVEGAR");assertNotNull(navigate);
+  ViewGroup row=(ViewGroup)navigate.getParent();
+  assertTrue(row.getParent() instanceof android.widget.HorizontalScrollView);
+  android.widget.HorizontalScrollView scroll=(android.widget.HorizontalScrollView)row.getParent();
+  for(int i=0;i<row.getChildCount();i++){
+   assertTrue(row.getChildAt(i).getMeasuredWidth()>=app.dp(88));
+   assertTrue(row.getChildAt(i).getMeasuredHeight()>=app.dp(48));
+  }
+  assertTrue(app.scene.getMeasuredHeight()>0);
+  if(width<440){scroll.scrollTo(row.getWidth(),0);assertTrue(scroll.getScrollX()>0);}
+  navigate.performClick();assertEquals(0,app.interactionMode);
+ }
+ @Test @Config(qualifiers="w320dp-h640dp-mdpi") public void phoneModeControlsRemainTouchableAndScrollable(){verifyModeRow(320,640);}
+ @Test @Config(qualifiers="w1280dp-h800dp-mdpi") public void tabletModeControlsPreserveCanvasSpace(){verifyModeRow(1280,800);}
  @Test public void corruptFileLeavesCurrentGeometryAndUndoUntouched() throws Exception {
   MainActivity.Sketch q=rectangle(0);app.startSketchPushPull();dragTen(q);
   String expected=documentJson();int revisions=app.undo.size();

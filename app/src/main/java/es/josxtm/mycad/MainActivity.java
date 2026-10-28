@@ -29,7 +29,12 @@ public class MainActivity extends Activity {
  scene=new Scene();workspace.addView(scene,new LinearLayout.LayoutParams(0,-1,1));
  LinearLayout right=new LinearLayout(this);right.setOrientation(LinearLayout.VERTICAL);workspace.addView(right);rightBar=right;
  icon(right,"☷","Árbol de cuerpos",()->bodyTree());icon(right,"∩","Analizar booleanas",()->booleanAnalysis());icon(right,"▤","Resultados booleanos",()->booleanMeshManager());icon(right,"▦","Inspeccionar caras",()->inspectSelectedFaces());icon(right,"⌑","Inspeccionar aristas",()->inspectSelectedEdges());icon(right,"◇","Alternar vista 2D / 3D",()->{flat=!flat;scene.invalidate();});icon(right,"⊡","Centrar vista",()->{scene.zoom=3;scene.yaw=.65f;scene.pitch=.6f;scene.invalidate();});icon(right,"▱","Visor 3D GPU",()->toggleMeshView());icon(right,"?","Guía",()->guide());
- LinearLayout modes=new LinearLayout(this);modes.setGravity(Gravity.CENTER);root.addView(modes);button(modes,"NAVEGAR",()->setInteractionMode(0));button(modes,"MOVER",()->setInteractionMode(1));button(modes,"EDITAR",()->setInteractionMode(2));button(modes,"GIRAR 3D",()->{rotationMode=true;setInteractionMode(0);scene.invalidate();rotateSelected3D();});button(modes,"XYZ mm",()->positionSelected());
+ HorizontalScrollView modesScroll=new HorizontalScrollView(this);modesScroll.setFillViewport(true);modesScroll.setHorizontalScrollBarEnabled(false);root.addView(modesScroll,new LinearLayout.LayoutParams(-1,-2));LinearLayout modes=new LinearLayout(this);modes.setGravity(Gravity.CENTER);modesScroll.addView(modes,new HorizontalScrollView.LayoutParams(-2,-2));button(modes,"NAVEGAR",()->setInteractionMode(0));button(modes,"MOVER",()->setInteractionMode(1));button(modes,"EDITAR",()->setInteractionMode(2));button(modes,"GIRAR 3D",()->{rotationMode=true;setInteractionMode(0);scene.invalidate();rotateSelected3D();});button(modes,"XYZ mm",()->positionSelected());
+ // Size only the mode row: other dialog/tool button layouts retain their policy.
+ for(int i=0;i<modes.getChildCount();i++){
+  View control=modes.getChildAt(i);control.setMinimumWidth(dp(88));
+  control.setLayoutParams(new LinearLayout.LayoutParams(-2,dp(48)));
+ }
  nextStep=new TextView(this);nextStep.setTextColor(Color.rgb(112,220,229));nextStep.setTextSize(11);root.addView(nextStep);
  root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(16+insets.getSystemWindowInsetLeft(),16+insets.getSystemWindowInsetTop(),16+insets.getSystemWindowInsetRight(),16+insets.getSystemWindowInsetBottom());return insets;});setContentView(root);root.requestApplyInsets();loadSettings();applyTheme();load();if(b!=null)pendingExport=b.getString("pendingExport");updateStep();
  }
@@ -584,6 +589,10 @@ public class MainActivity extends Activity {
    toast("Selecciona primero un boceto");return;
   }
   final Sketch target=sketches.get(index);
+  for(es.josxtm.mycad.cad.DrilledBoxRecipe drill:holeRecipes)
+   if(drill!=null&&target.id.equals(drill.sourceSketchId)){
+    toast("Elimina primero la perforación vinculada en Resultados booleanos");return;
+   }
   final es.josxtm.mycad.cad.SketchDeletionPlan.Plan plan;
   try{
    plan=es.josxtm.mycad.cad.SketchDeletionPlan.inspect(target.id,sketchBodyLinks());
@@ -1418,11 +1427,29 @@ public class MainActivity extends Activity {
      }).setNegativeButton("Cerrar",null).show();
    }).setNegativeButton("Cancelar",null).show();
  }
+ Sketch findDrillSketch(java.util.List<Sketch> source,String id){
+  Sketch found=null;
+  for(Sketch q:source)if(q.id.equals(id)){
+   if(found!=null)throw new IllegalArgumentException("Boceto de perforación duplicado");found=q;
+  }
+  if(found==null||found.type!=2)throw new IllegalArgumentException("Falta el rectángulo de origen");
+  return found;
+ }
+ es.josxtm.mycad.cad.DrilledBoxRecipe rebuildLinkedDrill(es.josxtm.mycad.cad.DrilledBoxRecipe drill,Sketch source){
+  return proposedLinkedDrill(drill,source,source.x1,source.y1,source.x2,source.y2);
+ }
+ es.josxtm.mycad.cad.DrilledBoxRecipe proposedLinkedDrill(es.josxtm.mycad.cad.DrilledBoxRecipe drill,Sketch source,float x1,float y1,float x2,float y2){
+  es.josxtm.mycad.cad.LinkedSketchSolidPlan.Body body=es.josxtm.mycad.cad.LinkedSketchSolidPlan.build(
+   source.type,source.plane,x1,y1,x2,y2,drill.sourceHeight);
+  return new es.josxtm.mycad.cad.DrilledBoxRecipe(body.x,body.y,body.z,body.w,body.d,body.h,
+   drill.holeX,drill.holeY,drill.diameter,drill.axis,body.rx,body.ry,body.rz,drill.drillDepth)
+   .linkedTo(drill.sourceSketchId,drill.sourceHeight);
+ }
  void drillSelectedBox(){
   if(selected<0||selected>=parts.size()){toast("Selecciona primero un prisma");return;}
   final Part parent=parts.get(selected);final int index=selected;
-  if(parent.circle||!parent.sourceSketchId.isEmpty()){
-   toast("Perforación disponible en prismas independientes, sin boceto vinculado");return;
+  if(parent.circle){
+   toast("Selecciona un prisma rectangular para perforar");return;
   }
   if(booleanMeshes.size()>=100){toast("Máximo 100 mallas booleanas");return;}
   LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
@@ -1463,6 +1490,12 @@ public class MainActivity extends Activity {
      es.josxtm.mycad.cad.DrilledBoxRecipe recipe=new es.josxtm.mycad.cad.DrilledBoxRecipe(
       parent.x,parent.y,parent.z,parent.w,parent.d,parent.h,vals[0],vals[1],vals[2],
       axis,parent.rotationX,parent.rotationY,parent.rotationZ,vals[3]);
+     if(!parent.sourceSketchId.isEmpty()){
+      Sketch source=findDrillSketch(sketches,parent.sourceSketchId);
+      recipe=recipe.linkedTo(source.id,parent.h);
+      if(!java.util.Arrays.equals(recipe.regenerate(),rebuildLinkedDrill(recipe,source).regenerate()))
+       throw new IllegalArgumentException("El prisma se ha separado de la posición del boceto");
+     }
      float[] geometry=recipe.regenerate();
      if(geometry.length==0||geometry.length>18000||
       !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(geometry).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
@@ -1486,38 +1519,51 @@ public class MainActivity extends Activity {
  void editHoleRecipe(int index){
   if(index<0||index>=holeRecipes.size()||holeRecipes.get(index)==null){toast("Esta malla no es una perforación editable");return;}
   final es.josxtm.mycad.cad.DrilledBoxRecipe previous=holeRecipes.get(index);
-  final EditText[] inputs=new EditText[4];
+  final EditText[] inputs=new EditText[previous.sourceSketchId.isEmpty()?4:5];
   LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
   TextView header=new TextView(this);header.setText("Eje de perforación (local)");fields.addView(header);
   final Spinner axisChoice=new Spinner(this);
   axisChoice.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,
    new String[]{"Z · sección X/Y","X · sección Y/Z","Y · sección Z/X"}));
   axisChoice.setSelection(drillAxisPosition(previous.axis));fields.addView(axisChoice);
-  String[] labels={"Desplazamiento U (mm)","Desplazamiento V (mm)","Diámetro (mm)","Profundidad (mm; 0 = pasante)"};
-  double[] initial={previous.holeX,previous.holeY,previous.diameter,previous.drillDepth};
+  String[] labels={"Desplazamiento U (mm)","Desplazamiento V (mm)","Diámetro (mm)","Profundidad (mm; 0 = pasante)","Altura de extrusión (mm)"};
+  double[] initial={previous.holeX,previous.holeY,previous.diameter,previous.drillDepth,previous.sourceHeight};
   for(int i=0;i<inputs.length;i++){
    TextView label=new TextView(this);label.setText(labels[i]);fields.addView(label);
    inputs[i]=new EditText(this);inputs[i].setInputType(8194|4096);
    inputs[i].setText(String.valueOf(initial[i]));fields.addView(inputs[i]);
   }
   android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.addView(fields);
-  new AlertDialog.Builder(this).setTitle("Editar perforación circular")
+  AlertDialog editor=new AlertDialog.Builder(this).setTitle("Editar perforación circular")
    .setView(scroll).setNegativeButton("Cancelar",null).setPositiveButton("Regenerar",(dialog,which)->{
     try{
      if(index>=holeRecipes.size()||holeRecipes.get(index)!=previous)throw new IllegalArgumentException();
      double[] vals=new double[4];for(int i=0;i<4;i++)vals[i]=Double.parseDouble(inputs[i].getText().toString().replace(',','.'));
+     double x=previous.x,y=previous.y,z=previous.z,w=previous.width,d=previous.depth,h=previous.height;
+     double rx=previous.rotationX,ry=previous.rotationY,rz=previous.rotationZ,height=previous.sourceHeight;
+     if(!previous.sourceSketchId.isEmpty()){
+      height=Double.parseDouble(inputs[4].getText().toString().replace(',','.'));
+      Sketch source=findDrillSketch(sketches,previous.sourceSketchId);
+      es.josxtm.mycad.cad.LinkedSketchSolidPlan.Body body=es.josxtm.mycad.cad.LinkedSketchSolidPlan.build(
+       source.type,source.plane,source.x1,source.y1,source.x2,source.y2,height);
+      x=body.x;y=body.y;z=body.z;w=body.w;d=body.d;h=body.h;rx=body.rx;ry=body.ry;rz=body.rz;
+     }
      es.josxtm.mycad.cad.DrilledBoxRecipe next=new es.josxtm.mycad.cad.DrilledBoxRecipe(
-      previous.x,previous.y,previous.z,previous.width,previous.depth,previous.height,
-      vals[0],vals[1],vals[2],drillAxisChoice(axisChoice.getSelectedItemPosition()),
-      previous.rotationX,previous.rotationY,previous.rotationZ,vals[3]);
+      x,y,z,w,d,h,vals[0],vals[1],vals[2],drillAxisChoice(axisChoice.getSelectedItemPosition()),
+      rx,ry,rz,vals[3]).linkedTo(previous.sourceSketchId,height);
      float[] mesh=next.regenerate();
      if(mesh.length==0||mesh.length>18000||
       !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(mesh).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
      checkpoint();holeRecipes.set(index,next);booleanMeshes.set(index,new MeshEngine.Mesh(mesh));
      save();scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast("Perforación regenerada · "+(next.drillDepth==0?"pasante":"ciega"));
-    }catch(Exception error){toast("Eje, diámetro o posición inválidos");}
-   }).show();
+    }catch(Exception error){toast("Eje, diámetro, posición o altura inválidos");}
+   }).create();
+  if(!previous.sourceSketchId.isEmpty())editor.setButton(AlertDialog.BUTTON_NEUTRAL,"Acotar perfil origen",(dialog,which)->{
+   try{Sketch source=findDrillSketch(sketches,previous.sourceSketchId);selectedSketch=sketches.indexOf(source);dimensionSketch();}
+   catch(Exception invalid){toast("Perfil de origen no disponible");}
+  });
+  editor.show();
  }
  void editFaceUnionRecipe(int meshIndex){
   if(meshIndex<0||meshIndex>=unionRecipes.size()||unionRecipes.get(meshIndex)==null){
@@ -1668,6 +1714,8 @@ public class MainActivity extends Activity {
    Float.isFinite(x2)&&Float.isFinite(y2)&&Math.abs(x1)<=10000&&
    Math.abs(y1)<=10000&&Math.abs(x2)<=10000&&Math.abs(y2)<=10000;
   try{
+   for(es.josxtm.mycad.cad.DrilledBoxRecipe drill:holeRecipes)
+    if(drill!=null&&source.id.equals(drill.sourceSketchId))proposedLinkedDrill(drill,source,x1,y1,x2,y2);
    java.util.ArrayList<Double> heights=new java.util.ArrayList<>();
    for(Part part:parts)if(source.id.equals(part.sourceSketchId))heights.add((double)part.h);
    double[] values=new double[heights.size()];
@@ -1683,7 +1731,18 @@ public class MainActivity extends Activity {
   for(Part part:parts)if(source.id.equals(part.sourceSketchId)){
    originals.add(part);staged.add(makeExtrudedPart(source,part.h));
   }
+  java.util.Map<Integer,es.josxtm.mycad.cad.DrilledBoxRecipe> drills=new java.util.LinkedHashMap<>();
+  java.util.Map<Integer,MeshEngine.Mesh> meshes=new java.util.LinkedHashMap<>();
+  for(int i=0;i<holeRecipes.size();i++){
+   es.josxtm.mycad.cad.DrilledBoxRecipe drill=holeRecipes.get(i);
+   if(drill!=null&&source.id.equals(drill.sourceSketchId)){
+    es.josxtm.mycad.cad.DrilledBoxRecipe next=rebuildLinkedDrill(drill,source);
+    drills.put(i,next);meshes.put(i,new MeshEngine.Mesh(next.regenerate()));
+   }
+  }
   for(int i=0;i<originals.size();i++)updateDraft(originals.get(i),staged.get(i));
+  for(Integer i:drills.keySet()){holeRecipes.set(i,drills.get(i));booleanMeshes.set(i,meshes.get(i));}
+  if(!drills.isEmpty()&&meshMode&&meshView!=null)renderCurrentCadMesh();
  }
  void edit(boolean circle,boolean existing){
  if(fileBusy)return;if(!existing&&parts.size()>=500){toast("Máximo 500 piezas");return;}
@@ -1716,7 +1775,7 @@ public class MainActivity extends Activity {
    .put("offsetX",drill.holeX).put("offsetY",drill.holeY).put("diameter",drill.diameter)
    .put("axis",drill.axis.name()).put("rotationX",drill.rotationX)
    .put("rotationY",drill.rotationY).put("rotationZ",drill.rotationZ)
-   .put("drillDepth",drill.drillDepth));
+   .put("drillDepth",drill.drillDepth).put("sourceSketchId",drill.sourceSketchId).put("sourceHeight",drill.sourceHeight));
  }
  file.put("throughHoleRecipes",drills);
  if(loopExtrusionFeatures.size()!=booleanMeshes.size())
@@ -1851,7 +1910,7 @@ public class MainActivity extends Activity {
      v.getDouble("offsetX"),v.getDouble("offsetY"),v.getDouble("diameter"),
      es.josxtm.mycad.cad.OrientedThroughHole.Axis.valueOf(v.optString("axis","Z")),
      v.optDouble("rotationX",0),v.optDouble("rotationY",0),v.optDouble("rotationZ",0),
-     v.optDouble("drillDepth",0)));
+     v.optDouble("drillDepth",0)).linkedTo(v.optString("sourceSketchId",""),v.optDouble("sourceHeight",0)));
    }catch(IllegalArgumentException e){throw new IOException("Perforación inválida",e);}
   }
  }
@@ -1972,6 +2031,17 @@ public class MainActivity extends Activity {
    }
   }
  }
+ for(int i=0;i<parsedDrills.size();i++){
+  es.josxtm.mycad.cad.DrilledBoxRecipe drill=parsedDrills.get(i);
+  if(drill!=null&&!drill.sourceSketchId.isEmpty()){
+   try{
+    es.josxtm.mycad.cad.DrilledBoxRecipe rebuilt=rebuildLinkedDrill(drill,findDrillSketch(parsedSketches,drill.sourceSketchId));
+    if(!java.util.Arrays.equals(rebuilt.regenerate(),parsedMeshes.get(i).vertices))
+     throw new IllegalArgumentException("Malla distinta de la perforación vinculada");
+    parsedDrills.set(i,rebuilt);
+   }catch(IllegalArgumentException invalid){throw new IOException("Perforación vinculada inválida",invalid);}
+  }
+ }
  while(parsedIntersections.size()<parsedMeshes.size())parsedIntersections.add(null);
 return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedChains,parsedFeatures,parsedDrills,parsedLoops,parsedIntersections);
  }
@@ -2082,7 +2152,10 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   info.setText(String.format(java.util.Locale.US,
    "Malla %d%s · %s · X %.1f Y %.1f Z %.1f mm · toca otra vez para editar",
    index+1,linked?" · B-Rep vinculado":"",title,x,y,z));
-  if(secondTap)showStoredMeshTouchActions(index,actual,faceId);
+  if(secondTap){
+   if(index<holeRecipes.size()&&holeRecipes.get(index)!=null&&!holeRecipes.get(index).sourceSketchId.isEmpty())editHoleRecipe(index);
+   else showStoredMeshTouchActions(index,actual,faceId);
+  }
   return true;
  }
  void showStoredMeshTouchActions(int index,MeshEngine.Mesh original,String faceId){
@@ -3458,7 +3531,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  "2. ACOTAR: con el perfil seleccionado, usa Acotar seleccionado en el menú de boceto e introduce las medidas en mm.\n\n"+
  "3. EXTRUIR: pulsa Extruir boceto y elige Arrastrar con el dedo. Arrastra el perfil hacia arriba, lee la altura y suelta para crear el sólido. Dos dedos cancelan la propuesta y permiten navegar. También puedes introducir la altura o usar el deslizador.\n\n"+
  "4. VISUALIZAR: arrastra el fondo para girar, usa dos dedos para desplazar y pellizca para acercar. Toca o arrastra el ViewCube para cambiar la vista.\n\n"+
- "5. EDITAR: selecciona el cuerpo y pulsa Editar pieza. En una extrusión vinculada puedes modificar la altura, editar el perfil original o acotarlo directamente. Deshacer y Rehacer permiten revisar los cambios.\n\n"+
+ "5. EDITAR: en una pieza perforada, toca dos veces la superficie para cambiar altura, diámetro y profundidad, o acotar el perfil de origen. Para crear el agujero usa Proyecto → Perforar prisma (circular). En una pieza sin perforar, selecciona el cuerpo y pulsa Editar pieza. En una extrusión vinculada puedes modificar la altura, editar el perfil original o acotarlo directamente. Deshacer y Rehacer permiten revisar los cambios.\n\n"+
  "6. GUARDAR: elige nombre y carpeta en el selector de Android y confirma allí. ABRIR recupera el archivo .mycad.json con los bocetos y sólidos.\n\n"+
  "El borrador interno se recupera al iniciar, pero no sustituye a guardar un archivo. Vuelve a guardar después de editar. La cámara y la selección no se conservan en el archivo."
  ).setPositiveButton("Entendido",null).show();}
@@ -3592,6 +3665,17 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  if(!flat)for(int i=0;i<n;i++){int k=(i+1)%n;faces.add(new Face(new float[][]{low[i],low[k],high[k],high[i]},col));}
  faces.add(new Face(high,j==selected?Color.rgb(112,220,229):Color.rgb(154,180,204)));
  }
+ // Linked cuts replace their source Part, so keep them visible in the Canvas
+ // workflow as well as in the unified GPU/export mesh.
+ for(int i=0;i<booleanMeshes.size();i++){
+  if(i>=holeRecipes.size()||holeRecipes.get(i)==null||holeRecipes.get(i).sourceSketchId.isEmpty())continue;
+  float[] triangles=booleanMeshes.get(i).vertices;
+  for(int k=0;k<triangles.length;k+=9){
+   float[][] triangle=new float[3][];
+   for(int j=0;j<3;j++)triangle[j]=project(triangles[k+3*j],triangles[k+3*j+1],triangles[k+3*j+2]);
+   faces.add(new Face(triangle,i==selectedStoredMeshIndex?Color.rgb(69,186,207):Color.rgb(105,135,165)));
+  }
+ }
  Collections.sort(faces,(a,b)->Float.compare(a.depth,b.depth));
  for(Face f:faces){Path path=new Path();path.moveTo(f.vertices[0][0],f.vertices[0][1]);for(int i=1;i<f.vertices.length;i++)path.lineTo(f.vertices[i][0],f.vertices[i][1]);path.close();paint.setStyle(Paint.Style.FILL);paint.setColor(f.color);c.drawPath(path,paint);paint.setStyle(Paint.Style.STROKE);paint.setColor(Color.rgb(23,65,85));c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}drawSelectedFace(c);if(selected>=0&&selected<parts.size()){if(rotationMode)drawRotationRings(c,parts.get(selected));else if(interactionMode==1)drawMoveGizmo(c,parts.get(selected));else if(interactionMode==2)drawPartHandles(c,parts.get(selected));}
  paint.setColor(darkMode?Color.WHITE:Color.rgb(25,38,55));paint.setTextSize(30);c.drawText(flat?"PLANTA · 2D":"VISTA · 3D",20,40,paint);paint.setStrokeWidth(3);paint.setStyle(Paint.Style.STROKE);for(int i=0;i<sketches.size();i++){paint.setColor(i==selectedSketch?Color.rgb(255,193,91):Color.rgb(112,220,229));paint.setStrokeWidth(i==selectedSketch?6:3);drawSketch(c,sketches.get(i));if(i==selectedSketch&&pushPullSession==null)drawHandles(c,sketches.get(i));}if(preview!=null)drawSketch(c,preview);paint.setStyle(Paint.Style.FILL);if(sketchTool>0){paint.setColor(Color.WHITE);c.drawText("BOCETO "+new String[]{"","LÍNEA","RECTÁNGULO","CÍRCULO"}[sketchTool],20,40,paint);}else if(parts.isEmpty()&&sketches.isEmpty())c.drawText("Añade una figura para empezar",20,getHeight()/2f,paint);
@@ -3714,6 +3798,28 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(3));paint.setColor(Color.rgb(255,196,56));c.drawPath(outline,paint);
   paint.setStyle(Paint.Style.FILL);
  }
+ boolean pickCanvasLinkedCut(float sx,float sy){
+  if(flat||movie||interactionMode!=0)return false;
+  boolean available=false;
+  for(es.josxtm.mycad.cad.DrilledBoxRecipe drill:holeRecipes)
+   if(drill!=null&&!drill.sourceSketchId.isEmpty()){available=true;break;}
+  if(!available)return false;
+  double u=(sx-getWidth()/2f)/zoom-panX,v=(sy-getHeight()/2f)/zoom+panY;
+  double cy=Math.cos(yaw),syaw=Math.sin(yaw),sp=Math.sin(pitch),cp=Math.cos(pitch),depth=1000000;
+  double worldV=v*sp+depth*cp;
+  es.josxtm.mycad.cad.CadRayPicker.Hit ray=currentMesh().rayIndex().pick(
+   u*cy+worldV*syaw,-u*syaw+worldV*cy,-v*cp+depth*sp,
+   -syaw*cp,-cy*cp,-sp);
+  if(ray==null)return false;
+  int[] sizes=new int[booleanMeshes.size()];
+  for(int i=0;i<sizes.length;i++)sizes[i]=booleanMeshes.get(i).triangles();
+  es.josxtm.mycad.cad.StoredMeshTriangleMap.Hit owner=es.josxtm.mycad.cad.StoredMeshTriangleMap.resolve(
+   ray.triangle,importedMesh==null?0:importedMesh.triangles(),sizes);
+  if(owner==null||owner.kind!=es.josxtm.mycad.cad.StoredMeshTriangleMap.Kind.STORED||
+     owner.meshIndex>=holeRecipes.size()||holeRecipes.get(owner.meshIndex)==null||
+     holeRecipes.get(owner.meshIndex).sourceSketchId.isEmpty())return false;
+  return selectStoredMeshByTriangle(ray.triangle,ray.x,ray.y,ray.z);
+ }
  int hit(float sx,float sy){for(int j=parts.size()-1;j>=0;j--){Part p=parts.get(j);float[] q=project(p.x,p.y,p.z+p.h/2);if(Math.hypot(q[0]-sx,q[1]-sy)<Math.max(30,Math.max(p.w,p.d)*zoom*.6f))return j;}return -1;}
 
  public boolean onTouchEvent(android.view.MotionEvent e){
@@ -3759,6 +3865,10 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    else if(interactionMode==1&&entityDrag&&selected>=0&&moved){if(activeMoveAxis>=0){moveMode=2;moveAxis=activeMoveAxis;}movePart(tx,ty);}
    else if(interactionMode==0&&!flat){yaw+=dx*.01f*rotateSensitivity;pitch=Math.max(-1.5f,Math.min(1.5f,pitch+dy*.01f*rotateSensitivity));invalidate();}
    lastX=e.getX();lastY=e.getY();return true;
+  }
+  if(action==android.view.MotionEvent.ACTION_UP&&!moved&&activeRotateAxis<0){
+   if(pickCanvasLinkedCut(e.getX(),e.getY())){resetTouchOwnership();invalidate();return true;}
+   clearStoredMeshSelection();
   }
   if(action==android.view.MotionEvent.ACTION_UP){if((entityDrag||activeRotateAxis>=0)&&moved&&geometryChanged)save();if(!moved&&activeRotateAxis<0){int n=hit(e.getX(),e.getY()),sk=hitSketch(e.getX(),e.getY());int[] face=interactionMode==0?pickFace(e.getX(),e.getY()):null;if(face!=null&&sk<0)n=face[0];selectedSketch=sk;selected=sk>=0?-1:n;selectedFaceBody=face!=null&&sk<0?face[0]:-1;selectedFaceIndex=face!=null&&sk<0?face[1]:-1;info.setText(selectedFaceIndex>=0?"Cuerpo "+(selected+1)+" · Cara "+new String[]{"Superior","Inferior","Derecha","Izquierda","Posterior","Frontal"}[selectedFaceIndex]:selected>=0?"Pieza seleccionada · "+new String[]{"Navegar","Mover","Editar"}[interactionMode]:"Selecciona una pieza o cambia de modo");invalidate();}partHandle=-1;editingHandle=false;entityDrag=false;activeMoveAxis=-1;activeRotateAxis=-1;return true;}
   return true;

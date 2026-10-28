@@ -65,7 +65,7 @@ for marker in ("throughHoleRecipes", "holeRecipes.add(recipe)", "holeRecipes.add
 for marker in ('.put("axis",drill.axis.name())', 'Axis.valueOf(v.optString("axis","Z"))', 'TriangleMeshHealth.inspect(geometry)', 'TriangleMeshHealth.inspect(mesh)', "drillAxisChoice(int choice)"):
     if marker not in source:
         raise SystemExit("ERROR: soporte de perforaciones orientadas incompleto: "+marker)
-for marker in ('.put("drillDepth",drill.drillDepth)', 'v.optDouble("drillDepth",0)', 'previous.rotationZ,vals[3]', 'axis,parent.rotationX,parent.rotationY,parent.rotationZ,vals[3]', "drill.drillDepth==0"):
+for marker in ('.put("drillDepth",drill.drillDepth)', 'v.optDouble("drillDepth",0)', 'rx,ry,rz,vals[3]).linkedTo(previous.sourceSketchId,height)', 'axis,parent.rotationX,parent.rotationY,parent.rotationZ,vals[3]', "drill.drillDepth==0"):
     if marker not in source:
         raise SystemExit("ERROR: profundidad de perforación no persistente: "+marker)
 for marker in ("void cylinderBoxBooleanMenu()","CylinderBoxBoolean.calculate(","result.cut.regenerate()",
@@ -692,7 +692,7 @@ for marker in (
  "selectedStoredMeshObject==actual",
  "if(index>=booleanMeshes.size()||booleanMeshes.get(index)!=original)",
  "editLoopExtrusionDistance(index);return;",
- "if(secondTap)showStoredMeshTouchActions(index,actual,faceId);",
+ "else showStoredMeshTouchActions(index,actual,faceId);",
  "clearStoredMeshSelection();",
 ):
     assert marker in a,marker
