@@ -584,6 +584,10 @@ public class MainActivity extends Activity {
    toast("Selecciona primero un boceto");return;
   }
   final Sketch target=sketches.get(index);
+  for(es.josxtm.mycad.cad.DrilledBoxRecipe drill:holeRecipes)
+   if(drill!=null&&target.id.equals(drill.sourceSketchId)){
+    toast("Elimina primero la perforación vinculada en Resultados booleanos");return;
+   }
   final es.josxtm.mycad.cad.SketchDeletionPlan.Plan plan;
   try{
    plan=es.josxtm.mycad.cad.SketchDeletionPlan.inspect(target.id,sketchBodyLinks());
@@ -1418,11 +1422,29 @@ public class MainActivity extends Activity {
      }).setNegativeButton("Cerrar",null).show();
    }).setNegativeButton("Cancelar",null).show();
  }
+ Sketch findDrillSketch(java.util.List<Sketch> source,String id){
+  Sketch found=null;
+  for(Sketch q:source)if(q.id.equals(id)){
+   if(found!=null)throw new IllegalArgumentException("Boceto de perforación duplicado");found=q;
+  }
+  if(found==null||found.type!=2)throw new IllegalArgumentException("Falta el rectángulo de origen");
+  return found;
+ }
+ es.josxtm.mycad.cad.DrilledBoxRecipe rebuildLinkedDrill(es.josxtm.mycad.cad.DrilledBoxRecipe drill,Sketch source){
+  return proposedLinkedDrill(drill,source,source.x1,source.y1,source.x2,source.y2);
+ }
+ es.josxtm.mycad.cad.DrilledBoxRecipe proposedLinkedDrill(es.josxtm.mycad.cad.DrilledBoxRecipe drill,Sketch source,float x1,float y1,float x2,float y2){
+  es.josxtm.mycad.cad.LinkedSketchSolidPlan.Body body=es.josxtm.mycad.cad.LinkedSketchSolidPlan.build(
+   source.type,source.plane,x1,y1,x2,y2,drill.sourceHeight);
+  return new es.josxtm.mycad.cad.DrilledBoxRecipe(body.x,body.y,body.z,body.w,body.d,body.h,
+   drill.holeX,drill.holeY,drill.diameter,drill.axis,body.rx,body.ry,body.rz,drill.drillDepth)
+   .linkedTo(drill.sourceSketchId,drill.sourceHeight);
+ }
  void drillSelectedBox(){
   if(selected<0||selected>=parts.size()){toast("Selecciona primero un prisma");return;}
   final Part parent=parts.get(selected);final int index=selected;
-  if(parent.circle||!parent.sourceSketchId.isEmpty()){
-   toast("Perforación disponible en prismas independientes, sin boceto vinculado");return;
+  if(parent.circle){
+   toast("Selecciona un prisma rectangular para perforar");return;
   }
   if(booleanMeshes.size()>=100){toast("Máximo 100 mallas booleanas");return;}
   LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
@@ -1463,6 +1485,12 @@ public class MainActivity extends Activity {
      es.josxtm.mycad.cad.DrilledBoxRecipe recipe=new es.josxtm.mycad.cad.DrilledBoxRecipe(
       parent.x,parent.y,parent.z,parent.w,parent.d,parent.h,vals[0],vals[1],vals[2],
       axis,parent.rotationX,parent.rotationY,parent.rotationZ,vals[3]);
+     if(!parent.sourceSketchId.isEmpty()){
+      Sketch source=findDrillSketch(sketches,parent.sourceSketchId);
+      recipe=recipe.linkedTo(source.id,parent.h);
+      if(!java.util.Arrays.equals(recipe.regenerate(),rebuildLinkedDrill(recipe,source).regenerate()))
+       throw new IllegalArgumentException("El prisma se ha separado de la posición del boceto");
+     }
      float[] geometry=recipe.regenerate();
      if(geometry.length==0||geometry.length>18000||
       !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(geometry).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
@@ -1501,7 +1529,7 @@ public class MainActivity extends Activity {
    inputs[i].setText(String.valueOf(initial[i]));fields.addView(inputs[i]);
   }
   android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.addView(fields);
-  new AlertDialog.Builder(this).setTitle("Editar perforación circular")
+  AlertDialog editor=new AlertDialog.Builder(this).setTitle("Editar perforación circular")
    .setView(scroll).setNegativeButton("Cancelar",null).setPositiveButton("Regenerar",(dialog,which)->{
     try{
      if(index>=holeRecipes.size()||holeRecipes.get(index)!=previous)throw new IllegalArgumentException();
@@ -1509,7 +1537,7 @@ public class MainActivity extends Activity {
      es.josxtm.mycad.cad.DrilledBoxRecipe next=new es.josxtm.mycad.cad.DrilledBoxRecipe(
       previous.x,previous.y,previous.z,previous.width,previous.depth,previous.height,
       vals[0],vals[1],vals[2],drillAxisChoice(axisChoice.getSelectedItemPosition()),
-      previous.rotationX,previous.rotationY,previous.rotationZ,vals[3]);
+      previous.rotationX,previous.rotationY,previous.rotationZ,vals[3]).linkedTo(previous.sourceSketchId,previous.sourceHeight);
      float[] mesh=next.regenerate();
      if(mesh.length==0||mesh.length>18000||
       !es.josxtm.mycad.cad.TriangleMeshHealth.inspect(mesh).isWatertight())throw new IllegalArgumentException("Open drilling mesh");
@@ -1517,7 +1545,12 @@ public class MainActivity extends Activity {
      save();scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();
      toast("Perforación regenerada · "+(next.drillDepth==0?"pasante":"ciega"));
     }catch(Exception error){toast("Eje, diámetro o posición inválidos");}
-   }).show();
+   }).create();
+  if(!previous.sourceSketchId.isEmpty())editor.setButton(AlertDialog.BUTTON_NEUTRAL,"Acotar perfil origen",(dialog,which)->{
+   try{Sketch source=findDrillSketch(sketches,previous.sourceSketchId);selectedSketch=sketches.indexOf(source);dimensionSketch();}
+   catch(Exception invalid){toast("Perfil de origen no disponible");}
+  });
+  editor.show();
  }
  void editFaceUnionRecipe(int meshIndex){
   if(meshIndex<0||meshIndex>=unionRecipes.size()||unionRecipes.get(meshIndex)==null){
@@ -1668,6 +1701,8 @@ public class MainActivity extends Activity {
    Float.isFinite(x2)&&Float.isFinite(y2)&&Math.abs(x1)<=10000&&
    Math.abs(y1)<=10000&&Math.abs(x2)<=10000&&Math.abs(y2)<=10000;
   try{
+   for(es.josxtm.mycad.cad.DrilledBoxRecipe drill:holeRecipes)
+    if(drill!=null&&source.id.equals(drill.sourceSketchId))proposedLinkedDrill(drill,source,x1,y1,x2,y2);
    java.util.ArrayList<Double> heights=new java.util.ArrayList<>();
    for(Part part:parts)if(source.id.equals(part.sourceSketchId))heights.add((double)part.h);
    double[] values=new double[heights.size()];
@@ -1683,7 +1718,18 @@ public class MainActivity extends Activity {
   for(Part part:parts)if(source.id.equals(part.sourceSketchId)){
    originals.add(part);staged.add(makeExtrudedPart(source,part.h));
   }
+  java.util.Map<Integer,es.josxtm.mycad.cad.DrilledBoxRecipe> drills=new java.util.LinkedHashMap<>();
+  java.util.Map<Integer,MeshEngine.Mesh> meshes=new java.util.LinkedHashMap<>();
+  for(int i=0;i<holeRecipes.size();i++){
+   es.josxtm.mycad.cad.DrilledBoxRecipe drill=holeRecipes.get(i);
+   if(drill!=null&&source.id.equals(drill.sourceSketchId)){
+    es.josxtm.mycad.cad.DrilledBoxRecipe next=rebuildLinkedDrill(drill,source);
+    drills.put(i,next);meshes.put(i,new MeshEngine.Mesh(next.regenerate()));
+   }
+  }
   for(int i=0;i<originals.size();i++)updateDraft(originals.get(i),staged.get(i));
+  for(Integer i:drills.keySet()){holeRecipes.set(i,drills.get(i));booleanMeshes.set(i,meshes.get(i));}
+  if(!drills.isEmpty()&&meshMode&&meshView!=null)renderCurrentCadMesh();
  }
  void edit(boolean circle,boolean existing){
  if(fileBusy)return;if(!existing&&parts.size()>=500){toast("Máximo 500 piezas");return;}
@@ -1716,7 +1762,7 @@ public class MainActivity extends Activity {
    .put("offsetX",drill.holeX).put("offsetY",drill.holeY).put("diameter",drill.diameter)
    .put("axis",drill.axis.name()).put("rotationX",drill.rotationX)
    .put("rotationY",drill.rotationY).put("rotationZ",drill.rotationZ)
-   .put("drillDepth",drill.drillDepth));
+   .put("drillDepth",drill.drillDepth).put("sourceSketchId",drill.sourceSketchId).put("sourceHeight",drill.sourceHeight));
  }
  file.put("throughHoleRecipes",drills);
  if(loopExtrusionFeatures.size()!=booleanMeshes.size())
@@ -1851,7 +1897,7 @@ public class MainActivity extends Activity {
      v.getDouble("offsetX"),v.getDouble("offsetY"),v.getDouble("diameter"),
      es.josxtm.mycad.cad.OrientedThroughHole.Axis.valueOf(v.optString("axis","Z")),
      v.optDouble("rotationX",0),v.optDouble("rotationY",0),v.optDouble("rotationZ",0),
-     v.optDouble("drillDepth",0)));
+     v.optDouble("drillDepth",0)).linkedTo(v.optString("sourceSketchId",""),v.optDouble("sourceHeight",0)));
    }catch(IllegalArgumentException e){throw new IOException("Perforación inválida",e);}
   }
  }
@@ -1970,6 +2016,17 @@ public class MainActivity extends Activity {
      throw new IOException("Intersección B-Rep paramétrica inválida",e);
     }
    }
+  }
+ }
+ for(int i=0;i<parsedDrills.size();i++){
+  es.josxtm.mycad.cad.DrilledBoxRecipe drill=parsedDrills.get(i);
+  if(drill!=null&&!drill.sourceSketchId.isEmpty()){
+   try{
+    es.josxtm.mycad.cad.DrilledBoxRecipe rebuilt=rebuildLinkedDrill(drill,findDrillSketch(parsedSketches,drill.sourceSketchId));
+    if(!java.util.Arrays.equals(rebuilt.regenerate(),parsedMeshes.get(i).vertices))
+     throw new IllegalArgumentException("Malla distinta de la perforación vinculada");
+    parsedDrills.set(i,rebuilt);
+   }catch(IllegalArgumentException invalid){throw new IOException("Perforación vinculada inválida",invalid);}
   }
  }
  while(parsedIntersections.size()<parsedMeshes.size())parsedIntersections.add(null);
@@ -3591,6 +3648,17 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  if(!flat)faces.add(new Face(low,col));
  if(!flat)for(int i=0;i<n;i++){int k=(i+1)%n;faces.add(new Face(new float[][]{low[i],low[k],high[k],high[i]},col));}
  faces.add(new Face(high,j==selected?Color.rgb(112,220,229):Color.rgb(154,180,204)));
+ }
+ // Linked cuts replace their source Part, so keep them visible in the Canvas
+ // workflow as well as in the unified GPU/export mesh.
+ for(int i=0;i<booleanMeshes.size();i++){
+  if(i>=holeRecipes.size()||holeRecipes.get(i)==null||holeRecipes.get(i).sourceSketchId.isEmpty())continue;
+  float[] triangles=booleanMeshes.get(i).vertices;
+  for(int k=0;k<triangles.length;k+=9){
+   float[][] triangle=new float[3][];
+   for(int j=0;j<3;j++)triangle[j]=project(triangles[k+3*j],triangles[k+3*j+1],triangles[k+3*j+2]);
+   faces.add(new Face(triangle,Color.rgb(105,135,165)));
+  }
  }
  Collections.sort(faces,(a,b)->Float.compare(a.depth,b.depth));
  for(Face f:faces){Path path=new Path();path.moveTo(f.vertices[0][0],f.vertices[0][1]);for(int i=1;i<f.vertices.length;i++)path.lineTo(f.vertices[i][0],f.vertices[i][1]);path.close();paint.setStyle(Paint.Style.FILL);paint.setColor(f.color);c.drawPath(path,paint);paint.setStyle(Paint.Style.STROKE);paint.setColor(Color.rgb(23,65,85));c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}drawSelectedFace(c);if(selected>=0&&selected<parts.size()){if(rotationMode)drawRotationRings(c,parts.get(selected));else if(interactionMode==1)drawMoveGizmo(c,parts.get(selected));else if(interactionMode==2)drawPartHandles(c,parts.get(selected));}

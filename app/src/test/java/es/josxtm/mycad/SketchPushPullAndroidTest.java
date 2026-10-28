@@ -121,6 +121,52 @@ public class SketchPushPullAndroidTest {
   app.history(false);assertEquals(id,app.parts.get(0).id);
   assertEquals(15000,app.parts.get(0).w*app.parts.get(0).d*app.parts.get(0).h,.001f);
  }
+ private void drillSelected(double diameter){
+  app.drillSelectedBox();AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();
+  ArrayList<EditText> inputs=new ArrayList<>();collectInputs(dialog.getWindow().getDecorView(),inputs);
+  assertEquals(4,inputs.size());inputs.get(0).setText("0");inputs.get(1).setText("0");
+  inputs.get(2).setText(String.valueOf(diameter));inputs.get(3).setText("0");
+  dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();
+ }
+ @Test public void linkedHoleRegeneratesInAllPlanesAndRejectsInvalidEdits() throws Exception {
+  for(int plane=0;plane<3;plane++){
+   app.parts.clear();app.sketches.clear();app.booleanMeshes.clear();app.holeRecipes.clear();
+   app.unionRecipes.clear();app.loopExtrusionFeatures.clear();app.intersectionRecipes.clear();
+   app.undo.clear();app.redo.clear();
+   MainActivity.Sketch q=rectangle(plane);app.startSketchPushPull();dragTen(q);drillSelected(6);
+   assertTrue(app.parts.isEmpty());assertEquals(1,app.holeRecipes.size());
+   assertEquals(q.id,app.holeRecipes.get(0).sourceSketchId);
+   assertEquals(12000-90*Math.PI,app.holeRecipes.get(0).nominalVolume(),.001);
+   assertTrue(es.josxtm.mycad.cad.TriangleMeshHealth.inspect(app.booleanMeshes.get(0).vertices).isWatertight());
+   app.selectedSketch=0;dimension(50,30);
+   assertEquals(15000-90*Math.PI,app.holeRecipes.get(0).nominalVolume(),.001);
+   String expected=documentJson();int revisions=app.undo.size();dimension(4,30);
+   assertEquals(expected,documentJson());assertEquals(revisions,app.undo.size());
+   app.requestSketchDeletion(true);assertEquals(1,app.sketches.size());
+   app.history(true);assertEquals(12000-90*Math.PI,app.holeRecipes.get(0).nominalVolume(),.001);
+   app.history(false);assertEquals(expected,documentJson());
+   app.save();app.load();assertEquals(expected,documentJson());
+   JSONObject damaged=new JSONObject(app.encode());
+   damaged.getJSONArray("throughHoleRecipes").getJSONObject(0).put("sourceSketchId",java.util.UUID.randomUUID().toString());
+   try{app.decode(damaged.toString());fail("Orphan drilling accepted");}catch(java.io.IOException correct){}
+  }
+ }
+ @Test public void linkedHoleSurvivesFileRoundtripAndRecipeEditing() throws Exception {
+  MainActivity.Sketch q=rectangle(0);app.startSketchPushPull();dragTen(q);drillSelected(6);
+  app.editHoleRecipe(0);AlertDialog editor=ShadowAlertDialog.getLatestAlertDialog();
+  editor.getButton(AlertDialog.BUTTON_NEUTRAL).performClick();shadowOf(Looper.getMainLooper()).idle();
+  applyDimensions(ShadowAlertDialog.getLatestAlertDialog(),50,30);
+  String expected=documentJson();File file=File.createTempFile("drilled-", ".mycad.json",app.getCacheDir());
+  try{
+   Intent data=new Intent().setData(Uri.fromFile(file));app.exportFile();
+   app.onActivityResult(MainActivity.SAVE_FILE,MainActivity.RESULT_OK,data);awaitFileOperation();
+   app.booleanMeshes.clear();app.holeRecipes.clear();app.unionRecipes.clear();
+   app.loopExtrusionFeatures.clear();app.intersectionRecipes.clear();app.sketches.clear();
+   app.onActivityResult(MainActivity.OPEN_FILE,MainActivity.RESULT_OK,data);awaitFileOperation();
+   assertEquals(expected,documentJson());assertEquals(q.id,app.holeRecipes.get(0).sourceSketchId);
+   assertTrue(es.josxtm.mycad.cad.TriangleMeshHealth.inspect(app.currentMesh().vertices).isWatertight());
+  }finally{file.delete();}
+ }
  @Test public void corruptFileLeavesCurrentGeometryAndUndoUntouched() throws Exception {
   MainActivity.Sketch q=rectangle(0);app.startSketchPushPull();dragTen(q);
   String expected=documentJson();int revisions=app.undo.size();

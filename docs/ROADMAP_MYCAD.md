@@ -159,3 +159,35 @@ Verificación local del segundo avance: **14 pruebas Android correctas,
 completas ya pasaron en #554 y se volverán a ejecutar en la CI del nuevo commit.
 Siguiente tarea: sustracción sobre el sólido vinculado, con regeneración y
 persistencia de sus dependencias; aceptación física móvil/tablet pendiente.
+
+## Sustracción circular vinculada — 2026-10-28
+
+- `Proyecto → Perforar prisma (circular)` admite una extrusión rectangular
+  vinculada, en su posición original respecto al boceto. La receta conserva
+  UUID de boceto y altura de extrusión; el resultado sustituye al prisma por
+  una malla de perforación editable. Las perforaciones independientes se conservan.
+- Cambiar ancho/fondo del perfil prepara todas las recetas dependientes antes
+  de publicar geometría. Si el agujero deja de caber, se rechaza la edición sin
+  cambiar perfil, malla ni historial. No se permite borrar un perfil con una
+  perforación dependiente; primero debe eliminarse el resultado.
+- En Resultados booleanos, editar la perforación ofrece `Acotar perfil origen`.
+  La receta mantiene el enlace al cambiar diámetro, posición, eje o profundidad.
+- JSON incluye campos opcionales `sourceSketchId`/`sourceHeight`. Al abrir se
+  exige un origen rectangular único y coincidencia de la malla con su receta
+  regenerada. Se mantiene compatibilidad con recetas anteriores independientes.
+- La perforación vinculada se dibuja también en Canvas; GPU y exportación
+  utilizan la malla unificada existente.
+- Dos regresiones Android nuevas recorren rectángulo 40×30 → extrusión 10 →
+  agujero de diámetro 6 → cotas 50×30 → deshacer/rehacer → guardar y abrir,
+  en XY/XZ/YZ. Verifican malla cerrada, volumen nominal, rechazo atómico,
+  dependencia huérfana y callbacks reales de archivo. Suite Android: 16 pruebas.
+
+Alcance: cortador circular parametrizado sobre prisma rectangular, con resultado
+triangulado y receta regenerable; no es una booleana B-Rep general ni conserva
+el UUID del prisma sustituido. La edición de altura del resultado perforado y
+la selección analítica de sus caras siguen pendientes. No se ha validado en
+hardware físico ni se declara aceptado el hito completo.
+
+Validación local: suites geométricas completas e integridad correctas;
+16 pruebas Android con Robolectric, 0 fallos/0 omitidas; compilación y Lint
+correctos. Pendiente comprobar Actions sobre el commit publicado.
