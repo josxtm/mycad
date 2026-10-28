@@ -223,6 +223,8 @@ jobs:
           java -cp build/geometry-tests NamedPlanarBooleanTest
           javac -cp build/geometry-tests -sourcepath app/src/main/java -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/RelativeSceneCoordinates.java tests/RelativeSceneCoordinatesTest.java
           java -cp build/geometry-tests RelativeSceneCoordinatesTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/CylinderDoubleCoordinatesTest.java
+          java -cp build/geometry-tests CylinderDoubleCoordinatesTest
           } 2>&1 | tee reports/geometria.log
       # CI habitual valida Java, tests Android y Lint, SIN generar un APK.
       - name: Compilar código y comprobar pruebas y Lint (sin APK)

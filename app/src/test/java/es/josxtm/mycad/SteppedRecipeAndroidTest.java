@@ -444,4 +444,14 @@ public class SteppedRecipeAndroidTest {
   app.meshView.pickSurfaceAt(pixel[0],pixel[1]);shadowOf(Looper.getMainLooper()).idle();
   assertNotNull(app.activeSteppedPatch);assertEquals(app.intersectionRecipes.get(2).id,app.activeSteppedRecipeId);
  }
+
+ @Test public void cylinderSceneAndTransientPreviewRetainTheSameAnalyticDoubleCoordinates(){
+  MainActivity.Part part=app.new Part(true,.015f,.015f,2,9000);part.y=8000;part.z=7000;part.rotationX=20;part.rotationY=30;part.rotationZ=40;app.parts.add(part);
+  PrimitiveBRepBody body=app.analyticBody(part);double[] expected=body.triangleCoordinates(48);
+  MeshEngine.Mesh preview=app.experimentalCadMeshPreview(0,body);
+  assertArrayEquals(expected,preview.worldCoordinates(),0);
+  List<MeshEngine.Mesh> scene=app.currentSceneMeshes();assertEquals(2,scene.size());
+  assertArrayEquals(expected,scene.get(0).worldCoordinates(),0);
+  assertArrayEquals(body.triangles(48),scene.get(0).vertices,0);
+ }
 }

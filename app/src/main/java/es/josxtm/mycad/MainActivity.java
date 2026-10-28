@@ -3622,12 +3622,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   double[] precise=new double[legacy.length];for(int i=0;i<legacy.length;i++)precise[i]=legacy[i];
   int offset=0;for(float[] chunk:before)offset+=chunk.length;
   for(es.josxtm.mycad.cad.PrimitiveBRepBody body:bodies){
-   if(body.kind==es.josxtm.mycad.cad.PrimitiveBRepBody.Kind.BOX){
-    es.josxtm.mycad.cad.BoxBRep box=es.josxtm.mycad.cad.BoxBRep.from(new es.josxtm.mycad.cad.TransformedBody(
-     new es.josxtm.mycad.cad.CadKernel.Box(body.bodyId,-body.width/2,-body.depth/2,0,body.width,body.depth,body.height),body.pose()));
-    double[] world=box.triangleCoordinates();System.arraycopy(world,0,precise,offset,world.length);
-   }
-   offset+=body.triangles(48).length;
+   double[] world=body.triangleCoordinates(48);System.arraycopy(world,0,precise,offset,world.length);
+   offset+=world.length;
   }
   return MeshEngine.Mesh.withWorldCoordinates(legacy,precise);
  }
@@ -3709,13 +3705,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   int tail=first*9;
   for(Part part:parts){
    es.josxtm.mycad.cad.PrimitiveBRepBody body=analyticBody(part);
-   float[] triangles=body.triangles(48);
-   if(body.kind==es.josxtm.mycad.cad.PrimitiveBRepBody.Kind.BOX){
-    es.josxtm.mycad.cad.BoxBRep box=es.josxtm.mycad.cad.BoxBRep.from(new es.josxtm.mycad.cad.TransformedBody(
-     new es.josxtm.mycad.cad.CadKernel.Box(body.bodyId,-body.width/2,-body.depth/2,0,body.width,body.depth,body.height),body.pose()));
-    meshes.add(MeshEngine.Mesh.analyticBox(box));
-   }else meshes.add(new MeshEngine.Mesh(triangles));
-   tail+=triangles.length;
+   MeshEngine.Mesh mesh=MeshEngine.Mesh.analyticPrimitive(body,48);meshes.add(mesh);
+   tail+=mesh.vertices.length;
   }
   meshes.add(new MeshEngine.Mesh(java.util.Arrays.copyOfRange(composed.vertices,tail,composed.vertices.length)));
   for(Part part:parts)addTopologySnapshot(snapshots,

@@ -172,6 +172,7 @@ public final class CylinderBRep {
  }
 
  /** Mesh is generated on demand; angular segments never affect logical IDs. */
+ public double[] triangleCoordinates(int segments){return CylinderSurface.triangleCoordinates(diameter,height,pose,segments);}
  public float[] triangles(int segments){
   return CylinderSurface.triangles(diameter,height,pose,segments);
  }

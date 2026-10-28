@@ -32,6 +32,10 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    if(box==null)throw new IllegalArgumentException("Missing analytic box");
    return withWorldCoordinates(box.triangles(),box.triangleCoordinates());
   }
+  public static Mesh analyticPrimitive(es.josxtm.mycad.cad.PrimitiveBRepBody body,int segments){
+   if(body==null)throw new IllegalArgumentException("Missing analytic primitive");
+   return withWorldCoordinates(body.triangles(segments),body.triangleCoordinates(segments));
+  }
   static Mesh withWorldCoordinates(float[] legacy,double[] world){
    if(world==null||legacy==null||world.length!=legacy.length)throw new IllegalArgumentException("Invalid precise preview");
    for(int i=0;i<world.length;i++)if(!Double.isFinite(world[i])||(float)world[i]!=legacy[i])
