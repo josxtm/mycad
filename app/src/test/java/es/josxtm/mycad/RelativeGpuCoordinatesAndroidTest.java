@@ -74,4 +74,9 @@ public class RelativeGpuCoordinatesAndroidTest {
   catch(IllegalArgumentException expected){}
   assertEquals(before,viewer.sceneRevision());
  }
+
+ @Test public void framingALargeImportedMeshKeepsTheHistoricalCameraDistance()throws Exception{
+  MeshEngine.Mesh imported=new MeshEngine.Mesh(new float[]{-100000,0,0,100000,0,0,0,100000,0});
+  install(Collections.singletonList(imported),true);assertEquals(500000,viewer.cameraDistance(),0);
+ }
 }

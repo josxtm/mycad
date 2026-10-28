@@ -54,7 +54,7 @@ double. La selección visible utiliza los mismos triángulos locales que la GPU.
   conversión local, el uso de un origen compartido y la devolución del rayo mundial.
 - Suite geométrica completa de android.yml, incluida RelativeSceneCoordinatesTest.
 - Pruebas nuevas de precisión, no mutación, offsets/oclusión, caché y entradas inválidas.
-- 57 pruebas Android/IO superadas localmente: suite existente más instalación real de escena, matrices Android,
+- 58 pruebas Android/IO superadas localmente: suite existente más instalación real de escena, matrices Android,
   proyección, cámara conservada, callbacks mundiales, revisión obsoleta y puente
   de selección de parches B-Rep escalonados.
 - Compilación local: JDK 17, lenguaje y bytecode Java 8, SDK 35.
@@ -70,6 +70,11 @@ métodos del GLSurfaceView por reflexión. Se corrigió el acceso de prueba:
 proyección y picking tienen visibilidad de paquete y los tests invocan las
 mismas implementaciones directamente. No se omiten pruebas ni se añaden
 simulaciones de GL. La revisión corregida requiere un nuevo CI verde.
+
+La revisión correctiva `8130b15` pasó [CI #622](https://github.com/josxtm/mycad/actions/runs/40762489338).
+La revisión final añade una regresión de encuadre de mallas importadas grandes:
+se conserva la distancia histórica de ajuste, sin introducir el límite de zoom
+interactivo en el cálculo inicial de encuadre. Requiere CI sobre el commit final.
 
 ## Plan y pendientes
 

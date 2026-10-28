@@ -512,7 +512,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   double[] bounds=coordinates.worldBounds();
   centerX=coordinates.originX;centerY=coordinates.originY;centerZ=coordinates.originZ;
   double span=Math.max(bounds[3]-bounds[0],Math.max(bounds[4]-bounds[1],bounds[5]-bounds[2]));
-  distance=(float)Math.max(10,Math.min(100000,span*2.5));
+  distance=(float)Math.max(10,Math.min(Float.MAX_VALUE,span*2.5));
  }
  @Override public void onSurfaceCreated(javax.microedition.khronos.opengles.GL10 gl,javax.microedition.khronos.egl.EGLConfig cfg){
   gpuTriangles.clear(); // EGL context recreation invalidates renderer-owned resources.
