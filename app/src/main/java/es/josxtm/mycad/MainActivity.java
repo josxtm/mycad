@@ -19,9 +19,12 @@ public class MainActivity extends Activity {
   final int index,firstTriangle;
   final MeshEngine.Mesh stored,rendered;
   final es.josxtm.mycad.cad.LinkedConvexIntersection recipe;
+  final es.josxtm.mycad.cad.NamedSteppedBody identity;
   SteppedStoredBinding(int index,int first,MeshEngine.Mesh stored,MeshEngine.Mesh rendered,
-      es.josxtm.mycad.cad.LinkedConvexIntersection recipe){
+      es.josxtm.mycad.cad.LinkedConvexIntersection recipe,
+      es.josxtm.mycad.cad.NamedSteppedBody identity){
    this.index=index;firstTriangle=first;this.stored=stored;this.rendered=rendered;this.recipe=recipe;
+   this.identity=identity;
   }
  }
  java.util.List<SteppedStoredBinding> renderedSteppedBindings=java.util.Collections.emptyList();
@@ -892,7 +895,7 @@ public class MainActivity extends Activity {
    for(SteppedStoredBinding binding:renderedSteppedBindings)if(binding.index==storedIndex){
     display=binding.rendered;
     renderedSteppedBindings=java.util.Collections.singletonList(new SteppedStoredBinding(
-     storedIndex,0,binding.stored,binding.rendered,binding.recipe));break;
+     storedIndex,0,binding.stored,binding.rendered,binding.recipe,binding.identity));break;
    }
   }else renderedSteppedBindings=java.util.Collections.emptyList();
   meshMode=true;meshView.setVisibility(View.VISIBLE);
@@ -1687,6 +1690,7 @@ public class MainActivity extends Activity {
    }).setNegativeButton("Cancelar",null).show();
  }
  void inspectSelectedFaces(){
+  if(activeSteppedPatch!=null){inspectSelectedSteppedFace();return;}
   if(selected<0||selected>=parts.size()){toast("Selecciona primero un cuerpo");return;}
   Part p=parts.get(selected);
   if(p.circle){new AlertDialog.Builder(this).setTitle("Superficies del cilindro")
@@ -2363,9 +2367,19 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   new AlertDialog.Builder(this).setTitle("Arista del resultado B-Rep")
    .setMessage(String.format(java.util.Locale.US,
     "Longitud: %.3f mm\nInicio XYZ: %.3f, %.3f, %.3f\nFin XYZ: %.3f, %.3f, %.3f\n"+
-    "Parche: %d · adyacente: %d\nReceta: %s\nArista: %s",
+    "Parche: %d · adyacente: %d\nReceta: %s\nArista persistente: %s\nReferencia geométrica: %s",
     edge.length,p[0],p[1],p[2],p[3],p[4],p[5],edge.patchIndex+1,
-    edge.adjacentPatchIndex+1,binding.recipe.id,edge.edgeId))
+    edge.adjacentPatchIndex+1,binding.recipe.id,binding.identity.edgeId(edge.edgeId),edge.edgeId))
+   .setPositiveButton("Cerrar",null).show();
+ }
+ void inspectSelectedSteppedFace(){
+  SteppedStoredBinding binding=selectedSteppedBinding();
+  if(binding==null){toast("La cara B-Rep ha cambiado; vuelve a seleccionarla");return;}
+  new AlertDialog.Builder(this).setTitle("Cara del resultado B-Rep")
+   .setMessage(String.format(java.util.Locale.US,
+    "Área: %.3f mm²\nBordes interiores: %d\nReceta: %s\nCara persistente: %s\nVersión geométrica: %s",
+    activeSteppedPatch.patch.area,activeSteppedPatch.patch.holeCount,binding.identity.bodyId,
+    binding.identity.patchId(activeSteppedPatch.patch),binding.identity.shell.id()))
    .setPositiveButton("Cerrar",null).show();
  }
  double steppedTouchTolerance(es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit hit,
@@ -3514,11 +3528,12 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     if(a==null||b==null)throw new IllegalArgumentException("Faltan operandos B-Rep");
     lines.putAll(loopSketchSegments(a,null,0,0,0,0));
     lines.putAll(loopSketchSegments(b,null,0,0,0,0));
-    es.josxtm.mycad.cad.VariableHeightOrthogonalBRep shell=recipe.regenerateStepped(sources,lines);
+    es.josxtm.mycad.cad.NamedSteppedBody identity=recipe.regenerateNamedStepped(sources,lines);
+    es.josxtm.mycad.cad.VariableHeightOrthogonalBRep shell=identity.shell;
     if(!java.util.Arrays.equals(shell.triangles(),stored.vertices))
      throw new IllegalArgumentException("La malla B-Rep está obsoleta; reconstruye el resultado");
     rendered=new MeshEngine.Mesh(shell);
-    bindings.add(new SteppedStoredBinding(i,first,stored,rendered,recipe));
+    bindings.add(new SteppedStoredBinding(i,first,stored,rendered,recipe,identity));
    }
    meshes.add(rendered);first+=stored.triangles();
   }
