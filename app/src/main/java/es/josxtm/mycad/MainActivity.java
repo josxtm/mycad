@@ -2644,8 +2644,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
      activeExactEdgeHit=boundary;
      if(boundary!=null){
       description+=" · Arista "+boundary.edgeId.substring(boundary.edgeId.lastIndexOf('/')+1);
-      if(meshView!=null)meshView.highlightEdge(
-       es.josxtm.mycad.cad.PrimitiveEdgeCurve.points(solid,boundary.edgeId,64));
+      if(meshView!=null)meshView.highlightEdgePrecise(
+       es.josxtm.mycad.cad.PrimitiveEdgeCurve.pointsDouble(solid,boundary.edgeId,64));
      }else if(meshView!=null)meshView.highlightEdge(null);
     }catch(IllegalArgumentException ignored){
      activeAnalyticEdgeId=null;activeExactEdgeHit=null;

@@ -123,7 +123,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private volatile long sceneRevision;
  private long renderedSceneRevision; // GL-thread snapshot, distinct from queued UI replacements
  long sceneRevision(){return sceneRevision;}
- private float[] highlightedEdgeVertices=null;
+ private double[] highlightedEdgeVertices=null;
  private float[] faceHandleGpu=null;
  private volatile float[] faceHandleUi=null;
  private FaceDragListener faceDragListener=null;
@@ -206,9 +206,18 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  }
  /** A genuine analytic edge outline, not arbitrary tessellation triangle edges. */
  public void highlightEdge(float[] xyz){
+  if(xyz==null){highlightEdgePrecise(null);return;}
+  double[] precise=new double[xyz.length];
+  for(int i=0;i<xyz.length;i++)precise[i]=xyz[i];
+  highlightEdgePrecise(precise);
+ }
+ /** Analytic B-Rep edge: rebase doubles before sending floats to GPU. */
+ public void highlightEdgePrecise(double[] xyz){
   if(xyz!=null&&(xyz.length<6||xyz.length%3!=0))
    throw new IllegalArgumentException("Invalid selected edge outline");
-  final float[] copy=xyz==null?null:xyz.clone();
+  if(xyz!=null)for(double value:xyz)
+   if(!Double.isFinite(value))throw new IllegalArgumentException("Nonfinite edge outline");
+  final double[] copy=xyz==null?null:xyz.clone();
   queueEvent(()->{highlightedEdgeVertices=copy;requestRender();});
  }
 
