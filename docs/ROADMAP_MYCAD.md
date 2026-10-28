@@ -197,3 +197,47 @@ Publicación: al comprobar GitHub se detectó que #117 ya estaba fusionada en
 Se incorporó `origin/main` a la rama de trabajo mediante una fusión normal,
 sin modificar `main`, rebase ni force push. La fusión no cambió el árbol de
 archivos de la implementación local validada.
+
+## Continuación del guion maestro — altura, selección e intercambio
+
+- El editor de perforación vinculada admite la altura de extrusión. Altura,
+  eje, diámetro y profundidad se preparan conjuntamente antes de publicar una
+  receta: permite reducir a la vez altura y profundidad y rechaza un taladro
+  ciego que ya no cabe. Recalcula posición/orientación desde el boceto en XY/XZ/YZ.
+- Un toque selecciona la superficie del corte en Canvas; otro abre sus parámetros.
+  Usa rayos contra la escena completa y su índice de triángulos: un agujero vacío
+  no selecciona material y un cuerpo delante impide seleccionar el corte oculto.
+  Se resalta el resultado seleccionado. La selección de caras B-Rep curvas sigue
+  pendiente; el control actual edita la receta completa.
+- Corregida la exportación OBJ: escribía secuencias literales de nueva línea,
+  dejando un archivo que no podía reabrirse. Se verifican roundtrips OBJ/STL,
+  STL ASCII externo e índices OBJ negativos. Se rechazan mallas vacías y
+  coordenadas no finitas, incluidas las de STL binario.
+- Verificación local: 18 pruebas Android Robolectric y 4 de MeshIO, todas correctas;
+  compilación y Lint correctos. Se ejecutan de nuevo las suites geométricas completas.
+- Se prepara APK debug del recorrido de prueba; no es una versión de producción.
+  La aceptación física depende de disponer de teléfono/tablet conectado.
+
+El guion completo continúa abierto: B-Rep general, restricciones generales,
+booleanas arbitrarias, historial general, optimización en hardware y herramientas
+Revolve/Sweep/Loft/Shell/Fillet/Chamfer necesitan desarrollo y pruebas adicionales.
+La evidencia de este bloque cubre el subconjunto descrito, no esas fases pendientes.
+
+### UI móvil/tablet y APK del recorrido
+
+La fila de modos pasa a un contenedor horizontal desplazable con área mínima
+88×48 dp por control. El cambio se limita a esa fila y no altera botones de
+otros paneles; no fusiona #80 ni #86. Pruebas de layout a 320×640 dp y
+1280×800 dp verifican dimensiones, desplazamiento y espacio de lienzo.
+La guía de la app explica la edición por toque del resultado perforado.
+
+Verificación del bloque: **24 pruebas correctas (20 Android Robolectric y 4
+MeshIO), 0 fallos/omitidas**, geometría completa, integridad, compilación y Lint.
+Se genera una APK debug para pruebas del hito con firma de depuración; todavía
+no es aceptación física ni finalización de todas las fases del guion.
+`adb devices -l` no detecta dispositivos Android conectados en este entorno.
+
+Prueba de aceptación física pendiente: rectángulo 40×30, cota, arrastre 10 mm,
+ViewCube, agujero Ø6, edición de ancho/fondo y altura/profundidad del taladro,
+guardar/abrir y exportar STL/OBJ. Repetir en móvil y tablet; registrar gestos,
+fluidez y resultados antes de declarar aceptado el primer hito.
