@@ -30,6 +30,63 @@ public final class SteppedCoplanarFaceGroupsTest {
     List<List<Integer>> counts=SteppedCoplanarFaceGroups.loopCounts(shell);
     List<SteppedCoplanarFaceGroups.Patch> descriptors=SteppedCoplanarFaceGroups.describe(shell);
     if(descriptors.size()!=groups.size())throw new AssertionError("Missing analytic patches");
+    SteppedCoplanarPatchTopology.Topology topology=SteppedCoplanarPatchTopology.build(shell);
+    if(topology.patches.size()!=descriptors.size())
+     throw new AssertionError("Missing consolidated patch topology");
+    int exposedCount=0;
+    for(int i=0;i<topology.patches.size();i++){
+     SteppedCoplanarPatchTopology.PatchFace patch=topology.patches.get(i);
+     SteppedCoplanarFaceGroups.Patch source=descriptors.get(i);
+     if(patch.index!=i||!patch.sourceFaceIds.equals(source.faceIds)||
+        patch.loops.size()!=source.boundaryHalfEdgeLoops.size()||
+        !patch.signedLoopAreas.equals(source.signedLoopAreas)||
+        patch.exteriorCount!=source.exteriorCount||patch.holeCount!=source.holeCount||
+        Math.abs(patch.area-source.area)>1e-5)
+      throw new AssertionError("Incorrect consolidated patch metadata");
+     for(String faceId:source.faceIds)
+      if(topology.patchIndexForSourceFace(faceId)!=i)
+       throw new AssertionError("Incorrect patch source ownership");
+     double[] normal=patch.outwardNormal();
+     if(Math.abs(normal[0]*normal[0]+normal[1]*normal[1]+normal[2]*normal[2]-1)>1e-6)
+      throw new AssertionError("Non-unit patch normal");
+     normal[0]=12345;
+     if(patch.outwardNormal()[0]==12345)
+      throw new AssertionError("Mutable patch normal");
+     for(int j=0;j<patch.loops.size();j++){
+      List<SteppedCoplanarPatchTopology.BoundaryUse> loop=patch.loops.get(j);
+      if(loop.size()!=source.boundaryHalfEdgeLoops.get(j).size())
+       throw new AssertionError("Boundary loop changed");
+      for(int k=0;k<loop.size();k++){
+       SteppedCoplanarPatchTopology.BoundaryUse use=loop.get(k);
+       if(!use.halfEdgeId.equals(source.boundaryHalfEdgeLoops.get(j).get(k))||
+          use.adjacentPatchIndex==i||use.adjacentPatchIndex<0||
+          use.adjacentPatchIndex>=topology.patches.size())
+        throw new AssertionError("Incorrect patch boundary owner");
+       boolean reciprocal=false;
+       for(List<SteppedCoplanarPatchTopology.BoundaryUse> other:
+           topology.patches.get(use.adjacentPatchIndex).loops)
+        for(SteppedCoplanarPatchTopology.BoundaryUse twin:other)
+         if(twin.halfEdgeId.equals(use.twinHalfEdgeId)&&
+            twin.twinHalfEdgeId.equals(use.halfEdgeId)&&
+            twin.adjacentPatchIndex==i&&
+            twin.fromVertexId.equals(use.toVertexId)&&
+            twin.toVertexId.equals(use.fromVertexId))
+          reciprocal=true;
+       if(!reciprocal)throw new AssertionError("Nonreciprocal patch adjacency");
+       exposedCount++;
+      }
+     }
+    }
+    if(exposedCount%2!=0)throw new AssertionError("Unpaired exposed uses");
+    try{topology.patches.clear();throw new AssertionError("Mutable topology");}
+    catch(UnsupportedOperationException expected){}
+    try{topology.patches.get(0).loops.clear();throw new AssertionError("Mutable patch loops");}
+    catch(UnsupportedOperationException expected){}
+    try{topology.patches.get(0).loops.get(0).clear();throw new AssertionError("Mutable loop uses");}
+    catch(UnsupportedOperationException expected){}
+    try{topology.patchIndexForSourceFace("not-a-face");throw new AssertionError("Unknown face accepted");}
+    catch(IllegalArgumentException expected){}
+
     for(int i=0;i<descriptors.size();i++){
      SteppedCoplanarFaceGroups.Patch patch=descriptors.get(i);
      if(!patch.faceIds.equals(groups.get(i))||
