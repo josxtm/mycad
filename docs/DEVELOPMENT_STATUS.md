@@ -4,14 +4,17 @@
 
 - Repositorio exclusivo: `josxtm/mycad`; no se trabaja en CADCraft ni directamente en main.
 - PR #144 revisada e integrada desde `43fcf01ea9238e67aa3990fab60cda810e661ea7`.
-- Base main: `4756ece7e1cf3fd41b760e7d28831cfbfd022608`.
+- Base main: `62cc5de24ef0c7c470e14f9433fae48f6c3dd8da` (PR #145 integrada).
 - PR #144: [android.yml #618](https://github.com/josxtm/mycad/actions/runs/40758696428), correcto.
 - Main: [android.yml #619](https://github.com/josxtm/mycad/actions/runs/40760119620), correcto.
 - PR #80/#86 antiguas y PR #136 conservadas; no se fusionan por esta continuación.
 
 ## Fase A del guion vigente: precisión e integración GPU
 
-Rama de trabajo: `feature/cad-relative-gpu-origin`.
+Rama de trabajo: `feature/cad-double-cylinder-preview`.
+La etapa previa de origen compartido se integró en PR #145 (`e0700dc`), con
+[android.yml #623](https://github.com/josxtm/mycad/actions/runs/40763061992) verde,
+sin conflictos ni revisiones pendientes. El CI posterior de main se consulta en ci-status.
 
 `RelativeMeshCoordinates` (#144) resta un origen double antes de convertir a
 float. `RelativeSceneCoordinates` ahora mantiene una generación de escena con
@@ -37,16 +40,28 @@ previsualizaciones. El buffer float histórico se conserva para exportación y
 herramientas anteriores; se comprueba que coincide con el redondeo de la fuente
 double. La selección visible utiliza los mismos triángulos locales que la GPU.
 
+`CylinderSurface.triangleCoordinates` añade la fuente double de los cilindros,
+con exactamente la misma teselación y orden que la ruta float histórica.
+CylinderBRep y PrimitiveBRepBody la exponen al visor. La escena y las vistas
+previas de Android conservan la fuente double de ambas primitivas sin modificar
+el JSON, los límites de los editores ni los buffers mundiales de intercambio.
+
+La compatibilidad de seis fixtures publicados (12/48/128 segmentos y poses
+diferentes) queda congelada en el digest
+`efa2199fc0211246566d29720d693f0835f387152b8497962a524bedba428c73`.
+Las pruebas también comprueban cilindros locales cerrados de 0,01 mm a ±1e9,
+la no mutación y la fuente exacta de una previsualización Android rotada.
+
 ### Límites explícitos
 
 - El conversor y los rayos locales se prueban con detalle de 0,01 mm a ±1e9 mm.
   Esto no amplía los límites de coordenadas de los editores Android.
 - BoxBRep mantiene su rechazo de una exportación/vista previa mundial float que
   colapse una cara. La nueva ruta no oculta pérdidas existentes en archivos float.
-- Cilindros, recetas malladas y varios resultados persistidos aún llegan al visor
+- Recetas malladas y varios resultados persistidos aún llegan al visor
   desde buffers float; trasladarlos después no recupera detalle ya perdido.
-- Próximo paso del motor: ampliar las fuentes double sin alterar teselaciones,
-  identidades, JSON ni selección; empezar por cilindros analíticos.
+- Próximo paso del motor B-Rep: ampliar fuentes de perfiles/resultados nombrados
+  sin alterar teselaciones, identidades, JSON ni selección; auditar degeneración.
 
 ## Verificación
 
@@ -54,7 +69,7 @@ double. La selección visible utiliza los mismos triángulos locales que la GPU.
   conversión local, el uso de un origen compartido y la devolución del rayo mundial.
 - Suite geométrica completa de android.yml, incluida RelativeSceneCoordinatesTest.
 - Pruebas nuevas de precisión, no mutación, offsets/oclusión, caché y entradas inválidas.
-- 58 pruebas Android/IO superadas localmente: suite existente más instalación real de escena, matrices Android,
+- 60 pruebas Android/IO superadas localmente (58 de la etapa #145): suite existente más instalación real de escena, matrices Android,
   proyección, cámara conservada, callbacks mundiales, revisión obsoleta y puente
   de selección de parches B-Rep escalonados.
 - Compilación local: JDK 17, lenguaje y bytecode Java 8, SDK 35.
@@ -65,20 +80,21 @@ double. La selección visible utiliza los mismos triángulos locales que la GPU.
 - EGL y validación física en Nothing Phone 2a/tablet Android de 12 pulgadas:
   pendientes; también pendientes mediciones de rendimiento y memoria reales.
 
-CI #620 detectó tres fallos de carga de clases en las pruebas que buscaban
-métodos del GLSurfaceView por reflexión. Se corrigió el acceso de prueba:
-proyección y picking tienen visibilidad de paquete y los tests invocan las
-mismas implementaciones directamente. No se omiten pruebas ni se añaden
-simulaciones de GL. La revisión corregida requiere un nuevo CI verde.
+El primer CI de #145 (#620) detectó tres fallos de carga de clases al buscar
+métodos del GLSurfaceView por reflexión. La revisión correctiva `8130b15`
+expone al paquete los mismos puntos de proyección/picking para invocación
+directa desde los tests. Se conservan todas las pruebas y no se añaden
+simulaciones GL ni dependencias. Esta continuación incorpora esa corrección.
 
 La revisión correctiva `8130b15` pasó [CI #622](https://github.com/josxtm/mycad/actions/runs/40762489338).
 La revisión final añade una regresión de encuadre de mallas importadas grandes:
 se conserva la distancia histórica de ajuste, sin introducir el límite de zoom
-interactivo en el cálculo inicial de encuadre. Requiere CI sobre el commit final.
+interactivo en el cálculo inicial de encuadre. El commit final `e0700dc` superó #623 antes de integrar #145.
 
 ## Plan y pendientes
 
-1. A: completar fuentes double y auditar la precisión de todos los puentes GPU.
+1. A: origen compartido y fuentes double de cajas/cilindros implementados; exigir
+   CI verde. Mantener auditoría de fuentes de perfiles y recetas malladas.
 2. B: continuar B-Rep, booleanas, regeneración, degeneración e identidades. Todas
    las rutas LinkedConvexIntersection tienen adaptación nombrada; la cobertura
    global B-Rep sigue parcial (perforaciones curvas aún basadas en mallas).
@@ -95,7 +111,7 @@ No se consideran terminadas familias sin pruebas.
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-relative-gpu-origin
+git switch feature/cad-double-cylinder-preview
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
@@ -104,8 +120,8 @@ gradle :app:compileDebugJavaWithJavac :app:testDebugUnitTest :app:lintDebug --no
 
 Si la PR ya está integrada, partir de origin/main en una rama nueva. No rebasar
 ni forzar ramas compartidas. El checkout local de esta continuación está en
-`/workspace/mycad-relative-gpu`; su base materializada tiene el mismo árbol que
-main `4756ece`. La publicación mediante conector usa el padre remoto real y no
+`/workspace/mycad-double-cylinder`; su base materializada tiene el mismo árbol que
+main `62cc5de` tras los cambios de la PR #145. La publicación mediante conector usa el padre remoto real y no
 publica los ancestros sintéticos locales.
 
 Un experimento anterior de propietarios de recetas quedó conservado localmente

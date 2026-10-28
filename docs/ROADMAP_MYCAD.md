@@ -448,3 +448,13 @@ resultados cóncavos generales ni todas las familias curvas.
 - Regresiones automáticas de precisión a ±1e9, Android matrices/rayos, cambios de origen y puente B-Rep escalonado.
 - Pendiente: ampliar fuentes double a cilindros y demás familias, sin atribuir al conversor recuperación de datos ya redondeados.
 - Pruebas físicas Nothing Phone 2a/tablet 12 pulgadas, EGL y rendimiento pendientes. Estado y recuperación actualizados en `docs/DEVELOPMENT_STATUS.md`.
+
+## Fuentes double de cilindros analíticos
+
+- Rama `feature/cad-double-cylinder-preview`, desde main `62cc5de` tras PR #145 integrada con [CI #623](https://github.com/josxtm/mycad/actions/runs/40763061992) verde.
+- CylinderSurface/CylinderBRep/PrimitiveBRepBody mantienen coordenadas double hasta aplicar el origen GPU.
+- Escena y previsualización Android usan la misma fuente para cajas y cilindros, incluidos cuerpos rotados.
+- Digest de compatibilidad de seis fixtures: teselación float publicada idéntica.
+- Regresiones de precisión lejana, superficie local cerrada, no mutación y puente real de Android. 60 pruebas Android/IO, geometría completa e integridad superadas localmente; nuevo CI obligatorio antes de integrar.
+- Se mantienen los límites del editor y el formato JSON; la exportación float histórica no obtiene precisión double por este cambio.
+- Próximo motor B-Rep: fuentes de perfiles/booleanas y degeneración; validación física/EGL y memoria pendientes.

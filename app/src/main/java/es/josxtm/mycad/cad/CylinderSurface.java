@@ -4,11 +4,20 @@ public final class CylinderSurface {
  private CylinderSurface(){}
  public static int triangleCount(int segments){if(segments<12||segments>128)throw new IllegalArgumentException("Invalid segments");return segments*4;}
  public static float[] triangles(double diameter,double height,RigidTransform pose,int segments){
+  double[] world=triangleCoordinates(diameter,height,pose,segments);float[] out=new float[world.length];
+  for(int i=0;i<world.length;i++){
+   if(Math.abs(world[i])>Float.MAX_VALUE)throw new IllegalArgumentException("Invalid coordinate");
+   out[i]=(float)world[i];
+  }
+  return out;
+ }
+ /** Same tessellation as triangles(), retaining world precision until rendering. */
+ public static double[] triangleCoordinates(double diameter,double height,RigidTransform pose,int segments){
   triangleCount(segments);
   if(pose==null||!Double.isFinite(diameter)||!Double.isFinite(height)||diameter<=0||height<=0||
     diameter>10000||height>10000)throw new IllegalArgumentException("Invalid cylinder");
   double radius=diameter/2;
-  float[] output=new float[triangleCount(segments)*9];int at=0;
+  double[] output=new double[triangleCount(segments)*9];int at=0;
   for(int i=0;i<segments;i++){
    double angle=2*Math.PI*i/segments,next=2*Math.PI*((i+1)%segments)/segments;
    double[] b0=pose.point(radius*Math.cos(angle),radius*Math.sin(angle),0);
@@ -21,10 +30,10 @@ public final class CylinderSurface {
   }
   return output;
  }
- private static int tri(float[] out,int at,double[] a,double[] b,double[] c){
+ private static int tri(double[] out,int at,double[] a,double[] b,double[] c){
   for(double[] v:new double[][]{a,b,c})for(double p:v){
-   if(!Double.isFinite(p)||Math.abs(p)>Float.MAX_VALUE)throw new IllegalArgumentException("Invalid coordinate");
-   out[at++]=(float)p;
+   if(!Double.isFinite(p))throw new IllegalArgumentException("Invalid coordinate");
+   out[at++]=p;
   }
   return at;
  }

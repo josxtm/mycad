@@ -75,6 +75,16 @@ public class RelativeGpuCoordinatesAndroidTest {
   assertEquals(before,viewer.sceneRevision());
  }
 
+ @Test public void rotatedCylinderRetainsDoubleSourceAndStableWorldFloatPreview()throws Exception{
+  PrimitiveBRepBody cylinder=PrimitiveBRepBody.cylinder("precise-cylinder",.001,2,new RigidTransform(9000,8000,7000,20,30,40));
+  MeshEngine.Mesh mesh=MeshEngine.Mesh.analyticPrimitive(cylinder,48);float[] legacy=cylinder.triangles(48);
+  assertArrayEquals(legacy,mesh.vertices,0);assertArrayEquals(cylinder.triangleCoordinates(48),mesh.worldCoordinates(),0);
+  install(Collections.singletonList(mesh),true);
+  RelativeSceneCoordinates frame=(RelativeSceneCoordinates)field("coordinates");
+  assertArrayEquals(RelativeMeshCoordinates.relative(cylinder.triangleCoordinates(48),frame.originX,frame.originY,frame.originZ),frame.triangles(0),0);
+  assertTrue(TriangleMeshHealth.inspect(frame.triangles(0)).isWatertight());
+ }
+
  @Test public void framingALargeImportedMeshKeepsTheHistoricalCameraDistance()throws Exception{
   MeshEngine.Mesh imported=new MeshEngine.Mesh(new float[]{-100000,0,0,100000,0,0,0,100000,0});
   install(Collections.singletonList(imported),true);assertEquals(500000,viewer.cameraDistance(),0);
