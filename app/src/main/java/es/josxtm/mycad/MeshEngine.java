@@ -151,7 +151,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   return Math.max(2f,Math.min(25f,distance*.08f));
  }
  /** UI-thread projection, using the same perspective/camera as GL renderer. */
- private float[] projectPoint(double x,double y,double z){
+ float[] projectPoint(double x,double y,double z){
   if(getWidth()<=0||getHeight()<=0)return null;
   es.josxtm.mycad.cad.RelativeSceneCoordinates frame=coordinates;
   float[] camera=new float[16],proj=new float[16],mvpLocal=new float[16];
@@ -464,7 +464,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   }
   return true;
  }
- private void pickSurfaceAt(float sx,float sy){
+ void pickSurfaceAt(float sx,float sy){
   int width=getWidth(),height=getHeight();
   if(width<=0||height<=0||meshes.isEmpty())return;
   // Use the same near/far-clipped world ray as the analytic stepped B-Rep

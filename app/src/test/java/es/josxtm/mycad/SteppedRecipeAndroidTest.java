@@ -436,14 +436,12 @@ public class SteppedRecipeAndroidTest {
   app.meshView.setViewOrientation(35,25);
   java.lang.reflect.Field projection=MeshEngine.class.getDeclaredField("projection");projection.setAccessible(true);
   android.opengl.Matrix.perspectiveM((float[])projection.get(app.meshView),0,45,800f/600,.1f,1000000);
-  java.lang.reflect.Method project=MeshEngine.class.getDeclaredMethod("projectPoint",double.class,double.class,double.class);project.setAccessible(true);
-  float[] pixel=(float[])project.invoke(app.meshView,2.0,2.0,3.0);assertNotNull(pixel);
+  float[] pixel=app.meshView.projectPoint(2.0,2.0,3.0);assertNotNull(pixel);
   // Isolate the Boolean so source operands cannot occlude the result.
   app.showMeshOnly(app.booleanMeshes.get(2));meshes=Collections.singletonList(app.booleanMeshes.get(2));
   MeshEngine.Mesh rendered=app.renderedSteppedBindings.get(0).rendered;
   app.meshView.installSceneMeshes(Collections.singletonList(rendered),RelativeSceneCoordinates.from(Collections.singletonList(rendered.worldCoordinates())),true,app.meshView.sceneRevision());
-  java.lang.reflect.Method pick=MeshEngine.class.getDeclaredMethod("pickSurfaceAt",float.class,float.class);pick.setAccessible(true);
-  pick.invoke(app.meshView,pixel[0],pixel[1]);shadowOf(Looper.getMainLooper()).idle();
+  app.meshView.pickSurfaceAt(pixel[0],pixel[1]);shadowOf(Looper.getMainLooper()).idle();
   assertNotNull(app.activeSteppedPatch);assertEquals(app.intersectionRecipes.get(2).id,app.activeSteppedRecipeId);
  }
 }

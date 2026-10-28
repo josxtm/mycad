@@ -65,6 +65,12 @@ double. La selección visible utiliza los mismos triángulos locales que la GPU.
 - EGL y validación física en Nothing Phone 2a/tablet Android de 12 pulgadas:
   pendientes; también pendientes mediciones de rendimiento y memoria reales.
 
+CI #620 detectó tres fallos de carga de clases en las pruebas que buscaban
+métodos del GLSurfaceView por reflexión. Se corrigió el acceso de prueba:
+proyección y picking tienen visibilidad de paquete y los tests invocan las
+mismas implementaciones directamente. No se omiten pruebas ni se añaden
+simulaciones de GL. La revisión corregida requiere un nuevo CI verde.
+
 ## Plan y pendientes
 
 1. A: completar fuentes double y auditar la precisión de todos los puentes GPU.
