@@ -493,3 +493,14 @@ resultados cóncavos generales ni todas las familias curvas.
 - La prueba de aislamiento de temas vuelve a comparar el JSON entero, sin excluir datos diagnósticos. 75 Android/IO, integridad y geometría completas locales; CI obligatorio.
 - PR #149 de otro agente permanece sin fusionar por CI rojo; no se modifica esa rama.
 - Motor global aún parcial; aceptación física/EGL y rendimiento pendientes. No se genera otra APK por esta corrección de metadatos.
+
+## Precisión del puente de booleanas ortogonales con agujeros
+
+- PR #151 integrada, commit `a60f5e1`, tras CI #633 verde. Rama siguiente: `feature/brep-grid-double-coordinate-bridge`.
+- Fuente double de cada triángulo extraída directamente de los vértices analíticos y transmitida a PlanarBooleanView/origen relativo GPU.
+- Se conservan mallas float, caras, aristas, identificadores, orden, formato de archivo y exportaciones. Hash de regresión obtenido antes de editar el kernel.
+- Cobertura: 24 resultados XY/XZ/YZ con alturas firmadas, unión/intersección/diferencia, agujero y múltiples sólidos. Android verifica cámara/visor, selección y guardar/reabrir.
+- 77 pruebas Android/IO, geometría completa e integridad locales satisfactorias. CI #634 de main verde; la nueva PR requiere verificar su propio SHA antes de integrar.
+- Los límites anteriores de validación float y naming por coordenadas siguen vigentes; no se afirma resolver aquí geometría sub-ULP ni el kernel escalonado.
+- Próximo trabajo: naming preciso compatible y coordenadas analíticas de escalonados. Validación física Nothing Phone 2a/tablet 12 pulgadas pendiente.
+- Otro agente actualizó #149 a `a1aac91`; CI #635 pendiente al guardar este punto. No se modifica esa rama.

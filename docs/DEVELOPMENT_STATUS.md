@@ -3,13 +3,15 @@
 ## Base verificada
 
 - Repositorio exclusivo: `josxtm/mycad`. Main protegido, sin escrituras directas.
-- Base de esta fase: `5c815ff832012b2000815ee021da7cf8291ccdf4` (PR #150 integrada).
+- Base de esta fase: `a60f5e1e2c972b271e1d36fb679bdb242f01bd5b` (PR #151 integrada).
 - Temas integrados tras [CI #631](https://github.com/josxtm/mycad/actions/runs/40770661900) verde.
 - Main pasó [hito #632](https://github.com/josxtm/mycad/actions/runs/40771113314), incluida APK 0.6.1 compilada y verificada.
+- Tras integrar #151, main pasó [CI #634](https://github.com/josxtm/mycad/actions/runs/40773115344).
 - Se revisaron main, los cinco últimos flujos y las PR abiertas. No había avances
   remotos nuevos después de #628 ni cambios locales de código sin guardar.
 - PR #146: `db6aec2`, sustituida por #150 tras revisión; rama conservada.
-- PR #149 apareció durante el trabajo: CI #629 rojo; rama de otro agente intacta, sin fusionar.
+- PR #149 de otro agente: #629 falló; el autor publicó `a1aac91`, con
+  [CI #635](https://github.com/josxtm/mycad/actions/runs/40773461656) en ejecución al registrar este punto. Rama intacta, sin fusionar aquí.
 - PR #80/#86/#136 conservadas, sin fusionar automáticamente.
 
 ## Temas completos y persistentes: integrados
@@ -62,7 +64,7 @@ no modifica cámaras, origen relativo, revisión de escena, triángulos ni picki
 Temas: ~95 % estimado, software implementado y probado; falta aceptación física.
 No se presenta como un 95 % del modelador CAD completo.
 
-## Fase actual B-Rep: identidades repetibles en el puente paramétrico
+## B-Rep: identidades repetibles en el puente paramétrico, integradas
 
 La prueba de aislamiento detectó un comportamiento anterior ajeno a los temas:
 CadIntegrationProbe crea UUID nuevos en cada llamada para su previsualización
@@ -72,7 +74,8 @@ la comparación de una nueva serialización excluía solo esos campos orientativ
 La presente corrección retira esa exclusión y vuelve a exigir igualdad del JSON
 completo en la misma prueba de aislamiento.
 
-La continuación se desarrolla en `feature/cad-stable-parametric-preview`.
+PR #151, fuente `6aeb64e`, rama `feature/cad-stable-parametric-preview`,
+integrada tras [CI #633](https://github.com/josxtm/mycad/actions/runs/40772532731) verde.
 ParametricSketchDocument admite IDs explícitos y canónicos al añadir rectángulos
 y extrusiones. Rechaza identidades duplicadas, malformadas o geometría inválida
 antes de publicar una revisión; conserva los métodos anteriores, undo y redo.
@@ -95,21 +98,51 @@ Verificación de la continuación:
   fallback antiguo, fallo sin commit, snapshot y undo/redo.
 - Geometría completa e integridad de android.yml; CI Gradle/Lint obligatorio.
 - Mejora delimitada de IDs: 100 % de los casos de software previstos verificados
-  localmente; pendiente verificar CI del SHA publicado. Motor CAD global parcial.
+  localmente y CI sobre el SHA publicado satisfactorio. Motor CAD global parcial.
 
 El motor conserva el origen relativo compartido GPU/cámara/rayos y fuentes double
 de cajas, cilindros, perfiles vinculados y booleanas planares nombradas (#145,
-#147, #148). Siguen pendientes precisión de grids/escalonados, algunas vistas
+#147, #148). Siguen pendientes límites de precisión de grids/escalonados, algunas vistas
 previas transitorias, geometría degenerada, B-Rep curva general y ViewCube 3D.
 No se atribuye recuperación de detalle perdido por casts históricos. El 93 %
 antiguo correspondía a otra fase de identidades, no al CAD completo.
+
+## Fase actual: coordenadas analíticas de grids con agujeros hasta GPU
+
+Rama independiente `feature/brep-grid-double-coordinate-bridge`, basada en #151.
+OrthogonalGridHoleBRep ya conserva vértices double, pero su conexión anterior
+a PlanarBooleanView partía únicamente de la sopa float. Ahora expone una copia
+inmutable de las coordenadas analíticas en el mismo orden de cara/triángulo.
+PlanarBooleanView entrega esa fuente al origen relativo GPU ya existente,
+tanto para escena completa como para el resultado aislado y su reapertura.
+
+No se cambia la discretización, el orden, el winding, el naming ni el formato
+guardado/exportado. Un hash tomado antes del cambio protege los bytes float
+de 24 resultados: XY/XZ/YZ, alturas firmadas, unión, intersección, agujero y
+diferencia con dos sólidos. La prueba exige correspondencia exacta entre cada
+esquina renderizada y su cara analítica, volumen local cerrado y selección.
+
+Este cambio conserva detalle double que ya existe; no amplía artificialmente
+el dominio aceptado por la validación float del kernel. Sus límites anteriores
+siguen vigentes. El naming por coordenadas de grids/escalonados aún agrupa
+fuentes mediante float: precisión sub-ULP en esos nombres y su migración
+compatible requieren una fase independiente. La PR #149 sigue ajena a esta rama.
+
+Verificación local: 77 pruebas Android/IO satisfactorias, compilación Java 8/SDK 35,
+geometría completa de android.yml e integridad. Las pruebas Android nuevas cubren
+escena/aislamiento, seis orientaciones/alturas, selección persistente, rayos del
+visor y guardar/reabrir. Esperan explícitamente a los comandos de escena del hilo
+del visor antes de comprobar su estado; no sustituyen renderizado EGL físico.
+CI Gradle/Lint obligatorio sobre el SHA publicado; resultado final en la PR de
+esta rama y ci-status. Puente delimitado: 100 % de los casos previstos comprobados
+localmente, pendiente CI. El motor global sigue parcial.
 
 ## Recuperación
 
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-stable-parametric-preview
+git switch feature/brep-grid-double-coordinate-bridge
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
@@ -121,13 +154,14 @@ compartidas ni rebasar trabajo de terceros. Las pruebas nativas generan
 `app/build/theme-preview/six-themes.png` y `six-interfaces.png`; su revisión es
 software, no una instalación física de la APK.
 
-Checkout local: `/workspace/mycad-stable-preview`. Su base materializada comparte el
-árbol de main `5c815ff`; la publicación por conector usa el padre remoto real,
+Checkout local: `/workspace/mycad-grid-double`. Su base materializada comparte el
+árbol de main `a60f5e1`; la publicación por conector usa el padre remoto real,
 sin publicar los ancestros sintéticos locales. El experimento antiguo de
 propietarios permanece en la rama local WIP `feature/cad-persisted-recipe-owners`
 (`b41ec27`), sin pruebas y ajeno a esta fase; no debe fusionarse sin revisión.
 
 Siguiente tarea: coordinar la revisión de la PR #149 cuando su autor resuelva
-CI, y continuar precisión/degeneración de perfiles y grids sin tocar sus ramas
-activas. La APK de temas del hito #632 es anterior a esta mejora diagnóstica;
-no se genera otra APK por un cambio de metadatos sin nueva interacción visual.
+CI, y continuar precisión/degeneración de perfiles, naming de grids y sólidos
+escalonados sin tocar sus ramas activas. La APK de temas del hito #632 es anterior
+a las mejoras B-Rep de esta continuación; sus fuentes corresponden a `5c815ff`.
+No se genera otra APK por cada ajuste interno del puente geométrico.
