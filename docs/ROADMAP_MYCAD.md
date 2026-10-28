@@ -391,3 +391,21 @@ dimensiones editadas, compatibilidad de nombres, guardado/apertura, índices,
 oclusión y rechazo de geometría obsoleta. Aceptación física pendiente y separada.
 Siguiente paso: reconciliación tipada de entidades conservadas, creadas y eliminadas
 durante cambios de topología. Fase A estimada en 80 %, todavía parcial.
+
+### Reconciliación tipada de cambios topológicos
+
+PR #131 integrada en `3c3c09b` tras [#592 correcto](https://github.com/josxtm/mycad/actions/runs/40724016163).
+El fallo de compilación Java 8 de #591 se corrigió sin desactivar pruebas.
+
+La continuación `feature/cad-topology-reference-reconciliation` añade un índice
+inmutable de referencias por tipo/propietario y versión analítica SHA-256, para
+escalonados, agujeros, prismas poligonales y primitivas. Registra entidades
+conservadas/creadas/eliminadas y distingue re-vinculación persistente de resolución
+contra la geometría exacta. El visor publica los índices como un lote validado,
+retira cuerpos borrados y muestra el último cambio en los inspectores.
+
+43 pruebas Android/IO y regresiones geométricas incluyen apertura real de agujero
+desde su perfil, undo, fallo de geometría sin publicación parcial, cilindros sin
+vértices ficticios y cambios analíticos menores que la precisión de malla.
+Fase A estimada en 85 %; resultados booleanos no ortogonales y otras rutas de
+nombrado siguen pendientes, junto con rendimiento y aceptación física.

@@ -283,4 +283,37 @@ public class SteppedRecipeAndroidTest {
   app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),front,null);
   assertNull(app.activeGridBinding);assertTrue(app.info.getText().toString().contains("importada"));
  }
+ @Test public void topologyLedgerTracksAnActualHoleOpeningAndUndo(){
+  LinkedConvexIntersection owner=gridRecipe();app.toggleMeshView();
+  TopologySnapshot before=app.topologySnapshots.get(owner.id);assertNotNull(before);
+  LoopExtrusionFeature cutter=app.loopExtrusionFeatures.get(1);
+  PolygonPrismBRep polygon=cutter.asBRep(app.loopSketchSegments(cutter,null,0,0,0,0));
+  PolygonPrismBRep.Face right=null;
+  for(PolygonPrismBRep.Face face:polygon.faces())if(face.outwardNormal()[0]>.9)right=face;
+  assertNotNull(right);app.offsetPolygonSideFace(1,app.booleanMeshes.get(1),right.id);applyHeight(4);
+  assertEquals(0,app.renderedGridBindings.get(0).identity.shell.holeCount);
+  TopologyReconciliation delta=app.topologyChanges.get(owner.id);assertNotNull(delta);
+  assertFalse(delta.change(TopologySnapshot.Kind.FACE).removed.isEmpty());
+  assertFalse(delta.change(TopologySnapshot.Kind.FACE).created.isEmpty());
+  assertTrue(app.topologyChangeSummary(owner.id).contains("eliminadas"));
+  app.currentSceneMeshes();assertSame(delta,app.topologyChanges.get(owner.id));
+  app.history(true);assertEquals(1,app.renderedGridBindings.get(0).identity.shell.holeCount);
+  assertEquals(before.geometryVersion,app.topologySnapshots.get(owner.id).geometryVersion);
+ }
+ @Test public void topologyRegistryIncludesAnalyticCylindersAndDropsDeletedBodies(){
+  gridRecipe();MainActivity.Part box=app.new Part(false,10,12,20,0),cylinder=app.new Part(true,12,12,20,0);
+  app.parts.add(box);app.parts.add(cylinder);app.toggleMeshView();
+  assertEquals(8,app.topologySnapshots.get(box.id).ids(TopologySnapshot.Kind.VERTEX).size());
+  assertEquals(0,app.topologySnapshots.get(cylinder.id).ids(TopologySnapshot.Kind.VERTEX).size());
+  assertEquals(2,app.topologySnapshots.get(cylinder.id).ids(TopologySnapshot.Kind.EDGE).size());
+  assertNotNull(app.topologySnapshots.get(app.loopExtrusionFeatures.get(0).id));
+  app.parts.remove(cylinder);app.renderCurrentCadMesh();assertFalse(app.topologySnapshots.containsKey(cylinder.id));
+  try{app.topologySnapshots.clear();fail("Mutable index");}catch(UnsupportedOperationException expected){}
+ }
+ @Test public void invalidGeometryDoesNotPublishAPartialTopologyRegistry(){
+  gridRecipe();app.toggleMeshView();Map<String,TopologySnapshot> before=app.topologySnapshots;
+  app.booleanMeshes.get(2).vertices[0]+=1;
+  try{app.currentSceneMeshes();fail("Stale mesh accepted");}catch(IllegalArgumentException expected){}
+  assertSame(before,app.topologySnapshots);
+ }
 }
