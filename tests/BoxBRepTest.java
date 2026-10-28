@@ -30,6 +30,26 @@ public final class BoxBRepTest {
    near(Math.sqrt(n[0]*n[0]+n[1]*n[1]+n[2]*n[2]),1,"Unit normal");
   }
   check(solid.triangles().length==108,"Expected 12 triangles");
+  // Double-precision B-Rep is still valid when float preview cannot
+  // represent a one-millimetre edge at a large model offset.
+  BoxBRep far=BoxBRep.from(new TransformedBody(
+   new CadKernel.Box("far",1000000000,1000000000,1000000000,1,1,1),
+   new RigidTransform(0,0,0,0,0,0)));
+  near(far.volume(),1,"Far analytic volume");
+  check(far.vertices().size()==8&&far.faces().size()==6,
+        "Far analytic topology must be retained");
+  rejects(()->far.triangles());
+  // At the same world offset, dimensions above float spacing still preview.
+  BoxBRep representable=BoxBRep.from(new TransformedBody(
+   new CadKernel.Box("far-wide",1000000000,1000000000,1000000000,256,256,256),
+   new RigidTransform(0,0,0,0,0,0)));
+  check(representable.triangles().length==108,"Representable distant box preview");
+  // Tiny geometry near the origin must not be rejected by an absolute area threshold.
+  BoxBRep tiny=BoxBRep.from(new TransformedBody(
+   new CadKernel.Box("tiny",0,0,0,0.0001,0.0001,0.0001),
+   new RigidTransform(0,0,0,0,0,0)));
+  check(tiny.triangles().length==108,"Small valid box preview");
+
   float[] mesh=solid.triangles();mesh[0]=123456;
   check(solid.triangles()[0]!=123456,"Leaked mutable mesh");
   BoxBRep resized=BoxBRep.from(new TransformedBody(
