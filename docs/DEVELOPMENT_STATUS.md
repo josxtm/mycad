@@ -3,14 +3,15 @@
 ## Base y alcance
 
 - Repositorio exclusivo: `josxtm/mycad`.
-- Base remota: `8340165bacb4feefe7f164226c8ca73d8487342c`, PR #130 integrada.
-- Última etapa integrada: identidades de origen para sólidos escalonados.
-- [android.yml #590](https://github.com/josxtm/mycad/actions/runs/40719663983): correcto, incluida APK del hito anterior.
+- Base remota: `3c3c09b9189ffa69a4e6688f5dbb89c68fbe4e37`, PR #131 integrada.
+- Última etapa integrada: identidades con agujeros pasantes y varios componentes.
+- [android.yml #592](https://github.com/josxtm/mycad/actions/runs/40724016163): correcto.
+- El hito anterior #590 conserva su APK; esta continuación requiere su propio CI.
 - Las PR #80/#86 permanecen en borrador, sin fusionar.
 
-## Fase A actual: identidades con agujeros y varios componentes
+## Fase A actual: referencias tipadas y reconciliación de topología
 
-Rama: `feature/cad-named-hole-topology`.
+Rama: `feature/cad-topology-reference-reconciliation`.
 
 `NamedGridHoleBody` asigna nombres persistentes a vértices, aristas y caras de
 booleanas ortogonales de igual altura, incluidos agujeros pasantes y varios
@@ -34,13 +35,34 @@ Los cambios topológicos pueden eliminar nombres y crear otros: no se transfiere
 por proximidad a entidades diferentes. La versión geométrica sigue separada de
 la identidad y no autoriza reutilizar impactos de rayos/triángulos anteriores.
 
+`TopologySnapshot` indexa vértices, aristas y caras con tipo, propietario e identidad,
+y calcula una versión geométrica SHA-256 que incluye los datos analíticos exactos.
+Cubre cuerpos escalonados, grids con agujeros, prismas poligonales de líneas y
+primitivas de caja/cilindro. El cilindro tiene dos bordes circulares y tres caras;
+no se agregan vértices artificiales de costura o de teselación.
+
+Las referencias pueden restaurarse como descriptores, pero se resuelven después:
+`resolveExact` exige la misma versión geométrica y `resolvePersistent` requiere
+una decisión explícita de vincular la misma identidad al estado actual. Ninguno
+permite reutilizar un rayo o índice GPU de una generación anterior.
+
+`TopologyReconciliation` informa por tipo qué entidades se conservan, se crean o
+se eliminan. Solo vuelve a vincular referencias de su snapshot anterior exacto.
+El visor publica todos sus índices tras validar la escena completa y conserva el
+último cambio para los inspectores. Elimina los registros de cuerpos borrados.
+Un fallo de geometría no publica índices parciales ni altera JSON/undo.
+
 ## Verificación de esta revisión
 
 - Integridad y suite geométrica completa de android.yml: superadas localmente.
 - Motor: planos XY/XZ/YZ, ambos signos, agujero → apertura lateral, componentes
   independientes, edición dimensional, versiones obsoletas y compatibilidad v1.
-- Java SDK 35 con nivel de lenguaje y bytecode Java 8 y 40 pruebas Robolectric/IO:
-  comprobación local alineada con Android.
+- Java SDK 35, lenguaje/bytecode Java 8 y 43 pruebas Robolectric/IO: superadas.
+- Regresiones de reconciliación: agujero → apertura lateral mediante el diálogo
+  real de editar perfil, undo, referencias creadas/eliminadas, tipo incorrecto,
+  otro propietario, versión anterior, cilindros y prismas no ortogonales.
+- Cambios analíticos menores que la precisión float de la malla también cambian
+  la versión del índice. Las colecciones y los descriptores son inmutables.
 - Gradle local sigue restringido por sockets del daemon; compilación Android y
   Lint obligatorios se verifican en la PR de esta rama antes de fusionar.
 - El documento se publica con el código antes de CI. Consultar el SHA de la PR
@@ -48,20 +70,18 @@ la identidad y no autoriza reutilizar impactos de rayos/triángulos anteriores.
 - Validación física Android/EGL y rendimiento en dispositivos: pendientes.
   No bloquean las pruebas automáticas ni se consideran realizados.
 
-CI #591 pasó integridad/geometría y detectó un uso de `var` en una prueba Android.
-Se sustituyó por el tipo explícito; la compilación local ahora también usa
-`-source 8 -target 8`. La corrección requiere su nuevo CI, sin desactivar pruebas.
+El error Java 8 de #591 quedó corregido y verificado por #592 antes de integrar
+#131. La comprobación local usa `-source 8 -target 8`; no se desactivaron pruebas.
 
 ## Próximas tareas y límites
 
-1. Reconciliar explícitamente entidades conservadas, creadas y eliminadas.
-2. Ofrecer referencias tipadas que distingan identidad persistente y versión
-   geométrica, también para prismas poligonales y primitivas analíticas.
-3. Ampliar el nombrado a las rutas restantes, especialmente resultados de perfiles
+1. Ampliar el nombrado a las rutas restantes, especialmente resultados de perfiles
    no ortogonales, antes de declarar completada la fase A por software.
-4. Después continuar operaciones CAD del motor con regeneración transaccional.
+2. Usar incidencias de aristas fuente para nombrar vértices nuevos de intersecciones,
+   sin transferencias por proximidad a entidades distintas.
+3. Después continuar operaciones CAD del motor con regeneración transaccional.
 
-Fase A estimada en 80 %: aún parcial. Las caras de esta nueva familia son quads
+Fase A estimada en 85 %: aún parcial. Las caras de esta nueva familia son quads
 del complejo celular, sin agrupación en parches coplanares ni selección interactiva
 de todos sus bordes. No se atribuye soporte general de NURBS o cambios topológicos
 arbitrarios. Se conservan bocetos, cotas, extrusión, ViewCube, navegación, edición,
@@ -72,7 +92,7 @@ undo/redo, guardar/abrir e intercambio existente.
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-named-hole-topology
+git switch feature/cad-topology-reference-reconciliation
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
@@ -83,7 +103,7 @@ JDK 17, Gradle 8.9 y SDK Android 35. Si la PR ya fue integrada, crear una nueva
 rama desde origin/main y leer este estado antes de modificar código. No rebasar,
 forzar ramas compartidas ni modificar main directamente.
 
-En este entorno el checkout recuperable es `/workspace/mycad-hole-identities`.
+En este entorno el checkout recuperable es `/workspace/mycad-topology-references`.
 Git por terminal no tiene acceso de red; la publicación usa el conector GitHub,
-con padre remoto `8340165`. Los ancestros de materialización local no se publican.
+con padre remoto `3c3c09b`. Los ancestros de materialización local no se publican.
 La historia remota de la rama es la referencia para reanudar en un entorno normal.

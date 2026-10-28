@@ -211,6 +211,8 @@ jobs:
           java -cp build/geometry-tests SketchPushPullSessionTest
           javac -cp build/geometry-tests -sourcepath app/src/main/java -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SteppedBoundaryEdgePicker.java tests/SteppedBoundaryEdgePickerTest.java
           java -cp build/geometry-tests SteppedBoundaryEdgePickerTest
+          javac -cp build/geometry-tests -sourcepath app/src/main/java -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/TopologySnapshot.java app/src/main/java/es/josxtm/mycad/cad/TopologyReconciliation.java tests/TopologyReferenceTest.java
+          java -cp build/geometry-tests TopologyReferenceTest
           } 2>&1 | tee reports/geometria.log
       # CI habitual valida Java, tests Android y Lint, SIN generar un APK.
       - name: Compilar código y comprobar pruebas y Lint (sin APK)

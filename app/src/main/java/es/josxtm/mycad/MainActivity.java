@@ -45,6 +45,8 @@ public class MainActivity extends Activity {
  java.util.List<GridStoredBinding> renderedGridBindings=java.util.Collections.emptyList();
  GridStoredBinding activeGridBinding;
  String activeGridFaceId;
+ java.util.Map<String,es.josxtm.mycad.cad.TopologySnapshot> topologySnapshots=java.util.Collections.emptyMap();
+ java.util.Map<String,es.josxtm.mycad.cad.TopologyReconciliation> topologyChanges=java.util.Collections.emptyMap();
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);rootLayout=root;root.setBackgroundColor(Color.rgb(18,25,36));
@@ -2400,7 +2402,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     "Longitud: %.3f mm\nInicio XYZ: %.3f, %.3f, %.3f\nFin XYZ: %.3f, %.3f, %.3f\n"+
     "Parche: %d · adyacente: %d\nReceta: %s\nArista persistente: %s\nReferencia geométrica: %s",
     edge.length,p[0],p[1],p[2],p[3],p[4],p[5],edge.patchIndex+1,
-    edge.adjacentPatchIndex+1,binding.recipe.id,binding.identity.edgeId(edge.edgeId),edge.edgeId))
+    edge.adjacentPatchIndex+1,binding.recipe.id,binding.identity.edgeId(edge.edgeId),edge.edgeId)+topologyChangeSummary(binding.recipe.id))
    .setPositiveButton("Cerrar",null).show();
  }
  void inspectSelectedSteppedFace(){
@@ -2410,7 +2412,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    .setMessage(String.format(java.util.Locale.US,
     "Área: %.3f mm²\nBordes interiores: %d\nReceta: %s\nCara persistente: %s\nVersión geométrica: %s",
     activeSteppedPatch.patch.area,activeSteppedPatch.patch.holeCount,binding.identity.bodyId,
-    binding.identity.patchId(activeSteppedPatch.patch),binding.identity.shell.id()))
+    binding.identity.patchId(activeSteppedPatch.patch),binding.identity.shell.id())+topologyChangeSummary(binding.recipe.id))
    .setPositiveButton("Cerrar",null).show();
  }
  double steppedTouchTolerance(es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit hit,
@@ -2460,7 +2462,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     "Área: %.3f mm²\nCara persistente: %s\nReceta: %s\nVersión geométrica: %s\n"+
     "Caras quad: %d · aristas: %d · vértices: %d",
     face.area,activeGridFaceId,binding.identity.bodyId,binding.identity.shell.id,
-    binding.identity.shell.faces().size(),binding.identity.shell.edges().size(),binding.identity.shell.vertices().size()))
+    binding.identity.shell.faces().size(),binding.identity.shell.edges().size(),binding.identity.shell.vertices().size())+topologyChangeSummary(binding.recipe.id))
    .setPositiveButton("Cerrar",null).show();
  }
  void showGpuSurfaceSelection(int triangle,double x,double y,double z,
@@ -3586,6 +3588,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   java.util.ArrayList<MeshEngine.Mesh> meshes=new java.util.ArrayList<>();
   java.util.ArrayList<SteppedStoredBinding> bindings=new java.util.ArrayList<>();
   java.util.ArrayList<GridStoredBinding> grids=new java.util.ArrayList<>();
+  java.util.Map<String,es.josxtm.mycad.cad.TopologySnapshot> snapshots=new java.util.LinkedHashMap<>();
   int first=0;
   if(importedMesh!=null){meshes.add(importedMesh);first+=importedMesh.triangles();}
   java.util.Map<String,es.josxtm.mycad.cad.LoopExtrusionFeature> sources=
@@ -3607,6 +3610,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
      throw new IllegalArgumentException("La malla B-Rep está obsoleta; reconstruye el resultado");
     rendered=new MeshEngine.Mesh(shell);
     bindings.add(new SteppedStoredBinding(i,first,stored,rendered,recipe,identity));
+    addTopologySnapshot(snapshots,es.josxtm.mycad.cad.TopologySnapshot.from(identity));
    }else if(recipe!=null&&recipe.isGridHole()){
     java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=new java.util.LinkedHashMap<>();
     es.josxtm.mycad.cad.LoopExtrusionFeature a=sources.get(recipe.firstId),b=sources.get(recipe.secondId);
@@ -3616,14 +3620,51 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     if(!java.util.Arrays.equals(identity.shell.triangles(),stored.vertices))
      throw new IllegalArgumentException("La malla B-Rep con agujeros está obsoleta");
     grids.add(new GridStoredBinding(i,first,stored,recipe,identity));
+    addTopologySnapshot(snapshots,es.josxtm.mycad.cad.TopologySnapshot.from(identity));
+   }else if(i<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(i)!=null){
+    es.josxtm.mycad.cad.LoopExtrusionFeature feature=loopExtrusionFeatures.get(i);
+    es.josxtm.mycad.cad.PolygonPrismBRep polygon=feature.asBRep(loopSketchSegments(feature,null,0,0,0,0));
+    if(!java.util.Arrays.equals(polygon.triangles(),stored.vertices))
+     throw new IllegalArgumentException("La malla del perfil vinculado está obsoleta");
+    addTopologySnapshot(snapshots,es.josxtm.mycad.cad.TopologySnapshot.from(polygon));
    }
    meshes.add(rendered);first+=stored.triangles();
   }
   meshes.add(new MeshEngine.Mesh(java.util.Arrays.copyOfRange(
    composed.vertices,first*9,composed.vertices.length)));
+  for(Part part:parts)addTopologySnapshot(snapshots,
+   es.josxtm.mycad.cad.TopologySnapshot.from(analyticBody(part)));
+  publishTopologySnapshots(snapshots);
   renderedSteppedBindings=java.util.Collections.unmodifiableList(bindings);
   renderedGridBindings=java.util.Collections.unmodifiableList(grids);
   return meshes;
+ }
+ void addTopologySnapshot(java.util.Map<String,es.josxtm.mycad.cad.TopologySnapshot> snapshots,
+     es.josxtm.mycad.cad.TopologySnapshot snapshot){
+  if(snapshots.put(snapshot.bodyId,snapshot)!=null)
+   throw new IllegalArgumentException("UUID de cuerpo B-Rep duplicado");
+ }
+ /** Publish only after all geometry/index construction succeeds. Metadata never changes JSON/undo. */
+ void publishTopologySnapshots(java.util.Map<String,es.josxtm.mycad.cad.TopologySnapshot> proposed){
+  java.util.Map<String,es.josxtm.mycad.cad.TopologyReconciliation> changes=new java.util.LinkedHashMap<>(topologyChanges);
+  java.util.Map<String,es.josxtm.mycad.cad.TopologySnapshot> next=new java.util.LinkedHashMap<>();
+  for(es.josxtm.mycad.cad.TopologySnapshot current:proposed.values()){
+   es.josxtm.mycad.cad.TopologySnapshot previous=topologySnapshots.get(current.bodyId);
+   if(previous!=null&&previous.geometryVersion.equals(current.geometryVersion))current=previous;
+   else if(previous!=null)changes.put(current.bodyId,
+    es.josxtm.mycad.cad.TopologyReconciliation.between(previous,current));
+   next.put(current.bodyId,current);
+  }
+  changes.keySet().retainAll(next.keySet());
+  topologySnapshots=java.util.Collections.unmodifiableMap(next);
+  topologyChanges=java.util.Collections.unmodifiableMap(changes);
+ }
+ String topologyChangeSummary(String bodyId){
+  es.josxtm.mycad.cad.TopologyReconciliation change=topologyChanges.get(bodyId);
+  if(change==null)return "\nSin una regeneración anterior comparada.";
+  es.josxtm.mycad.cad.TopologyReconciliation.Change faces=change.change(es.josxtm.mycad.cad.TopologySnapshot.Kind.FACE);
+  return "\nÚltima regeneración · caras quad conservadas: "+faces.retained.size()+
+   ", creadas: "+faces.created.size()+", eliminadas: "+faces.removed.size();
  }
  /**
   * Put a functional 3x3 ViewCube ON TOP of the actual OpenGL viewport, rather
