@@ -17,6 +17,18 @@ public final class SurfaceTapPolicyTest {
    for(boolean legacy:new boolean[]{false,true})
     check(SurfaceTapPolicy.shouldPick(true,ray,legacy),false,
       "Camera movement cannot dispatch an unwanted hit");
+  check(SurfaceTapPolicy.shouldPick(false,false,false,true),true,
+    "Stepped B-Rep callback alone receives short taps");
+  check(SurfaceTapPolicy.shouldPick(false,false,false,false),false,
+    "No callback in the new API does not hit test");
+  for(boolean ray:new boolean[]{false,true})
+   for(boolean legacy:new boolean[]{false,true})
+    for(boolean stepped:new boolean[]{false,true}){
+     check(SurfaceTapPolicy.shouldPick(false,ray,legacy,stepped),
+       ray||legacy||stepped,"Every callback combination on short tap");
+     check(SurfaceTapPolicy.shouldPick(true,ray,legacy,stepped),false,
+       "Orbit and drag suppress all callback combinations");
+    }
   System.out.println("SurfaceTapPolicyTest: OK");
  }
 }
