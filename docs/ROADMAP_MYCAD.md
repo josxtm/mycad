@@ -482,3 +482,14 @@ resultados cóncavos generales ni todas las familias curvas.
 - Aproximación de temas: 95 %, pendiente validación física/EGL, memoria y ergonomía en los dos dispositivos de referencia.
 - Siguiente motor B-Rep: UUID repetibles en el puente paramétrico orientativo; problema detectado durante las pruebas y reservado a otra PR.
 - No se fusionan #80/#86/#136 ni se modifica la rama de #146. Fusión de la sucesora solo con CI final verde y sin bloqueos.
+
+## Puente paramétrico: identidades estables tras integrar temas
+
+- PR #150 integrada con CI #631 verde; main `5c815ff`, hito #632 correcto con APK myCad0.6.1. #146 cerrada como sustituida, rama original conservada.
+- Rama `feature/cad-stable-parametric-preview`: IDs explícitos, canónicos y transaccionales para rectángulos/extrusiones del documento paramétrico.
+- La sonda usa UUID de propietarios Android y deriva operaciones de ellos. Serialización completa repetible, incluso tras reinicio; edición y reordenado conservan identidades.
+- Se mantienen APIs antiguas con fallback determinista por fila para callers sin propietario; no se promete estabilidad de reordenado sin IDs.
+- Duplicados/UUID inválidos/geometría inválida no reemplazan entidades ni crean revisiones parciales. Geometría, poses y formato de snapshot sin cambios.
+- La prueba de aislamiento de temas vuelve a comparar el JSON entero, sin excluir datos diagnósticos. 75 Android/IO, integridad y geometría completas locales; CI obligatorio.
+- PR #149 de otro agente permanece sin fusionar por CI rojo; no se modifica esa rama.
+- Motor global aún parcial; aceptación física/EGL y rendimiento pendientes. No se genera otra APK por esta corrección de metadatos.

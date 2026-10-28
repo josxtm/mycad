@@ -30,12 +30,6 @@ public class AppearanceAndroidTest {
  }
  private AlertDialog latest(){shadowOf(Looper.getMainLooper()).idle();return ShadowAlertDialog.getLatestAlertDialog();}
  private void click(AlertDialog dialog,int which){dialog.getButton(which).performClick();shadowOf(Looper.getMainLooper()).idle();}
- private String cadContent(String text)throws Exception{
-  org.json.JSONObject document=new org.json.JSONObject(text);
-  // Existing advisory integration probes mint temporary UUIDs on every encode.
-  // The saved file is checked byte-for-byte separately; compare all actual CAD data.
-  document.remove("parametricPreview");document.remove("parametricBodyBindings");document.remove("parametricPreviewCoverageComplete");return document.toString();
- }
  @Test public void clearIsDefaultAndAllSixThemesSurviveActivityRecreation(){
   assertEquals(0,app.themeIndex);assertFalse(app.darkMode);
   CadAppearance custom=CadAppearance.preset(4).with(ACCENT,0xff8844cc).with(SELECTION,0xffb02070);
@@ -56,12 +50,12 @@ public class AppearanceAndroidTest {
   MainActivity.Part part=app.new Part(false,40,30,10,20);part.y=15;part.sourceSketchId=sketch.id;app.parts.add(part);
   app.save();app.checkpoint();app.toggleMeshView();
   java.util.concurrent.CountDownLatch settled=new java.util.concurrent.CountDownLatch(1);app.meshView.queueEvent(settled::countDown);assertTrue(settled.await(5,java.util.concurrent.TimeUnit.SECONDS));
-  String encoded=cadContent(app.encode()),saved=app.getPreferences(0).getString("design",null);
+  String encoded=app.encode(),saved=app.getPreferences(0).getString("design",null);
   float[] triangles=app.currentMesh().vertices.clone();long revision=app.meshView.sceneRevision();float distance=app.meshView.cameraDistance();
   Object topology=app.topologySnapshots;int undo=app.undo.size(),redo=app.redo.size();
   for(int index=0;index<6;index++){
    app.selectAppearance(index,CadAppearance.preset(4));assertSame(part,app.parts.get(0));assertSame(sketch,app.sketches.get(0));
-   assertEquals(encoded,cadContent(app.encode()));assertEquals(saved,app.getPreferences(0).getString("design",null));
+   assertEquals(encoded,app.encode());assertEquals(saved,app.getPreferences(0).getString("design",null));
    assertArrayEquals(triangles,app.currentMesh().vertices,0);assertEquals(undo,app.undo.size());assertEquals(redo,app.redo.size());
    assertEquals(revision,app.meshView.sceneRevision());assertEquals(distance,app.meshView.cameraDistance(),0);assertSame(topology,app.topologySnapshots);
    assertSame(app.appearance,app.meshView.appearance());
