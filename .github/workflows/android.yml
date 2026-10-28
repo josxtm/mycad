@@ -120,6 +120,8 @@ jobs:
           java -cp build/geometry-tests SteppedSceneRayPickerTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SteppedViewportRayPicker.java tests/SteppedViewportRayPickerTest.java
           java -cp build/geometry-tests SteppedViewportRayPickerTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ViewportMeshRayPicker.java tests/ViewportMeshRayPickerTest.java
+          java -cp build/geometry-tests ViewportMeshRayPickerTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedConvexIntersectionTest.java tests/LinkedAnalyticBooleanTest.java
           java -cp build/geometry-tests LinkedConvexIntersectionTest
           java -cp build/geometry-tests LinkedAnalyticBooleanTest

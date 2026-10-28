@@ -385,37 +385,39 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   return true;
  }
  private void pickSurfaceAt(float sx,float sy){
-  if(getWidth()<=0||getHeight()<=0||meshes.isEmpty())return;
+  int width=getWidth(),height=getHeight();
+  if(width<=0||height<=0||meshes.isEmpty())return;
+  // Use the same near/far-clipped world ray as the analytic stepped B-Rep
+  // picker. Keep triangle indices and callbacks unchanged for older tools.
   double a=Math.toRadians(yaw),b=Math.toRadians(pitch);
-  float[] camera=new float[16],combined=new float[16],inverse=new float[16];
+  float[] camera=new float[16],combined=new float[16];
   Matrix.setLookAtM(camera,0,centerX+(float)(distance*Math.cos(b)*Math.cos(a)),
    centerY+(float)(distance*Math.cos(b)*Math.sin(a)),centerZ+(float)(distance*Math.sin(b)),
    centerX,centerY,centerZ,0,0,1);
   Matrix.multiplyMM(combined,0,projection,0,camera,0);
-  if(!Matrix.invertM(inverse,0,combined,0))return;
-  float nx=2*sx/getWidth()-1,ny=1-2*sy/getHeight();
-  float[] near={nx,ny,-1,1},far={nx,ny,1,1},p=new float[4],q=new float[4];
-  Matrix.multiplyMV(p,0,inverse,0,near,0);Matrix.multiplyMV(q,0,inverse,0,far,0);
-  if(Math.abs(p[3])<1e-8||Math.abs(q[3])<1e-8)return;
-  for(int j=0;j<3;j++){p[j]/=p[3];q[j]/=q[3];}
-  double dx=q[0]-p[0],dy=q[1]-p[1],dz=q[2]-p[2];
-  es.josxtm.mycad.cad.CadRayPicker.Hit chosen=null;int offset=0,chosenIndex=-1;
-  for(Mesh mesh:meshes){
-   es.josxtm.mycad.cad.CadRayPicker.Hit hit=
-    mesh.rayIndex().pick(p[0],p[1],p[2],dx,dy,dz);
-   if(hit!=null&&(chosen==null||hit.distance<chosen.distance)){chosen=hit;chosenIndex=offset+hit.triangle;}
-   offset+=mesh.triangles();
-  }
-  if(chosen!=null){
-   final int triangle=chosenIndex;final double x=chosen.x,y=chosen.y,z=chosen.z;
-   final double ox=p[0],oy=p[1],oz=p[2];
-   post(()->{
-    if(surfaceRayListener!=null)
-     surfaceRayListener.onSurfaceRay(triangle,x,y,z,ox,oy,oz,dx,dy,dz);
-    else if(surfaceTapListener!=null)
-     surfaceTapListener.onSurfaceTap(triangle,x,y,z);
-   });
-  }
+  double[] viewProjection=new double[16];
+  for(int i=0;i<16;i++)viewProjection[i]=combined[i];
+  ArrayList<es.josxtm.mycad.cad.ViewportMeshRayPicker.Candidate> candidates=
+   new ArrayList<>();
+  for(Mesh mesh:meshes)candidates.add(
+   new es.josxtm.mycad.cad.ViewportMeshRayPicker.Candidate(
+    mesh.rayIndex(),mesh.triangles()));
+  es.josxtm.mycad.cad.ViewportMeshRayPicker.Hit chosen;
+  try{
+   chosen=es.josxtm.mycad.cad.ViewportMeshRayPicker.pick(
+    candidates,viewProjection,width,height,sx,sy);
+  }catch(IllegalArgumentException invalidViewport){return;}
+  if(chosen==null)return;
+  final int triangle=chosen.triangle;
+  final double x=chosen.x,y=chosen.y,z=chosen.z;
+  final double ox=chosen.ox,oy=chosen.oy,oz=chosen.oz;
+  final double dx=chosen.dx,dy=chosen.dy,dz=chosen.dz;
+  post(()->{
+   if(surfaceRayListener!=null)
+    surfaceRayListener.onSurfaceRay(triangle,x,y,z,ox,oy,oz,dx,dy,dz);
+   else if(surfaceTapListener!=null)
+    surfaceTapListener.onSurfaceTap(triangle,x,y,z);
+  });
  }
  private void fitCamera(){float[] bounds={Float.MAX_VALUE,Float.MAX_VALUE,Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE};
   for(Mesh m:meshes)for(int i=0;i<m.vertices.length;i+=3)for(int k=0;k<3;k++){float v=m.vertices[i+k];bounds[k]=Math.min(bounds[k],v);bounds[k+3]=Math.max(bounds[k+3],v);}
