@@ -13,7 +13,18 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  public static final class Mesh {
   public final float[] vertices; // xyz triangles
   private es.josxtm.mycad.cad.MeshRayIndex pickIndex;
-  public Mesh(float[] v){if(v==null||v.length%9!=0)throw new IllegalArgumentException("Triangle data required");vertices=v;}
+  /** Optional analytic shell, present only for exact regenerated preview meshes. */
+  public final es.josxtm.mycad.cad.VariableHeightOrthogonalBRep steppedShell;
+  public Mesh(float[] v){this(v,null);}
+  public Mesh(es.josxtm.mycad.cad.VariableHeightOrthogonalBRep shell){
+   this(shell==null?null:shell.triangles(),shell);
+  }
+  private Mesh(float[] v,es.josxtm.mycad.cad.VariableHeightOrthogonalBRep shell){
+   if(v==null||v.length%9!=0)throw new IllegalArgumentException("Triangle data required");
+   if(shell!=null&&!Arrays.equals(v,shell.triangles()))
+    throw new IllegalArgumentException("Stepped shell does not match mesh");
+   vertices=v;steppedShell=shell;
+  }
   public int triangles(){return vertices.length/9;}
   /** Lazy GL-thread ray broad phase: built once per immutable mesh instance. */
   public es.josxtm.mycad.cad.MeshRayIndex rayIndex(){
@@ -22,6 +33,23 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   }
  }
  private final List<Mesh> meshes=new ArrayList<>();
+ /** GL-thread ownership map; invalidated on every scene/preview replacement. */
+ private es.josxtm.mycad.cad.SteppedScenePatchRegistry steppedPatches=
+  es.josxtm.mycad.cad.SteppedScenePatchRegistry.register(
+   Collections.<float[]>emptyList(),
+   Collections.<es.josxtm.mycad.cad.SteppedScenePatchRegistry.Binding>emptyList());
+ private void rebuildSteppedPatches(){
+  ArrayList<float[]> rendered=new ArrayList<>();
+  ArrayList<es.josxtm.mycad.cad.SteppedScenePatchRegistry.Binding> bindings=
+   new ArrayList<>();
+  for(int i=0;i<meshes.size();i++){
+   Mesh mesh=meshes.get(i);
+   rendered.add(mesh.vertices);
+   if(mesh.steppedShell!=null)bindings.add(
+    new es.josxtm.mycad.cad.SteppedScenePatchRegistry.Binding(i,mesh.steppedShell));
+  }
+  steppedPatches=es.josxtm.mycad.cad.SteppedScenePatchRegistry.register(rendered,bindings);
+ }
  /** Renderer-thread cache: reused across orbit/zoom frames; discarded on scene change. */
  private final es.josxtm.mycad.cad.FloatVertexBufferCache gpuTriangles=
   new es.josxtm.mycad.cad.FloatVertexBufferCache();
@@ -133,6 +161,11 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  }
  private SurfaceTapListener surfaceTapListener;
  private SurfaceRayListener surfaceRayListener;
+ /** Additive opt-in callback: existing surface ray/tap tools still receive hits. */
+ public interface SteppedPatchTapListener {
+  void onSteppedPatchTap(es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit hit);
+ }
+ private volatile SteppedPatchTapListener steppedPatchTapListener;
  /** Notify the Canvas ViewCube after a gesture changes GPU camera heading. */
  public interface CameraOrientationListener {
   void onCameraOrientation(float yawDegrees,float pitchDegrees);
@@ -153,6 +186,9 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  }
  public void setSurfaceTapListener(SurfaceTapListener listener){surfaceTapListener=listener;}
  public void setSurfaceRayListener(SurfaceRayListener listener){surfaceRayListener=listener;}
+ public void setSteppedPatchTapListener(SteppedPatchTapListener listener){
+  steppedPatchTapListener=listener;
+ }
  public MeshEngine(Context context){super(context);setEGLContextClientVersion(3);setRenderer(this);setRenderMode(RENDERMODE_WHEN_DIRTY);}
  /** Transient preview: swap geometry on the GL thread without refitting camera. */
  public void previewMesh(Mesh candidate){
@@ -161,6 +197,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   queueEvent(()->{
    gpuTriangles.clear();
    meshes.clear();meshes.add(snapshot);
+   rebuildSteppedPatches();
    highlightedEdgeVertices=null;
    highlightedFirstTriangle=-1;
    requestRender();
@@ -181,6 +218,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   queueEvent(()->{
    gpuTriangles.clear();
    meshes.clear();meshes.addAll(copy);
+   rebuildSteppedPatches();
    highlightedEdgeVertices=null;
    boolean hasTriangles=false;
    for(Mesh item:meshes)if(item.vertices.length>0){hasTriangles=true;break;}
@@ -412,7 +450,11 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   final double x=chosen.x,y=chosen.y,z=chosen.z;
   final double ox=chosen.ox,oy=chosen.oy,oz=chosen.oz;
   final double dx=chosen.dx,dy=chosen.dy,dz=chosen.dz;
+  final es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit patch=
+   steppedPatchTapListener==null?null:steppedPatches.resolve(chosen);
   post(()->{
+   if(patch!=null&&steppedPatchTapListener!=null)
+    steppedPatchTapListener.onSteppedPatchTap(patch);
    if(surfaceRayListener!=null)
     surfaceRayListener.onSurfaceRay(triangle,x,y,z,ox,oy,oz,dx,dy,dz);
    else if(surfaceTapListener!=null)
