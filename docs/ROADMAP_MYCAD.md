@@ -371,3 +371,23 @@ reutilizan rayos ni triángulos antiguos aunque siga existiendo la misma entidad
 Inspectores Android conectados y reconstrucción determinista tras guardar/abrir,
 sin cambiar el formato JSON. Regresiones de motor y 36 pruebas Android/IO locales.
 Fase A estimada en 75 %; identidad general, rendimiento y hardware siguen pendientes.
+
+### Continuación — agujeros pasantes y componentes independientes
+
+Base `8340165` (#130), CI [#590](https://github.com/josxtm/mycad/actions/runs/40719663983)
+correcto. `NamedGridHoleBody` amplía las identidades de origen a las operaciones
+ortogonales con agujeros pasantes y resultados desconectados. `SourceTopologyNames`
+comparte el nombrado sin cambiar los identificadores escalonados publicados: una
+regresión congela su SHA-256 sobre doce fixtures de la versión anterior.
+
+El visor reconoce las caras quad de estos resultados, incluidos los de vista
+aislada; su inspector muestra área, identidad persistente y versión geométrica.
+Se verifica que registro, malla persistida y receta coincidan antes de seleccionar.
+No cambia el JSON, la teselación ni el orden global de triángulos de exportación.
+Las caras aún son celdas quad; no se anuncian como parches coplanares agrupados.
+
+Pruebas: tres planos y ambos signos, agujero → apertura lateral, dos componentes,
+dimensiones editadas, compatibilidad de nombres, guardado/apertura, índices,
+oclusión y rechazo de geometría obsoleta. Aceptación física pendiente y separada.
+Siguiente paso: reconciliación tipada de entidades conservadas, creadas y eliminadas
+durante cambios de topología. Fase A estimada en 80 %, todavía parcial.

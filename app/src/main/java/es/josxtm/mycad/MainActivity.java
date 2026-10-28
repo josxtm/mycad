@@ -31,6 +31,20 @@ public class MainActivity extends Activity {
  es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit pendingSteppedTap,activeSteppedPatch;
  String activeSteppedRecipeId=null;
  es.josxtm.mycad.cad.SteppedBoundaryEdgePicker.Hit activeSteppedEdge;
+ static final class GridStoredBinding {
+  final int index,firstTriangle;
+  final MeshEngine.Mesh stored;
+  final es.josxtm.mycad.cad.LinkedConvexIntersection recipe;
+  final es.josxtm.mycad.cad.NamedGridHoleBody identity;
+  GridStoredBinding(int index,int first,MeshEngine.Mesh stored,
+      es.josxtm.mycad.cad.LinkedConvexIntersection recipe,
+      es.josxtm.mycad.cad.NamedGridHoleBody identity){
+   this.index=index;firstTriangle=first;this.stored=stored;this.recipe=recipe;this.identity=identity;
+  }
+ }
+ java.util.List<GridStoredBinding> renderedGridBindings=java.util.Collections.emptyList();
+ GridStoredBinding activeGridBinding;
+ String activeGridFaceId;
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);rootLayout=root;root.setBackgroundColor(Color.rgb(18,25,36));
@@ -890,14 +904,25 @@ public class MainActivity extends Activity {
   MeshEngine.Mesh display=mesh;
   int storedIndex=booleanMeshes.indexOf(mesh);
   if(storedIndex>=0&&storedIndex<intersectionRecipes.size()&&
-     intersectionRecipes.get(storedIndex)!=null&&intersectionRecipes.get(storedIndex).isStepped()){
+     intersectionRecipes.get(storedIndex)!=null&&
+     (intersectionRecipes.get(storedIndex).isStepped()||intersectionRecipes.get(storedIndex).isGridHole())){
    currentSceneMeshes();
    for(SteppedStoredBinding binding:renderedSteppedBindings)if(binding.index==storedIndex){
     display=binding.rendered;
     renderedSteppedBindings=java.util.Collections.singletonList(new SteppedStoredBinding(
      storedIndex,0,binding.stored,binding.rendered,binding.recipe,binding.identity));break;
    }
-  }else renderedSteppedBindings=java.util.Collections.emptyList();
+   if(intersectionRecipes.get(storedIndex).isGridHole()){
+    for(GridStoredBinding binding:renderedGridBindings)if(binding.index==storedIndex){
+     renderedGridBindings=java.util.Collections.singletonList(new GridStoredBinding(
+      storedIndex,0,binding.stored,binding.recipe,binding.identity));break;
+    }
+    renderedSteppedBindings=java.util.Collections.emptyList();
+   }else renderedGridBindings=java.util.Collections.emptyList();
+  }else{
+   renderedSteppedBindings=java.util.Collections.emptyList();
+   renderedGridBindings=java.util.Collections.emptyList();
+  }
   meshMode=true;meshView.setVisibility(View.VISIBLE);
   meshPanel.setVisibility(View.VISIBLE);
   isolatedMeshPreview=true;activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
@@ -1690,6 +1715,7 @@ public class MainActivity extends Activity {
    }).setNegativeButton("Cancelar",null).show();
  }
  void inspectSelectedFaces(){
+  if(activeGridBinding!=null){inspectSelectedGridFace();return;}
   if(activeSteppedPatch!=null){inspectSelectedSteppedFace();return;}
   if(selected<0||selected>=parts.size()){toast("Selecciona primero un cuerpo");return;}
   Part p=parts.get(selected);
@@ -2166,8 +2192,10 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   selectedStoredMeshIndex=-1;selectedStoredMeshObject=null;selectedPolygonFaceId=null;
   activeSteppedPatch=null;activeSteppedRecipeId=null;pendingSteppedTap=null;
   activeSteppedEdge=null;
+  activeGridBinding=null;activeGridFaceId=null;
  }
  boolean selectStoredMeshByTriangle(int triangle,double x,double y,double z){
+  activeGridBinding=null;activeGridFaceId=null;
   activeSteppedPatch=null;activeSteppedRecipeId=null;
   activeSteppedEdge=null;
   int[] sizes=new int[booleanMeshes.size()];
@@ -2192,6 +2220,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   }
   int index=hit.meshIndex;
   MeshEngine.Mesh actual=booleanMeshes.get(index);
+  for(GridStoredBinding binding:renderedGridBindings)if(binding.index==index)
+   return selectGridFace(binding,hit.localTriangle);
   boolean linked=index<loopExtrusionFeatures.size()&&
                  loopExtrusionFeatures.get(index)!=null;
   String faceId=null;
@@ -2286,6 +2316,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     java.util.Objects.equals(activeSteppedEdge==null?null:activeSteppedEdge.edgeId,
      boundary==null?null:boundary.edgeId);
    selected=-1;selectedSketch=-1;
+   activeGridBinding=null;activeGridFaceId=null;
    activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
    activeExactFaceHit=null;activeExactEdgeHit=null;
    selectedStoredMeshIndex=index;selectedStoredMeshObject=binding.stored;
@@ -2393,6 +2424,45 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   return .05;
  }
 
+ boolean currentGridBinding(GridStoredBinding binding){
+  int i=binding.index;
+  return i<booleanMeshes.size()&&i<intersectionRecipes.size()&&
+   booleanMeshes.get(i)==binding.stored&&intersectionRecipes.get(i)==binding.recipe&&
+   java.util.Arrays.equals(binding.stored.vertices,binding.identity.shell.triangles());
+ }
+ boolean selectGridFace(GridStoredBinding binding,int triangle){
+  if(!currentGridBinding(binding))return false;
+  es.josxtm.mycad.cad.OrthogonalGridHoleBRep.Face face=binding.identity.faceAtTriangle(triangle);
+  if(face==null)return false;
+  String id=binding.identity.faceId(face.id);
+  boolean repeated=selectedStoredMeshObject==binding.stored&&id.equals(selectedPolygonFaceId);
+  clearStoredMeshSelection();
+  activeGridBinding=binding;activeGridFaceId=id;
+  selectedStoredMeshIndex=binding.index;selectedStoredMeshObject=binding.stored;selectedPolygonFaceId=id;
+  selected=-1;selectedSketch=-1;activeCadFace=null;activeCylinderFaceId=null;
+  activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
+  if(meshView!=null){meshView.highlightEdge(null);meshView.highlightFace(binding.firstTriangle+triangle-triangle%2);}
+  info.setText(String.format(java.util.Locale.US,
+   "Malla %d · cara B-Rep · área %.2f mm² · %d sólido(s) · %d agujero(s)",
+   binding.index+1,face.area,binding.identity.shell.solidCount,binding.identity.shell.holeCount));
+  scene.invalidate();
+  if(repeated)showStoredMeshTouchActions(binding.index,binding.stored,null);
+  return true;
+ }
+ void inspectSelectedGridFace(){
+  GridStoredBinding binding=activeGridBinding;
+  if(binding==null||!currentGridBinding(binding)||binding.identity.findFace(activeGridFaceId)==null){
+   toast("La cara B-Rep ha cambiado; vuelve a seleccionarla");return;
+  }
+  es.josxtm.mycad.cad.OrthogonalGridHoleBRep.Face face=binding.identity.findFace(activeGridFaceId);
+  new AlertDialog.Builder(this).setTitle("Cara B-Rep · agujeros y componentes")
+   .setMessage(String.format(java.util.Locale.US,
+    "Área: %.3f mm²\nCara persistente: %s\nReceta: %s\nVersión geométrica: %s\n"+
+    "Caras quad: %d · aristas: %d · vértices: %d",
+    face.area,activeGridFaceId,binding.identity.bodyId,binding.identity.shell.id,
+    binding.identity.shell.faces().size(),binding.identity.shell.edges().size(),binding.identity.shell.vertices().size()))
+   .setPositiveButton("Cerrar",null).show();
+ }
  void showGpuSurfaceSelection(int triangle,double x,double y,double z,
     double ox,double oy,double oz,double dx,double dy,double dz){
   es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit patch=pendingSteppedTap;
@@ -2400,6 +2470,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   activeExactFaceHit=null;activeExactEdgeHit=null;
   if(patch!=null&&patch.globalTriangle==triangle&&
      selectSteppedPatch(patch,steppedTouchTolerance(patch,ox,oy,oz)))return;
+  if(isolatedMeshPreview)for(GridStoredBinding binding:renderedGridBindings)
+   if(selectGridFace(binding,triangle-binding.firstTriangle))return;
   if(isolatedMeshPreview){clearStoredMeshSelection();activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightEdge(null);info.setText("Vista previa · sin selección de piezas");return;}
   if(selectStoredMeshByTriangle(triangle,x,y,z))return;
   boolean handled=false;
@@ -3513,6 +3585,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   MeshEngine.Mesh composed=currentMesh();
   java.util.ArrayList<MeshEngine.Mesh> meshes=new java.util.ArrayList<>();
   java.util.ArrayList<SteppedStoredBinding> bindings=new java.util.ArrayList<>();
+  java.util.ArrayList<GridStoredBinding> grids=new java.util.ArrayList<>();
   int first=0;
   if(importedMesh!=null){meshes.add(importedMesh);first+=importedMesh.triangles();}
   java.util.Map<String,es.josxtm.mycad.cad.LoopExtrusionFeature> sources=
@@ -3534,12 +3607,22 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
      throw new IllegalArgumentException("La malla B-Rep está obsoleta; reconstruye el resultado");
     rendered=new MeshEngine.Mesh(shell);
     bindings.add(new SteppedStoredBinding(i,first,stored,rendered,recipe,identity));
+   }else if(recipe!=null&&recipe.isGridHole()){
+    java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=new java.util.LinkedHashMap<>();
+    es.josxtm.mycad.cad.LoopExtrusionFeature a=sources.get(recipe.firstId),b=sources.get(recipe.secondId);
+    if(a==null||b==null)throw new IllegalArgumentException("Faltan operandos B-Rep con agujeros");
+    lines.putAll(loopSketchSegments(a,null,0,0,0,0));lines.putAll(loopSketchSegments(b,null,0,0,0,0));
+    es.josxtm.mycad.cad.NamedGridHoleBody identity=recipe.regenerateNamedGridHole(sources,lines);
+    if(!java.util.Arrays.equals(identity.shell.triangles(),stored.vertices))
+     throw new IllegalArgumentException("La malla B-Rep con agujeros está obsoleta");
+    grids.add(new GridStoredBinding(i,first,stored,recipe,identity));
    }
    meshes.add(rendered);first+=stored.triangles();
   }
   meshes.add(new MeshEngine.Mesh(java.util.Arrays.copyOfRange(
    composed.vertices,first*9,composed.vertices.length)));
   renderedSteppedBindings=java.util.Collections.unmodifiableList(bindings);
+  renderedGridBindings=java.util.Collections.unmodifiableList(grids);
   return meshes;
  }
  /**
