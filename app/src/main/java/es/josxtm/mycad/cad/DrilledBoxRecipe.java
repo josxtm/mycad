@@ -2,6 +2,7 @@ package es.josxtm.mycad.cad;
 
 /** Editable circular through-hole recipe; legacy Z-axis constructor remains compatible. */
 public final class DrilledBoxRecipe {
+ public final String id;
  public final double x,y,z,width,depth,height,holeX,holeY,diameter;
  public final OrientedThroughHole.Axis axis;
  public final double rotationX,rotationY,rotationZ;
@@ -22,12 +23,21 @@ public final class DrilledBoxRecipe {
                          double holeX,double holeY,double diameter,
                          OrientedThroughHole.Axis axis,double rotationX,double rotationY,double rotationZ,
                          double drillDepth){
-  this(x,y,z,width,depth,height,holeX,holeY,diameter,axis,rotationX,rotationY,rotationZ,drillDepth,"",0);
+  this(java.util.UUID.randomUUID().toString(),x,y,z,width,depth,height,holeX,holeY,diameter,axis,rotationX,rotationY,rotationZ,drillDepth,"",0);
  }
- private DrilledBoxRecipe(double x,double y,double z,double width,double depth,double height,
+ /** Restore a saved recipe without changing its result identity. */
+ public DrilledBoxRecipe(String id,double x,double y,double z,double width,double depth,double height,
+                         double holeX,double holeY,double diameter,OrientedThroughHole.Axis axis,
+                         double rotationX,double rotationY,double rotationZ,double drillDepth){
+  this(id,x,y,z,width,depth,height,holeX,holeY,diameter,axis,rotationX,rotationY,rotationZ,drillDepth,"",0);
+ }
+ private DrilledBoxRecipe(String id,double x,double y,double z,double width,double depth,double height,
                          double holeX,double holeY,double diameter,OrientedThroughHole.Axis axis,
                          double rotationX,double rotationY,double rotationZ,double drillDepth,
                          String sourceSketchId,double sourceHeight){
+  if(id==null||!java.util.UUID.fromString(id).toString().equals(id))
+   throw new IllegalArgumentException("Invalid drilling result UUID");
+  this.id=id;
   if(sourceSketchId==null||(sourceSketchId.isEmpty()&&sourceHeight!=0)||(!sourceSketchId.isEmpty()&&
       (!java.util.UUID.fromString(sourceSketchId).toString().equals(sourceSketchId)||
        !Double.isFinite(sourceHeight)||sourceHeight<=0||sourceHeight>10000)))
@@ -39,17 +49,17 @@ public final class DrilledBoxRecipe {
   regenerate(); // Validate before exposing or saving recipe.
  }
  public DrilledBoxRecipe withHole(double offsetX,double offsetY,double diameter){
-  return new DrilledBoxRecipe(x,y,z,width,depth,height,offsetX,offsetY,diameter,axis,rotationX,rotationY,rotationZ,drillDepth).linkedTo(sourceSketchId,sourceHeight);
+  return new DrilledBoxRecipe(id,x,y,z,width,depth,height,offsetX,offsetY,diameter,axis,rotationX,rotationY,rotationZ,drillDepth,sourceSketchId,sourceHeight);
  }
  public DrilledBoxRecipe withAxis(OrientedThroughHole.Axis next){
-  return new DrilledBoxRecipe(x,y,z,width,depth,height,holeX,holeY,diameter,next,rotationX,rotationY,rotationZ,drillDepth).linkedTo(sourceSketchId,sourceHeight);
+  return new DrilledBoxRecipe(id,x,y,z,width,depth,height,holeX,holeY,diameter,next,rotationX,rotationY,rotationZ,drillDepth,sourceSketchId,sourceHeight);
  }
  public DrilledBoxRecipe withDepth(double newDepth){
-  return new DrilledBoxRecipe(x,y,z,width,depth,height,holeX,holeY,diameter,axis,
-                              rotationX,rotationY,rotationZ,newDepth).linkedTo(sourceSketchId,sourceHeight);
+  return new DrilledBoxRecipe(id,x,y,z,width,depth,height,holeX,holeY,diameter,axis,
+                              rotationX,rotationY,rotationZ,newDepth,sourceSketchId,sourceHeight);
  }
  public DrilledBoxRecipe linkedTo(String id,double extrusionHeight){
-  return new DrilledBoxRecipe(x,y,z,width,depth,height,holeX,holeY,diameter,axis,
+  return new DrilledBoxRecipe(this.id,x,y,z,width,depth,height,holeX,holeY,diameter,axis,
    rotationX,rotationY,rotationZ,drillDepth,id,extrusionHeight);
  }
  public float[] regenerate(){
