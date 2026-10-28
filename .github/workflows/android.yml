@@ -128,11 +128,15 @@ jobs:
           java -cp build/geometry-tests SteppedVisiblePatchBridgeTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SteppedScenePatchRegistry.java tests/SteppedScenePatchRegistryTest.java
           java -cp build/geometry-tests SteppedScenePatchRegistryTest
-          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/NamedSteppedBody.java app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedConvexIntersectionTest.java tests/LinkedAnalyticBooleanTest.java
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SourceTopologyNames.java app/src/main/java/es/josxtm/mycad/cad/NamedGridHoleBody.java app/src/main/java/es/josxtm/mycad/cad/NamedSteppedBody.java app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedConvexIntersectionTest.java tests/LinkedAnalyticBooleanTest.java
           java -cp build/geometry-tests LinkedConvexIntersectionTest
           java -cp build/geometry-tests LinkedAnalyticBooleanTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/NamedSteppedBodyTest.java
           java -cp build/geometry-tests NamedSteppedBodyTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/NamedGridHoleBodyTest.java
+          java -cp build/geometry-tests NamedGridHoleBodyTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/SteppedNamesCompatibilityTest.java
+          java -cp build/geometry-tests SteppedNamesCompatibilityTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedBooleanRegenerationPlan.java tests/LinkedBooleanRegenerationPlanTest.java
           java -cp build/geometry-tests LinkedBooleanRegenerationPlanTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/LinkedSteppedRecipeTest.java

@@ -34,6 +34,21 @@ public final class LinkedConvexIntersection {
  public boolean isStepped(){
   return operation==Operation.UNION_STEPPED||operation==Operation.DIFFERENCE_STEPPED;
  }
+ public boolean isGridHole(){
+  return operation==Operation.UNION_WITH_HOLES||operation==Operation.DIFFERENCE_WITH_HOLES||
+   operation==Operation.INTERSECTION_WITH_HOLES;
+ }
+ public NamedGridHoleBody regenerateNamedGridHole(Map<String,LoopExtrusionFeature> features,
+      Map<String,ClosedSketchExtrusion.Segment> lines){
+  if(!isGridHole()||features==null||lines==null)throw new IllegalArgumentException("Faltan fuentes B-Rep con agujeros");
+  LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
+  if(a==null||b==null||!firstId.equals(a.id)||!secondId.equals(b.id))
+   throw new IllegalArgumentException("Falta un operando B-Rep");
+  return NamedGridHoleBody.apply(id,a.asBRep(lines),b.asBRep(lines),
+   operation==Operation.UNION_WITH_HOLES?OrthogonalPolygonBRepBoolean.Operation.UNION:
+   operation==Operation.DIFFERENCE_WITH_HOLES?OrthogonalPolygonBRepBoolean.Operation.DIFFERENCE:
+    OrthogonalPolygonBRepBoolean.Operation.INTERSECTION);
+ }
  /** Rebuild topology from the same persisted sources as the preview. */
  public VariableHeightOrthogonalBRep regenerateStepped(
     Map<String,LoopExtrusionFeature> features,

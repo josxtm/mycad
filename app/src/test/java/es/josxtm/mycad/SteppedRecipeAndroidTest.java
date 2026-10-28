@@ -234,4 +234,53 @@ public class SteppedRecipeAndroidTest {
    assertNotNull(after.findFace(before.faceId(face.id)));
   assertFalse(app.selectSteppedPatch(oldHit));
  }
+ private LinkedConvexIntersection gridRecipe(){
+  LoopExtrusionFeature a=operand(0,0,8,8,6),b=operand(2,2,6,6,6);
+  LinkedConvexIntersection recipe=new LinkedConvexIntersection(UUID.randomUUID().toString(),a.id,b.id,
+   LinkedConvexIntersection.Operation.DIFFERENCE_WITH_HOLES);
+  Map<String,ClosedSketchExtrusion.Segment> lines=new LinkedHashMap<>(app.loopSketchSegments(a,null,0,0,0,0));
+  lines.putAll(app.loopSketchSegments(b,null,0,0,0,0));
+  app.booleanMeshes.add(new MeshEngine.Mesh(recipe.regenerateTriangles(app.intersectionSourceMap(null),lines)));
+  app.intersectionRecipes.add(recipe);app.loopExtrusionFeatures.add(null);app.unionRecipes.add(null);app.holeRecipes.add(null);
+  return recipe;
+ }
+ @Test public void throughHoleFaceIsSelectedAndInspectedWithPersistentId(){
+  LinkedConvexIntersection owner=gridRecipe();app.showMeshOnly(app.booleanMeshes.get(2));
+  assertEquals(1,app.renderedGridBindings.size());
+  List<MeshEngine.Mesh> single=Collections.singletonList(app.booleanMeshes.get(2));
+  assertNull(visible(single,3,3)); // ray passes through the actual hole
+  ViewportMeshRayPicker.Hit front=visible(single,1,1.5);assertNotNull(front);
+  app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),front,null);
+  assertNotNull(app.activeGridBinding);assertEquals(owner.id,app.activeGridBinding.identity.bodyId);
+  String faceId=app.activeGridFaceId;app.inspectSelectedFaces();
+  assertTrue(shadowOf(ShadowAlertDialog.getLatestAlertDialog()).getMessage().toString().contains(faceId));
+ }
+ @Test public void holeTopologyAndNamesSurviveJsonAndRegenerateWithoutChangingOldFormats() throws Exception {
+  LinkedConvexIntersection owner=gridRecipe();app.currentSceneMeshes();
+  NamedGridHoleBody before=app.renderedGridBindings.get(0).identity;
+  app.save();app.load();app.currentSceneMeshes();NamedGridHoleBody after=app.renderedGridBindings.get(0).identity;
+  assertEquals(owner.id,after.bodyId);assertEquals(1,after.shell.holeCount);
+  for(var face:before.shell.faces())assertNotNull(after.findFace(before.faceId(face.id)));
+  assertArrayEquals(before.shell.triangles(),after.shell.triangles(),0);
+ }
+ @Test public void gridInspectorAndSelectionRejectReplacedAndTamperedMeshes(){
+  gridRecipe();app.showMeshOnly(app.booleanMeshes.get(2));MainActivity.GridStoredBinding old=app.renderedGridBindings.get(0);
+  assertTrue(app.selectGridFace(old,0));
+  app.booleanMeshes.set(2,new MeshEngine.Mesh(old.stored.vertices.clone()));
+  assertFalse(app.selectGridFace(old,0));app.inspectSelectedGridFace();
+  assertTrue(org.robolectric.shadows.ShadowToast.getTextOfLatestToast().contains("cambiado"));
+  app.booleanMeshes.get(2).vertices[0]+=1;
+  try{app.currentSceneMeshes();fail("Stale grid geometry accepted");}catch(IllegalArgumentException expected){}
+ }
+ @Test public void gridRegistrationPreservesGlobalOffsetsExportAndImportedOcclusion(){
+  gridRecipe();app.importedMesh=new MeshEngine.Mesh(new float[]{0,0,8,4,0,8,0,4,8});
+  app.toggleMeshView();List<MeshEngine.Mesh> meshes=app.currentSceneMeshes();
+  MainActivity.GridStoredBinding grid=app.renderedGridBindings.get(0);
+  assertEquals(1+app.booleanMeshes.get(0).triangles()+app.booleanMeshes.get(1).triangles(),grid.firstTriangle);
+  List<float[]> arrays=new ArrayList<>();for(MeshEngine.Mesh mesh:meshes)arrays.add(mesh.vertices);
+  assertArrayEquals(app.currentMesh().vertices,AnalyticSceneMesh.compose(arrays,Collections.emptyList(),Collections.emptyList(),48),0);
+  ViewportMeshRayPicker.Hit front=visible(meshes,.2,.4);assertEquals(0,front.triangle);
+  app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),front,null);
+  assertNull(app.activeGridBinding);assertTrue(app.info.getText().toString().contains("importada"));
+ }
 }
