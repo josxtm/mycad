@@ -95,6 +95,19 @@ public final class PolygonPrismBRepTest {
         label+" stable caps");
  }
  public static void main(String[] args){
+  // The B-Rep loop must agree with the high-precision source section even
+  // for a sub-millimetre profile translated far from the world origin.
+  double ox=9000,oy=9000,w=.2,h=.2;
+  double[][] small={{ox,oy},{ox+w,oy},{ox+w,oy+h},{ox,oy+h}};
+  double expectedArea=((ox+w)-ox)*((oy+h)-oy);
+  for(int plane=0;plane<3;plane++){
+   PolygonPrismBRep precise=PolygonPrismBRep.from(feature(plane,2.5,4),
+     polygon(plane,small,false,false));
+   check(Math.abs(precise.sectionArea()-expectedArea)<1e-11,
+     "Local-origin B-Rep area precision plane "+plane+": "+precise.sectionArea());
+   check(Math.abs(precise.volume()-expectedArea*2.5)<3e-11,
+     "Local-origin B-Rep volume precision plane "+plane+": "+precise.volume());
+  }
   double[][] triangle={{0,0},{3,0},{0,4}};
   double[][] concave={{0,0},{3,0},{3,1},{1,1},{1,3},{0,3}};
   for(int p=0;p<3;p++)for(double h:new double[]{7,-7}){

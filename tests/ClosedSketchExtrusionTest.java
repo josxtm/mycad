@@ -27,6 +27,20 @@ public final class ClosedSketchExtrusionTest {
   near(report.signedVolume,r.volume,name+" oriented volume");
  }
  public static void main(String[] args){
+  // Regression: a 0.2 mm profile at 9000 mm must retain its exact
+  // double-precision area/volume; absolute shoelace loses ~6e-9 mm2.
+  double ox=9000,oy=9000,w=.2,h=.2;
+  double expectedArea=((ox+w)-ox)*((oy+h)-oy);
+  for(int plane=0;plane<3;plane++){
+   List<ClosedSketchExtrusion.Segment> tiny=Arrays.asList(
+    line(plane,ox,oy,ox+w,oy),line(plane,ox+w,oy,ox+w,oy+h),
+    line(plane,ox+w,oy+h,ox,oy+h),line(plane,ox,oy+h,ox,oy));
+   ClosedSketchExtrusion.Result result=ClosedSketchExtrusion.extrude(tiny,0,2.5);
+   check(Math.abs(result.area-expectedArea)<1e-11,
+     "Local-origin sketch area precision plane "+plane+": "+result.area);
+   check(Math.abs(result.volume-expectedArea*2.5)<3e-11,
+     "Local-origin sketch volume precision plane "+plane+": "+result.volume);
+  }
   // Concave L-shaped profile (area 5 mm2), segments intentionally unordered
   // and some oriented backwards; algorithm must reconstruct actual loop.
   List<ClosedSketchExtrusion.Segment> l=Arrays.asList(

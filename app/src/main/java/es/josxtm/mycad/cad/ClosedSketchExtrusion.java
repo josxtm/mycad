@@ -176,11 +176,15 @@ public final class ClosedSketchExtrusion {
   if(vertex!=start||visited.size()!=component.size()||contour.size()<3)
    throw new IllegalArgumentException("Contorno no cerrado");
   double area2=0;
+  // Use a local contour origin: absolute shoelace products lose small
+  // section areas when a sub-millimetre sketch is far from world zero.
+  Vertex areaOrigin=points.get(contour.get(0));
   double minU=Double.POSITIVE_INFINITY,minV=Double.POSITIVE_INFINITY;
   double maxU=Double.NEGATIVE_INFINITY,maxV=Double.NEGATIVE_INFINITY;
   for(int i=0;i<contour.size();i++){
    Vertex a=points.get(contour.get(i)),b=points.get(contour.get((i+1)%contour.size()));
-   area2+=a.u*b.v-b.u*a.v;
+   area2+=(a.u-areaOrigin.u)*(b.v-areaOrigin.v)-
+          (b.u-areaOrigin.u)*(a.v-areaOrigin.v);
    minU=Math.min(minU,a.u);minV=Math.min(minV,a.v);
    maxU=Math.max(maxU,a.u);maxV=Math.max(maxV,a.v);
   }
