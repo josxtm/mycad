@@ -511,9 +511,15 @@ assert "root=build(blocks.clone(),0,blocks.length);" in i
 assert "PriorityQueue<Candidate>" in i
 assert "private static final int CHUNK_TRIANGLES=64;" in i
 assert "private es.josxtm.mycad.cad.MeshRayIndex pickIndex;" in m
-assert "mesh.rayIndex().pick(p[0],p[1],p[2],dx,dy,dz)" in m
-assert "chosenIndex=offset+hit.triangle" in m
-assert "offset+=mesh.triangles();" in m
+# The viewport delegates to the clipped ray adapter; its index offsets
+# must still refer to the original triangle positions in each mesh.
+v=Path("app/src/main/java/es/josxtm/mycad/cad/ViewportMeshRayPicker.java").read_text(encoding="utf-8")
+assert "ViewportMeshRayPicker.pick(" in m
+assert "mesh.rayIndex(),mesh.triangles()" in m
+assert "candidate.index.pick(" in v
+assert "offset+hit.triangle" in v
+assert "offset+=candidate.triangleCount;" in v
+assert "hit.distance<=ray.farDistance()" in v
 print("Broad phase AABB preserva índices globales, picking visible y B-Rep: OK")
 PY
 
