@@ -135,3 +135,27 @@ compilación Android, **13 pruebas Robolectric correctas, 0 fallos/0 omitidas**,
 y `lintDebug` correctos. El recorrido de persistencia Android cubre tanto el
 borrador como los callbacks de Guardar/Abrir con un archivo real temporal.
 La CI remota debe comprobarse sobre el commit publicado antes de integrar.
+
+
+## Siguiente paso del hito — 2026-10-28
+
+Tras [Actions #554 verde](https://github.com/josxtm/mycad/actions/runs/40605642272)
+en `4843bd3`, GitHub informó `CLEAN`, sin revisiones bloqueantes registradas.
+La PR se mantiene abierta, sin fusionar.
+
+Se añade **Editar pieza → Acotar perfil original (mm)** para una extrusión
+vinculada: permite cambiar ancho/fondo o diámetro desde el sólido seleccionado,
+sin localizar el boceto oculto. Se conservan los controles anteriores de altura,
+coordenadas del perfil y edición independiente. Se actualiza la guía de la app
+para explicar el flujo real de boceto, Push/Pull, ViewCube, edición y archivos.
+
+La prueba Android del archivo usa ahora esa entrada de edición del cuerpo.
+Otra regresión comprueba sólido → ViewCube → acotar desde el cuerpo →
+deshacer/rehacer, conservando UUID de cuerpo y vínculo al boceto.
+
+
+Verificación local del segundo avance: **14 pruebas Android correctas,
+0 fallos/0 omitidas**, integridad y Lint correctos. Las suites geométricas
+completas ya pasaron en #554 y se volverán a ejecutar en la CI del nuevo commit.
+Siguiente tarea: sustracción sobre el sólido vinculado, con regeneración y
+persistencia de sus dependencias; aceptación física móvil/tablet pendiente.

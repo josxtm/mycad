@@ -91,7 +91,7 @@ public class SketchPushPullAndroidTest {
  }
  @Test public void editedExtrusionSurvivesActualFileSaveAndOpenCallbacks() throws Exception {
   MainActivity.Sketch q=rectangle(0);app.startSketchPushPull();dragTen(q);
-  app.selectedSketch=0;dimension(50,30);String expected=documentJson();
+  dimensionSelectedBody(50,30);String expected=documentJson();
   String bodyId=app.parts.get(0).id,sourceId=q.id;
   File file=File.createTempFile("push-pull-", ".mycad.json",app.getCacheDir());
   try{
@@ -107,6 +107,19 @@ public class SketchPushPullAndroidTest {
    assertEquals(expected,documentJson());assertEquals(sourceId,app.parts.get(0).sourceSketchId);
    assertEquals(15000,app.parts.get(0).w*app.parts.get(0).d*app.parts.get(0).h,.001f);
   }finally{file.delete();}
+ }
+ @Test public void solidCanBeViewedDimensionedAndUndoneWithoutLosingItsSource() throws Exception {
+  MainActivity.Sketch q=rectangle(0);app.startSketchPushPull();dragTen(q);
+  String id=app.parts.get(0).id,original=documentJson();
+  float x=app.scene.cubeLeft()+app.scene.cubeSize()/2,y=app.scene.cubeTop()+app.scene.cubeSize()/6;
+  touch(MotionEvent.ACTION_DOWN,x,y);touch(MotionEvent.ACTION_UP,x,y);
+  assertEquals(original,documentJson());assertEquals(0,app.selected);
+  dimensionSelectedBody(50,30);
+  assertEquals(id,app.parts.get(0).id);assertEquals(q.id,app.parts.get(0).sourceSketchId);
+  assertEquals(15000,app.parts.get(0).w*app.parts.get(0).d*app.parts.get(0).h,.001f);
+  app.history(true);assertEquals(original,documentJson());
+  app.history(false);assertEquals(id,app.parts.get(0).id);
+  assertEquals(15000,app.parts.get(0).w*app.parts.get(0).d*app.parts.get(0).h,.001f);
  }
  @Test public void corruptFileLeavesCurrentGeometryAndUndoUntouched() throws Exception {
   MainActivity.Sketch q=rectangle(0);app.startSketchPushPull();dragTen(q);
@@ -217,7 +230,15 @@ public class SketchPushPullAndroidTest {
    collectInputs(((ViewGroup)view).getChildAt(i),inputs);
  }
  private void dimension(float w,float d){
-  app.dimensionSketch();AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();
+  app.dimensionSketch();applyDimensions(ShadowAlertDialog.getLatestAlertDialog(),w,d);
+ }
+ private void dimensionSelectedBody(float w,float d){
+  app.editLinkedOrPart();AlertDialog menu=ShadowAlertDialog.getLatestAlertDialog();
+  menu.getListView().performItemClick(null,3,menu.getListView().getItemIdAtPosition(3));
+  shadowOf(Looper.getMainLooper()).idle();
+  applyDimensions(ShadowAlertDialog.getLatestAlertDialog(),w,d);
+ }
+ private void applyDimensions(AlertDialog dialog,float w,float d){
   ArrayList<EditText> inputs=new ArrayList<>();collectInputs(dialog.getWindow().getDecorView(),inputs);
   assertEquals(2,inputs.size());inputs.get(0).setText(String.valueOf(w));inputs.get(1).setText(String.valueOf(d));
   dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();

@@ -1614,9 +1614,16 @@ public class MainActivity extends Activity {
   Part p=parts.get(selected);
   if(p.sourceSketchId.isEmpty()){edit(p.circle,true);return;}
   new AlertDialog.Builder(this).setTitle("Editar extrusión vinculada")
-   .setItems(new String[]{"Modificar altura (mm)","Editar perfil original","Editar cuerpo independientemente"},(d,n)->{
+   .setItems(new String[]{"Modificar altura (mm)","Editar perfil original","Editar cuerpo independientemente","Acotar perfil original (mm)"},(d,n)->{
     if(n==0){editExtrusionHeight(p);return;}
-    if(n==1){for(int i=0;i<sketches.size();i++)if(sketches.get(i).id.equals(p.sourceSketchId)){selectedSketch=i;scene.editSketch();return;}toast("Perfil original no encontrado");return;}
+    if(n==1||n==3){
+     for(int i=0;i<sketches.size();i++)if(sketches.get(i).id.equals(p.sourceSketchId)){
+      selectedSketch=i;
+      if(n==3)dimensionSketch();else scene.editSketch();
+      return;
+     }
+     toast("Perfil original no encontrado");return;
+    }
     edit(p.circle,true);
    }).show();
  }
@@ -3445,14 +3452,15 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AlertDialog.Builder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
  }
  void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();loopExtrusionFeatures.clear();intersectionRecipes.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
- void guide(){new AlertDialog.Builder(this).setTitle("Guía · De la idea al archivo").setMessage(
- "1. NUEVO: empieza con el lienzo vacío.\n\n"+
- "2. RECTÁNGULO o CÍRCULO: introduce medidas en mm y el espesor. APLICAR crea la pieza. Por ahora se introducen medidas; no se dibuja a mano.\n\n"+
- "3. PIEZAS: selecciona una. La seleccionada se muestra turquesa. EDITAR modifica sus medidas y su posición X (izquierda/derecha).\n\n"+
- "4. 2D / 3D: revisa la planta o el volumen. Arrastra en 3D para girar; pellizca para acercar. CENTRAR restablece la vista.\n\n"+
- "5. GUARDAR: elige nombre y carpeta en el selector de Android y confirma GUARDAR allí. Se crea un archivo .mycad.json.\n\n"+
- "6. ABRIR: confirma y selecciona un archivo .mycad.json. Cancela sin perder el diseño.\n\n"+
- "El borrador interno se recupera al iniciar, pero NO sustituye a guardar archivos. Los cambios posteriores requieren volver a GUARDAR. No se guardan todavía la cámara ni la selección en el archivo."
+ void guide(){new AlertDialog.Builder(this).setTitle("Guía · Boceto a sólido")
+ .setMessage(
+ "1. BOCETO 2D: elige XY, XZ o YZ y Rectángulo o Círculo. Dibuja el perfil con el dedo.\n\n"+
+ "2. ACOTAR: con el perfil seleccionado, usa Acotar seleccionado en el menú de boceto e introduce las medidas en mm.\n\n"+
+ "3. EXTRUIR: pulsa Extruir boceto y elige Arrastrar con el dedo. Arrastra el perfil hacia arriba, lee la altura y suelta para crear el sólido. Dos dedos cancelan la propuesta y permiten navegar. También puedes introducir la altura o usar el deslizador.\n\n"+
+ "4. VISUALIZAR: arrastra el fondo para girar, usa dos dedos para desplazar y pellizca para acercar. Toca o arrastra el ViewCube para cambiar la vista.\n\n"+
+ "5. EDITAR: selecciona el cuerpo y pulsa Editar pieza. En una extrusión vinculada puedes modificar la altura, editar el perfil original o acotarlo directamente. Deshacer y Rehacer permiten revisar los cambios.\n\n"+
+ "6. GUARDAR: elige nombre y carpeta en el selector de Android y confirma allí. ABRIR recupera el archivo .mycad.json con los bocetos y sólidos.\n\n"+
+ "El borrador interno se recupera al iniciar, pero no sustituye a guardar un archivo. Vuelve a guardar después de editar. La cámara y la selección no se conservan en el archivo."
  ).setPositiveButton("Entendido",null).show();}
  void roadmap(){new AlertDialog.Builder(this).setTitle("Plan de desarrollo").setMessage(
  "AHORA · v0.4.2\nArchivos, guía y validación del ciclo guardar/abrir en el móvil.\n\n"+
