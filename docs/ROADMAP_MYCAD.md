@@ -468,3 +468,17 @@ resultados cóncavos generales ni todas las familias curvas.
 - Regresiones de altura double, no mutación, guardado/reapertura, cascarones múltiples y correspondencia de los índices globales.
 - Grids/escalonados, algunas previsualizaciones y kernels con casts internos requieren auditoría posterior. No se atribuye recuperación de detalle ya perdido.
 - Validación física Android/EGL en Nothing Phone 2a y tablet 12 pulgadas, memoria y rendimiento pendientes.
+
+## Temas completos — sucesora de #146
+
+- Base main `06c34bc`; inicio verificado con flujo #628 verde y sin commits nuevos.
+- Rama `feature/ui-complete-persistent-themes`, MyCAD 0.6.1 (61).
+- Seis temas: Claro predeterminado, Oscuro de alto contraste, Azul Técnico, Verde Oliva, Sepia/Papel Técnico y Personalizado.
+- Selector con seis vistas previas y editor de doce colores #RRGGBB; Aplicar/Cancelar transaccionales.
+- Preferencias persistentes y compatibles con `dark` y los cinco índices de #146.
+- Paleta única en barras, botones, iconos, Canvas, cuadrícula/ejes, ViewCube, selección, GPU y diálogos/dropdowns.
+- El cambio de estilo no altera archivo CAD, geometría, cámara, origen, picking ni historial.
+- 73 pruebas Android/IO, geometría e integridad locales. Capturas Android/Skia de las seis interfaces revisadas y publicadas con informes de CI.
+- Aproximación de temas: 95 %, pendiente validación física/EGL, memoria y ergonomía en los dos dispositivos de referencia.
+- Siguiente motor B-Rep: UUID repetibles en el puente paramétrico orientativo; problema detectado durante las pruebas y reservado a otra PR.
+- No se fusionan #80/#86/#136 ni se modifica la rama de #146. Fusión de la sucesora solo con CI final verde y sin bloqueos.
