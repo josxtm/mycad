@@ -1,8 +1,30 @@
 plugins { id 'com.android.application' }
 android { namespace 'es.josxtm.mycad'; compileSdk 35
+ testOptions { unitTests.includeAndroidResources = true
+  unitTests.all {
+   dependsOn 'prepareRobolectricSdk'
+   systemProperty 'robolectric.offline', 'true'
+   systemProperty 'robolectric.dependency.dir', layout.buildDirectory.dir('robolectric-sdks').get().asFile.absolutePath
+  }
+ }
  defaultConfig { applicationId 'es.josxtm.mycad.preview'; minSdk 26; targetSdk 35; versionCode 60; versionName '0.6.0' }
 }
 
 android.applicationVariants.all { variant ->
  variant.outputs.all { output -> outputFileName = "myCad${variant.versionName}.apk" }
+}
+
+
+// Resolve the pinned Android 35 runtime through Gradle's regular repositories
+// and cache. Tests never download SDK jars or write locks in the user's home.
+configurations { robolectricSdk }
+tasks.register('prepareRobolectricSdk', Sync) {
+ from configurations.robolectricSdk
+ into layout.buildDirectory.dir('robolectric-sdks')
+}
+
+dependencies {
+ robolectricSdk('org.robolectric:android-all-instrumented:15-robolectric-12650502-i7') { transitive = false }
+ testImplementation 'junit:junit:4.13.2'
+ testImplementation 'org.robolectric:robolectric:4.14.1'
 }
