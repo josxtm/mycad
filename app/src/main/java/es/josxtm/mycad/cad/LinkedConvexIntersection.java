@@ -82,6 +82,18 @@ public final class LinkedConvexIntersection {
    throw new IllegalArgumentException("Booleana escalonada demasiado grande");
   return named;
  }
+ public boolean isConvexIntersection(){return operation==Operation.INTERSECTION;}
+ public NamedConvexIntersection regenerateNamedIntersection(Map<String,LoopExtrusionFeature> features,
+      Map<String,ClosedSketchExtrusion.Segment> lines){
+  if(!isConvexIntersection()||features==null||lines==null)
+   throw new IllegalArgumentException("Faltan fuentes de intersección convexa");
+  LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
+  if(a==null||b==null||!firstId.equals(a.id)||!secondId.equals(b.id))
+   throw new IllegalArgumentException("Falta un operando de intersección");
+  NamedConvexIntersection named=NamedConvexIntersection.apply(id,a.asBRep(lines),b.asBRep(lines));
+  if(named.shell.triangles().length>18000)throw new IllegalArgumentException("Intersección demasiado grande");
+  return named;
+ }
  public ConvexPrismBRepIntersection.Result regenerate(
     Map<String,LoopExtrusionFeature> features,
     Map<String,ClosedSketchExtrusion.Segment> lines){

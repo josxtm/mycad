@@ -409,3 +409,20 @@ desde su perfil, undo, fallo de geometría sin publicación parcial, cilindros s
 vértices ficticios y cambios analíticos menores que la precisión de malla.
 Fase A estimada en 85 %; resultados booleanos no ortogonales y otras rutas de
 nombrado siguen pendientes, junto con rendimiento y aceptación física.
+
+### Intersecciones convexas inclinadas y evolución de sus caras
+
+PR #132 integrada en `0c57f8e`, tras
+[#594 correcto](https://github.com/josxtm/mycad/actions/runs/40725744292).
+`feature/cad-named-convex-intersections` nombra la receta INTERSECTION por
+esquinas y líneas de soporte de origen. Las tapas mantienen su rol cuando cambia
+el número de esquinas; nuevos vértices/aristas aparecen o desaparecen sin
+reasignación por proximidad histórica. Los soportes colineales y un caso agudo
+de la geometría anterior a coordenadas altas quedan cubiertos por regresiones.
+
+La vista planar compartida permite seleccionar e inspeccionar caras poligonales
+completas, conservando las rutas con agujeros. Rechaza asociaciones después de una
+previsualización temporal y eventos pendientes del visor oculto. Java 8, 47 pruebas
+Android/IO y suite geométrica local superadas; aceptación física pendiente.
+Fase A estimada en 90 %, aún sin completar el nombrado de uniones/restas restantes,
+resultados cóncavos generales ni todas las familias curvas.

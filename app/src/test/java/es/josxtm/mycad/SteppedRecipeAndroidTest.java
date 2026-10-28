@@ -32,10 +32,12 @@ public class SteppedRecipeAndroidTest {
  }
  @After public void teardown(){controller.pause().stop().destroy();}
  private LoopExtrusionFeature operand(float x1,float y1,float x2,float y2,double h){
-  float[][] p={{x1,y1},{x2,y1},{x2,y2},{x1,y2}};
+  return polygonOperand(new float[][]{{x1,y1},{x2,y1},{x2,y2},{x1,y2}},h);
+ }
+ private LoopExtrusionFeature polygonOperand(float[][] p,double h){
   List<String> ids=new ArrayList<>();
-  for(int i=0;i<4;i++){
-   MainActivity.Sketch line=app.new Sketch(1,p[i][0],p[i][1],p[(i+1)%4][0],p[(i+1)%4][1]);
+  for(int i=0;i<p.length;i++){
+   MainActivity.Sketch line=app.new Sketch(1,p[i][0],p[i][1],p[(i+1)%p.length][0],p[(i+1)%p.length][1]);
    app.sketches.add(line);ids.add(line.id);
   }
   LoopExtrusionFeature feature=new LoopExtrusionFeature(UUID.randomUUID().toString(),ids.get(0),0,h,ids);
@@ -246,28 +248,28 @@ public class SteppedRecipeAndroidTest {
  }
  @Test public void throughHoleFaceIsSelectedAndInspectedWithPersistentId(){
   LinkedConvexIntersection owner=gridRecipe();app.showMeshOnly(app.booleanMeshes.get(2));
-  assertEquals(1,app.renderedGridBindings.size());
+  assertEquals(1,app.renderedPlanarBindings.size());
   List<MeshEngine.Mesh> single=Collections.singletonList(app.booleanMeshes.get(2));
   assertNull(visible(single,3,3)); // ray passes through the actual hole
   ViewportMeshRayPicker.Hit front=visible(single,1,1.5);assertNotNull(front);
   app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),front,null);
-  assertNotNull(app.activeGridBinding);assertEquals(owner.id,app.activeGridBinding.identity.bodyId);
-  String faceId=app.activeGridFaceId;app.inspectSelectedFaces();
+  assertNotNull(app.activePlanarBinding);assertEquals(owner.id,app.activePlanarBinding.identity.bodyId);
+  String faceId=app.activePlanarFaceId;app.inspectSelectedFaces();
   assertTrue(shadowOf(ShadowAlertDialog.getLatestAlertDialog()).getMessage().toString().contains(faceId));
  }
  @Test public void holeTopologyAndNamesSurviveJsonAndRegenerateWithoutChangingOldFormats() throws Exception {
   LinkedConvexIntersection owner=gridRecipe();app.currentSceneMeshes();
-  NamedGridHoleBody before=app.renderedGridBindings.get(0).identity;
-  app.save();app.load();app.currentSceneMeshes();NamedGridHoleBody after=app.renderedGridBindings.get(0).identity;
+  NamedGridHoleBody before=app.renderedPlanarBindings.get(0).identity;
+  app.save();app.load();app.currentSceneMeshes();NamedGridHoleBody after=app.renderedPlanarBindings.get(0).identity;
   assertEquals(owner.id,after.bodyId);assertEquals(1,after.shell.holeCount);
   for(OrthogonalGridHoleBRep.Face face:before.shell.faces())assertNotNull(after.findFace(before.faceId(face.id)));
   assertArrayEquals(before.shell.triangles(),after.shell.triangles(),0);
  }
  @Test public void gridInspectorAndSelectionRejectReplacedAndTamperedMeshes(){
-  gridRecipe();app.showMeshOnly(app.booleanMeshes.get(2));MainActivity.GridStoredBinding old=app.renderedGridBindings.get(0);
-  assertTrue(app.selectGridFace(old,0));
+  gridRecipe();app.showMeshOnly(app.booleanMeshes.get(2));MainActivity.PlanarStoredBinding old=app.renderedPlanarBindings.get(0);
+  assertTrue(app.selectPlanarFace(old,0));
   app.booleanMeshes.set(2,new MeshEngine.Mesh(old.stored.vertices.clone()));
-  assertFalse(app.selectGridFace(old,0));app.inspectSelectedGridFace();
+  assertFalse(app.selectPlanarFace(old,0));app.inspectSelectedPlanarFace();
   assertTrue(org.robolectric.shadows.ShadowToast.getTextOfLatestToast().contains("cambiado"));
   app.booleanMeshes.get(2).vertices[0]+=1;
   try{app.currentSceneMeshes();fail("Stale grid geometry accepted");}catch(IllegalArgumentException expected){}
@@ -275,13 +277,13 @@ public class SteppedRecipeAndroidTest {
  @Test public void gridRegistrationPreservesGlobalOffsetsExportAndImportedOcclusion(){
   gridRecipe();app.importedMesh=new MeshEngine.Mesh(new float[]{0,0,8,4,0,8,0,4,8});
   app.toggleMeshView();List<MeshEngine.Mesh> meshes=app.currentSceneMeshes();
-  MainActivity.GridStoredBinding grid=app.renderedGridBindings.get(0);
+  MainActivity.PlanarStoredBinding grid=app.renderedPlanarBindings.get(0);
   assertEquals(1+app.booleanMeshes.get(0).triangles()+app.booleanMeshes.get(1).triangles(),grid.firstTriangle);
   List<float[]> arrays=new ArrayList<>();for(MeshEngine.Mesh mesh:meshes)arrays.add(mesh.vertices);
   assertArrayEquals(app.currentMesh().vertices,AnalyticSceneMesh.compose(arrays,Collections.emptyList(),Collections.emptyList(),48),0);
   ViewportMeshRayPicker.Hit front=visible(meshes,.2,.4);assertEquals(0,front.triangle);
   app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),front,null);
-  assertNull(app.activeGridBinding);assertTrue(app.info.getText().toString().contains("importada"));
+  assertNull(app.activePlanarBinding);assertTrue(app.info.getText().toString().contains("importada"));
  }
  @Test public void topologyLedgerTracksAnActualHoleOpeningAndUndo(){
   LinkedConvexIntersection owner=gridRecipe();app.toggleMeshView();
@@ -291,13 +293,13 @@ public class SteppedRecipeAndroidTest {
   PolygonPrismBRep.Face right=null;
   for(PolygonPrismBRep.Face face:polygon.faces())if(face.outwardNormal()[0]>.9)right=face;
   assertNotNull(right);app.offsetPolygonSideFace(1,app.booleanMeshes.get(1),right.id);applyHeight(4);
-  assertEquals(0,app.renderedGridBindings.get(0).identity.shell.holeCount);
+  assertEquals(0,app.renderedPlanarBindings.get(0).identity.shell.holeCount);
   TopologyReconciliation delta=app.topologyChanges.get(owner.id);assertNotNull(delta);
   assertFalse(delta.change(TopologySnapshot.Kind.FACE).removed.isEmpty());
   assertFalse(delta.change(TopologySnapshot.Kind.FACE).created.isEmpty());
   assertTrue(app.topologyChangeSummary(owner.id).contains("eliminadas"));
   app.currentSceneMeshes();assertSame(delta,app.topologyChanges.get(owner.id));
-  app.history(true);assertEquals(1,app.renderedGridBindings.get(0).identity.shell.holeCount);
+  app.history(true);assertEquals(1,app.renderedPlanarBindings.get(0).identity.shell.holeCount);
   assertEquals(before.geometryVersion,app.topologySnapshots.get(owner.id).geometryVersion);
  }
  @Test public void topologyRegistryIncludesAnalyticCylindersAndDropsDeletedBodies(){
@@ -315,5 +317,53 @@ public class SteppedRecipeAndroidTest {
   app.booleanMeshes.get(2).vertices[0]+=1;
   try{app.currentSceneMeshes();fail("Stale mesh accepted");}catch(IllegalArgumentException expected){}
   assertSame(before,app.topologySnapshots);
+ }
+ private LinkedConvexIntersection convexRecipe(){
+  LoopExtrusionFeature a=operand(0,0,6,6,6),b=polygonOperand(new float[][]{{-1,1},{7,1},{3,7}},4);
+  LinkedConvexIntersection owner=new LinkedConvexIntersection(UUID.randomUUID().toString(),a.id,b.id);
+  Map<String,ClosedSketchExtrusion.Segment> lines=new LinkedHashMap<>(app.loopSketchSegments(a,null,0,0,0,0));
+  lines.putAll(app.loopSketchSegments(b,null,0,0,0,0));
+  app.booleanMeshes.add(new MeshEngine.Mesh(owner.regenerateTriangles(app.intersectionSourceMap(null),lines)));
+  app.intersectionRecipes.add(owner);app.loopExtrusionFeatures.add(null);app.unionRecipes.add(null);app.holeRecipes.add(null);
+  return owner;
+ }
+ private void selectConvexCap(){
+  app.showMeshOnly(app.booleanMeshes.get(2));
+  ViewportMeshRayPicker.Hit hit=visible(Collections.singletonList(app.booleanMeshes.get(2)),3,2);
+  assertNotNull(hit);app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),hit,null);
+  assertNotNull(app.activePlanarBinding);
+ }
+ @Test public void angledIntersectionSelectsWholeCapAndReopensPersistentNames() throws Exception {
+  LinkedConvexIntersection owner=convexRecipe();selectConvexCap();
+  String face=app.activePlanarFaceId;MainActivity.PlanarStoredBinding binding=app.activePlanarBinding;
+  assertNotNull(binding.convexIdentity);assertEquals(owner.id,binding.view.bodyId);
+  assertEquals(4,binding.view.trianglesForFace(face,0).length);
+  app.inspectSelectedFaces();assertTrue(shadowOf(ShadowAlertDialog.getLatestAlertDialog()).getMessage().toString().contains(face));
+  app.save();app.load();selectConvexCap();assertEquals(face,app.activePlanarFaceId);
+ }
+ @Test public void editingAnIntersectionSourceRetainsCapIdentityAndRejectsOldVersion(){
+  convexRecipe();selectConvexCap();String faceId=app.activePlanarFaceId;
+  TopologySnapshot before=app.activePlanarBinding.view.topology;
+  TopologySnapshot.Reference old=before.reference(TopologySnapshot.Kind.FACE,faceId);
+  LoopExtrusionFeature source=app.loopExtrusionFeatures.get(0);
+  PolygonPrismBRep polygon=source.asBRep(app.loopSketchSegments(source,null,0,0,0,0));
+  PolygonPrismBRep.Face right=null;for(PolygonPrismBRep.Face face:polygon.faces())if(face.outwardNormal()[0]>.9)right=face;
+  assertNotNull(right);app.offsetPolygonSideFace(0,app.booleanMeshes.get(0),right.id);applyHeight(.5);
+  selectConvexCap();TopologySnapshot after=app.activePlanarBinding.view.topology;
+  assertEquals(faceId,app.activePlanarFaceId);assertNotNull(after.resolvePersistent(old));assertNull(after.resolveExact(old));
+ }
+ @Test public void transientPreviewCannotUseStoredPlanarSelectionBindings(){
+  convexRecipe();selectConvexCap();MainActivity.PlanarStoredBinding before=app.activePlanarBinding;
+  app.meshView.previewMesh(new MeshEngine.Mesh(new float[]{0,0,8,4,0,8,0,4,8}));
+  assertFalse(app.currentPlanarBinding(before));assertFalse(app.selectPlanarFace(before,0));
+  app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),visible(Collections.singletonList(app.booleanMeshes.get(2)),3,2),null);
+  assertNull(app.activePlanarBinding);
+ }
+ @Test public void hiddenViewportDoesNotApplyAQueuedSurfaceSelection(){
+  convexRecipe();selectConvexCap();
+  ViewportMeshRayPicker.Hit hit=visible(Collections.singletonList(app.booleanMeshes.get(2)),3,2);
+  app.toggleMeshView();assertFalse(app.meshMode);
+  app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),hit,null);
+  assertNull(app.activePlanarBinding);assertEquals(-1,app.selectedStoredMeshIndex);
  }
 }
