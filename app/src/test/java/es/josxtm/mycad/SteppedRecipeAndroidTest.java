@@ -188,4 +188,27 @@ public class SteppedRecipeAndroidTest {
   assertEquals(6,app.loopExtrusionFeatures.get(0).distance,0);assertTrue(app.undo.isEmpty());
   for(int i=0;i<before.size();i++)assertArrayEquals(before.get(i),app.booleanMeshes.get(i).vertices,0);
  }
+ @Test public void boundaryTapSelectsRealEdgeAndInspectorShowsItsLength(){
+  recipe(LinkedConvexIntersection.Operation.UNION_STEPPED);app.showMeshOnly(app.booleanMeshes.get(2));
+  List<MeshEngine.Mesh> single=Collections.singletonList(app.renderedSteppedBindings.get(0).rendered);
+  ViewportMeshRayPicker.Hit front=visible(single,.02,1.7);
+  SteppedVisiblePatchBridge.Hit hit=patch(single,front);
+  app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),front,hit);
+  assertNotNull(app.activeSteppedEdge);assertEquals(hit.patch.index,app.activeSteppedEdge.patchIndex);
+  app.inspectSelectedEdges();AlertDialog inspector=ShadowAlertDialog.getLatestAlertDialog();
+  assertEquals("Arista del resultado B-Rep",shadowOf(inspector).getTitle().toString());
+  assertTrue(shadowOf(inspector).getMessage().toString().contains(app.activeSteppedEdge.edgeId));
+  app.clearStoredMeshSelection();assertNull(app.activeSteppedEdge);
+ }
+ @Test public void movedResultCannotInspectPreviouslySelectedBoundary(){
+  LinkedConvexIntersection owner=recipe(LinkedConvexIntersection.Operation.UNION_STEPPED);
+  app.showMeshOnly(app.booleanMeshes.get(2));
+  List<MeshEngine.Mesh> single=Collections.singletonList(app.renderedSteppedBindings.get(0).rendered);
+  ViewportMeshRayPicker.Hit front=visible(single,.02,1.7);
+  app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),front,patch(single,front));
+  assertNotNull(app.activeSteppedEdge);
+  app.intersectionRecipes.set(2,new LinkedConvexIntersection(owner.id,owner.firstId,owner.secondId,owner.operation));
+  assertNull(app.selectedSteppedBinding());app.inspectSelectedEdges();
+  assertTrue(org.robolectric.shadows.ShadowToast.getTextOfLatestToast().contains("actual"));
+ }
 }

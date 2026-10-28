@@ -27,6 +27,7 @@ public class MainActivity extends Activity {
  java.util.List<SteppedStoredBinding> renderedSteppedBindings=java.util.Collections.emptyList();
  es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit pendingSteppedTap,activeSteppedPatch;
  String activeSteppedRecipeId=null;
+ es.josxtm.mycad.cad.SteppedBoundaryEdgePicker.Hit activeSteppedEdge;
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);rootLayout=root;root.setBackgroundColor(Color.rgb(18,25,36));
@@ -1658,6 +1659,7 @@ public class MainActivity extends Activity {
    }).show();
  }
  void inspectSelectedEdges(){
+  if(activeSteppedPatch!=null){inspectSelectedSteppedEdge();return;}
   if(selected<0||selected>=parts.size()){toast("Selecciona primero un prisma");return;}
   final int bodyIndex=selected;
   final Part p=parts.get(bodyIndex);
@@ -2159,9 +2161,11 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  void clearStoredMeshSelection(){
   selectedStoredMeshIndex=-1;selectedStoredMeshObject=null;selectedPolygonFaceId=null;
   activeSteppedPatch=null;activeSteppedRecipeId=null;pendingSteppedTap=null;
+  activeSteppedEdge=null;
  }
  boolean selectStoredMeshByTriangle(int triangle,double x,double y,double z){
   activeSteppedPatch=null;activeSteppedRecipeId=null;
+  activeSteppedEdge=null;
   int[] sizes=new int[booleanMeshes.size()];
   for(int i=0;i<sizes.length;i++)sizes[i]=booleanMeshes.get(i).triangles();
   es.josxtm.mycad.cad.StoredMeshTriangleMap.Hit hit=
@@ -2257,6 +2261,9 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
 
  /** Select only a shell owned by the exact persisted/rendered snapshot. */
  boolean selectSteppedPatch(es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit hit){
+  return selectSteppedPatch(hit,.05);
+ }
+ boolean selectSteppedPatch(es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit hit,double edgeTolerance){
   if(hit==null)return false;
   for(SteppedStoredBinding binding:renderedSteppedBindings){
    if(hit.globalTriangle<binding.firstTriangle||
@@ -2267,14 +2274,19 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
       booleanMeshes.get(index)!=binding.stored||intersectionRecipes.get(index)!=binding.recipe||
       !java.util.Arrays.equals(binding.rendered.vertices,binding.stored.vertices))
     return false;
+   es.josxtm.mycad.cad.SteppedBoundaryEdgePicker.Hit boundary=
+    es.josxtm.mycad.cad.SteppedBoundaryEdgePicker.nearest(binding.rendered.steppedShell,hit,edgeTolerance);
    boolean samePatch=activeSteppedPatch!=null&&selectedStoredMeshObject==binding.stored&&
     binding.recipe.id.equals(activeSteppedRecipeId)&&
-    hit.shellId.equals(activeSteppedPatch.shellId)&&hit.patch.index==activeSteppedPatch.patch.index;
+    hit.shellId.equals(activeSteppedPatch.shellId)&&hit.patch.index==activeSteppedPatch.patch.index&&
+    java.util.Objects.equals(activeSteppedEdge==null?null:activeSteppedEdge.edgeId,
+     boundary==null?null:boundary.edgeId);
    selected=-1;selectedSketch=-1;
    activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
    activeExactFaceHit=null;activeExactEdgeHit=null;
    selectedStoredMeshIndex=index;selectedStoredMeshObject=binding.stored;
    selectedPolygonFaceId=null;activeSteppedPatch=hit;activeSteppedRecipeId=binding.recipe.id;
+   activeSteppedEdge=boundary;
    java.util.ArrayList<Integer> triangles=new java.util.ArrayList<>();
    java.util.List<es.josxtm.mycad.cad.VariableHeightOrthogonalBRep.Face> faces=
     binding.rendered.steppedShell.faces();
@@ -2284,10 +2296,15 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    }
    int[] highlighted=new int[triangles.size()];
    for(int i=0;i<highlighted.length;i++)highlighted[i]=triangles.get(i);
-   if(meshView!=null){meshView.highlightEdge(null);meshView.highlightPatch(highlighted);}
+   if(meshView!=null){
+    meshView.highlightPatch(highlighted);
+    meshView.highlightEdge(boundary==null?null:boundary.endpoints());
+   }
    info.setText(String.format(java.util.Locale.US,
     "Malla %d · cara B-Rep %d · área %.2f mm² · %d borde(s) interior(es) · toca otra vez para editar",
     index+1,hit.patch.index+1,hit.patch.area,hit.patch.holeCount));
+   if(boundary!=null)info.append(String.format(java.util.Locale.US,
+    " · arista %.2f mm",boundary.length));
    scene.invalidate();
    if(samePatch)editSelectedSteppedFace();
    return true;
@@ -2335,12 +2352,40 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    }).setNegativeButton("Cancelar",null).show();
  }
 
+ void inspectSelectedSteppedEdge(){
+  SteppedStoredBinding binding=selectedSteppedBinding();
+  if(binding==null||activeSteppedEdge==null||
+     !activeSteppedEdge.shellId.equals(activeSteppedPatch.shellId)){
+   toast("Toca un borde de la cara B-Rep actual para inspeccionarlo");return;
+  }
+  es.josxtm.mycad.cad.SteppedBoundaryEdgePicker.Hit edge=activeSteppedEdge;
+  float[] p=edge.endpoints();
+  new AlertDialog.Builder(this).setTitle("Arista del resultado B-Rep")
+   .setMessage(String.format(java.util.Locale.US,
+    "Longitud: %.3f mm\nInicio XYZ: %.3f, %.3f, %.3f\nFin XYZ: %.3f, %.3f, %.3f\n"+
+    "Parche: %d · adyacente: %d\nReceta: %s\nArista: %s",
+    edge.length,p[0],p[1],p[2],p[3],p[4],p[5],edge.patchIndex+1,
+    edge.adjacentPatchIndex+1,binding.recipe.id,edge.edgeId))
+   .setPositiveButton("Cerrar",null).show();
+ }
+ double steppedTouchTolerance(es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit hit,
+    double ox,double oy,double oz){
+  if(meshView==null||meshView.getHeight()<=0)return .05;
+  for(SteppedStoredBinding binding:renderedSteppedBindings)
+   if(binding.rendered.steppedShell.id().equals(hit.shellId))
+    return es.josxtm.mycad.cad.SteppedBoundaryEdgePicker.touchTolerance(
+     binding.rendered.steppedShell,ox,oy,oz,hit.point(),meshView.getHeight(),
+     getResources().getDisplayMetrics().density);
+  return .05;
+ }
+
  void showGpuSurfaceSelection(int triangle,double x,double y,double z,
     double ox,double oy,double oz,double dx,double dy,double dz){
   es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit patch=pendingSteppedTap;
   pendingSteppedTap=null;
   activeExactFaceHit=null;activeExactEdgeHit=null;
-  if(patch!=null&&patch.globalTriangle==triangle&&selectSteppedPatch(patch))return;
+  if(patch!=null&&patch.globalTriangle==triangle&&
+     selectSteppedPatch(patch,steppedTouchTolerance(patch,ox,oy,oz)))return;
   if(isolatedMeshPreview){clearStoredMeshSelection();activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightEdge(null);info.setText("Vista previa · sin selección de piezas");return;}
   if(selectStoredMeshByTriangle(triangle,x,y,z))return;
   boolean handled=false;
