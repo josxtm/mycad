@@ -4,17 +4,20 @@
 
 - Repositorio exclusivo: `josxtm/mycad`; no se trabaja en CADCraft ni directamente en main.
 - PR #144 revisada e integrada desde `43fcf01ea9238e67aa3990fab60cda810e661ea7`.
-- Base main: `62cc5de24ef0c7c470e14f9433fae48f6c3dd8da` (PR #145 integrada).
+- Base main: `74f7a6b5d58ef6423d59374b4483ee0d1041259c` (PR #147 integrada).
 - PR #144: [android.yml #618](https://github.com/josxtm/mycad/actions/runs/40758696428), correcto.
 - Main: [android.yml #619](https://github.com/josxtm/mycad/actions/runs/40760119620), correcto.
 - PR #80/#86 antiguas y PR #136 conservadas; no se fusionan por esta continuación.
 
 ## Fase A del guion vigente: precisión e integración GPU
 
-Rama de trabajo: `feature/cad-double-cylinder-preview`.
-La etapa previa de origen compartido se integró en PR #145 (`e0700dc`), con
-[android.yml #623](https://github.com/josxtm/mycad/actions/runs/40763061992) verde,
-sin conflictos ni revisiones pendientes. El CI posterior de main se consulta en ci-status.
+Rama de trabajo: `feature/cad-double-profile-preview`.
+La etapa de origen compartido se integró en PR #145 con #623 verde; main pasó #624.
+La fuente double de cilindros se integró en PR #147 (`20fbbf7`) tras
+[android.yml #625](https://github.com/josxtm/mycad/actions/runs/40763675040) verde,
+con mergeability clean y sin revisiones bloqueantes. Main pasó el hito
+[#626](https://github.com/josxtm/mycad/actions/runs/40764258161), incluyendo APK
+compilada, verificada y publicada. La validación física sigue pendiente.
 
 `RelativeMeshCoordinates` (#144) resta un origen double antes de convertir a
 float. `RelativeSceneCoordinates` ahora mantiene una generación de escena con
@@ -52,16 +55,39 @@ diferentes) queda congelada en el digest
 Las pruebas también comprueban cilindros locales cerrados de 0,01 mm a ±1e9,
 la no mutación y la fuente exacta de una previsualización Android rotada.
 
+## Continuación del motor: fuentes exactas de perfiles y booleanas planares
+
+`ClosedSketchExtrusion.Result` retiene sus coordenadas double antes del cast para
+la vista previa. El cambio de sentido de una extrusión negativa invierte ambas
+representaciones juntas. PolygonPrismBRep expone esa fuente con copia defensiva.
+Doce fixtures publicados (convexo/cóncavo, tres planos y ambos signos) conservan
+el digest float `937c317949dcba19df7127dcbd54c0c387411c527aa8ff4f0c8785bca46010d0`.
+
+PlanarBooleanView conserva la fuente de intersecciones convexas y de las once
+rutas planares nombradas, con el mismo orden de cascarones y triángulos. Verifica
+que el redondeo de las coordenadas exactas coincide con cada valor del buffer
+histórico. Para los grids que aún no exponen fuente double se mantiene el buffer
+previo, sin inventar precisión analítica.
+
+La escena Android conecta los perfiles vinculados y estos resultados a las
+posiciones relativas precisas. La vista aislada utiliza la misma fuente. No se
+modifican los buffers persistidos/exportados, los namespaces de entidades, los
+UUID de recetas ni los índices globales. Guardar/abrir mantiene la altura double
+del perfil. Los tests anteriores de selección, edición, undo e invalidez siguen
+siendo obligatorios.
+
 ### Límites explícitos
 
 - El conversor y los rayos locales se prueban con detalle de 0,01 mm a ±1e9 mm.
   Esto no amplía los límites de coordenadas de los editores Android.
 - BoxBRep mantiene su rechazo de una exportación/vista previa mundial float que
   colapse una cara. La nueva ruta no oculta pérdidas existentes en archivos float.
-- Recetas malladas y varios resultados persistidos aún llegan al visor
-  desde buffers float; trasladarlos después no recupera detalle ya perdido.
-- Próximo paso del motor B-Rep: ampliar fuentes de perfiles/resultados nombrados
-  sin alterar teselaciones, identidades, JSON ni selección; auditar degeneración.
+- Grids con agujeros, cuerpos escalonados, importaciones y ciertas recetas o
+  previsualizaciones transitorias aún parten de float; trasladarlos después no
+  recupera detalle perdido. Tampoco se recupera precisión descartada dentro de
+  kernels históricos que construyen perfiles de resultado mediante casts.
+- Próximo paso del motor B-Rep: auditoría de degeneración y precisión de grids,
+  cuerpos escalonados y previsualizaciones; mantener rechazos explícitos.
 
 ## Verificación
 
@@ -69,7 +95,7 @@ la no mutación y la fuente exacta de una previsualización Android rotada.
   conversión local, el uso de un origen compartido y la devolución del rayo mundial.
 - Suite geométrica completa de android.yml, incluida RelativeSceneCoordinatesTest.
 - Pruebas nuevas de precisión, no mutación, offsets/oclusión, caché y entradas inválidas.
-- 60 pruebas Android/IO superadas localmente (58 de la etapa #145): suite existente más instalación real de escena, matrices Android,
+- 62 pruebas Android/IO superadas localmente (60 verificadas antes en #147): suite existente más instalación real de escena, matrices Android,
   proyección, cámara conservada, callbacks mundiales, revisión obsoleta y puente
   de selección de parches B-Rep escalonados.
 - Compilación local: JDK 17, lenguaje y bytecode Java 8, SDK 35.
@@ -111,7 +137,7 @@ No se consideran terminadas familias sin pruebas.
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-double-cylinder-preview
+git switch feature/cad-double-profile-preview
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
@@ -120,8 +146,8 @@ gradle :app:compileDebugJavaWithJavac :app:testDebugUnitTest :app:lintDebug --no
 
 Si la PR ya está integrada, partir de origin/main en una rama nueva. No rebasar
 ni forzar ramas compartidas. El checkout local de esta continuación está en
-`/workspace/mycad-double-cylinder`; su base materializada tiene el mismo árbol que
-main `62cc5de` tras los cambios de la PR #145. La publicación mediante conector usa el padre remoto real y no
+`/workspace/mycad-double-profiles`; su base materializada tiene el mismo árbol que
+main `74f7a6b` tras la PR #147. La publicación mediante conector usa el padre remoto real y no
 publica los ancestros sintéticos locales.
 
 Un experimento anterior de propietarios de recetas quedó conservado localmente

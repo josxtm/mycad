@@ -107,6 +107,7 @@ public final class PolygonPrismBRep {
  public List<Face> faces(){return faces;}
  public List<HalfEdge> halfEdges(){return halfEdges;}
  public float[] triangles(){return preview.triangles.clone();}
+ public double[] triangleCoordinates(){return preview.triangleCoordinates();}
  public Face findFace(String key){for(Face f:faces)if(f.id.equals(key))return f;return null;}
  public Edge findEdge(String key){for(Edge e:edges)if(e.id.equals(key))return e;return null;}
  public Vertex findVertex(String key){for(Vertex v:vertices)if(v.id.equals(key))return v;return null;}
