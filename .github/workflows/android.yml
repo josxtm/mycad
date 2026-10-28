@@ -209,6 +209,8 @@ jobs:
           java -cp build/geometry-tests CadIntegrationProbeTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/DragPrecision.java app/src/main/java/es/josxtm/mycad/cad/BoxBRep.java app/src/main/java/es/josxtm/mycad/cad/SketchPushPullSession.java tests/SketchPushPullSessionTest.java
           java -cp build/geometry-tests SketchPushPullSessionTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/BoxBRepTest.java
+          java -cp build/geometry-tests BoxBRepTest
           javac -cp build/geometry-tests -sourcepath app/src/main/java -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SteppedBoundaryEdgePicker.java tests/SteppedBoundaryEdgePickerTest.java
           java -cp build/geometry-tests SteppedBoundaryEdgePickerTest
           javac -cp build/geometry-tests -sourcepath app/src/main/java -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/TopologySnapshot.java app/src/main/java/es/josxtm/mycad/cad/TopologyReconciliation.java tests/TopologyReferenceTest.java
