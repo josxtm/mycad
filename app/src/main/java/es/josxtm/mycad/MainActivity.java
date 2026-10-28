@@ -15,6 +15,18 @@ public class MainActivity extends Activity {
  ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loopExtrusionFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LinkedConvexIntersection> intersectionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=true;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport,pendingDxfExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
  static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104, IMPORT_DXF=105, EXPORT_DXF=106; MeshEngine meshView; FrameLayout meshPanel; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; int selectedStoredMeshIndex=-1; MeshEngine.Mesh selectedStoredMeshObject=null; String selectedPolygonFaceId=null; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
+ static final class SteppedStoredBinding {
+  final int index,firstTriangle;
+  final MeshEngine.Mesh stored,rendered;
+  final es.josxtm.mycad.cad.LinkedConvexIntersection recipe;
+  SteppedStoredBinding(int index,int first,MeshEngine.Mesh stored,MeshEngine.Mesh rendered,
+      es.josxtm.mycad.cad.LinkedConvexIntersection recipe){
+   this.index=index;firstTriangle=first;this.stored=stored;this.rendered=rendered;this.recipe=recipe;
+  }
+ }
+ java.util.List<SteppedStoredBinding> renderedSteppedBindings=java.util.Collections.emptyList();
+ es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit pendingSteppedTap,activeSteppedPatch;
+ String activeSteppedRecipeId=null;
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
  public void onCreate(Bundle b){super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);rootLayout=root;root.setBackgroundColor(Color.rgb(18,25,36));
@@ -859,16 +871,27 @@ public class MainActivity extends Activity {
   isolatedMeshPreview=false;
   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
   meshView.highlightFace(-1);meshView.highlightEdge(null);
-  meshView.updateMeshesPreservingCamera(java.util.Collections.singletonList(currentMesh()));
+  meshView.updateMeshesPreservingCamera(currentSceneMeshes());
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
   clearStoredMeshSelection();
   ensureMeshView();
+  MeshEngine.Mesh display=mesh;
+  int storedIndex=booleanMeshes.indexOf(mesh);
+  if(storedIndex>=0&&storedIndex<intersectionRecipes.size()&&
+     intersectionRecipes.get(storedIndex)!=null&&intersectionRecipes.get(storedIndex).isStepped()){
+   currentSceneMeshes();
+   for(SteppedStoredBinding binding:renderedSteppedBindings)if(binding.index==storedIndex){
+    display=binding.rendered;
+    renderedSteppedBindings=java.util.Collections.singletonList(new SteppedStoredBinding(
+     storedIndex,0,binding.stored,binding.rendered,binding.recipe));break;
+   }
+  }else renderedSteppedBindings=java.util.Collections.emptyList();
   meshMode=true;meshView.setVisibility(View.VISIBLE);
   meshPanel.setVisibility(View.VISIBLE);
   isolatedMeshPreview=true;activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
   meshView.highlightFace(-1);
-  meshView.setMeshes(java.util.Collections.singletonList(mesh));
+  meshView.setMeshes(java.util.Collections.singletonList(display));
   info.setText("Resultado booleano · "+mesh.triangles()+" triángulos");
  }
 
@@ -1189,6 +1212,19 @@ public class MainActivity extends Activity {
    }).setNegativeButton("Cancelar",null).show();
  }
 
+ void booleanLinkedStepped(int first){
+  new AlertDialog.Builder(this).setTitle("Booleanas B-Rep · alturas distintas")
+   .setMessage("Dos perfiles ortogonales del mismo plano y sentido de extrusión. "+
+    "El resultado conserva su receta y permite seleccionar caras planas en el visor GPU.")
+   .setItems(new String[]{"Unir","Restar"},(dialog,option)->
+    chooseLinkedOrthogonalOperand(first,
+     option==0?es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.Operation.UNION:
+               es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.Operation.DIFFERENCE,
+     option==0?es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.UNION_STEPPED:
+               es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.DIFFERENCE_STEPPED))
+   .setNegativeButton("Cancelar",null).show();
+ }
+
  void chooseLinkedOrthogonalOperand(int first,
    es.josxtm.mycad.cad.OrthogonalPolygonBRepBoolean.Operation operation,
    es.josxtm.mycad.cad.LinkedConvexIntersection.Operation history){
@@ -1198,17 +1234,21 @@ public class MainActivity extends Activity {
   }
   final es.josxtm.mycad.cad.LoopExtrusionFeature source=loopExtrusionFeatures.get(first);
   final MeshEngine.Mesh mesh=booleanMeshes.get(first);
+  final boolean stepped=history==es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.UNION_STEPPED||
+   history==es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.DIFFERENCE_STEPPED;
   java.util.ArrayList<Integer> candidates=new java.util.ArrayList<>();
   java.util.ArrayList<String> labels=new java.util.ArrayList<>();
   for(int i=0;i<loopExtrusionFeatures.size()&&i<booleanMeshes.size();i++){
    es.josxtm.mycad.cad.LoopExtrusionFeature f=loopExtrusionFeatures.get(i);
    if(i==first||f==null||f.plane!=source.plane||
-      Math.abs(f.distance-source.distance)>
-        1e-6*Math.max(1,Math.abs(source.distance)))continue;
+      (stepped?f.distance*source.distance<=0:
+       Math.abs(f.distance-source.distance)>
+        1e-6*Math.max(1,Math.abs(source.distance))))continue;
    candidates.add(i);labels.add("Contorno "+(i+1)+" · "+f.distance+" mm");
   }
   if(candidates.isEmpty()){
-   toast("Necesitas un segundo perfil del mismo plano y altura");return;
+   toast(stepped?"Necesitas otro perfil del mismo plano y sentido":
+    "Necesitas un segundo perfil del mismo plano y altura");return;
   }
   new AlertDialog.Builder(this).setTitle(operation+" B-Rep · segundo perfil")
    .setItems(labels.toArray(new String[0]),(dialog,selection)->{
@@ -1234,7 +1274,14 @@ public class MainActivity extends Activity {
       history==es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.DIFFERENCE_WITH_HOLES||
       history==es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.INTERSECTION_WITH_HOLES;
      int holes=0;
-     if(gridHole){
+     if(stepped){
+      es.josxtm.mycad.cad.VariableHeightOrthogonalBRep shell=
+       es.josxtm.mycad.cad.VariableHeightOrthogonalBRep.apply(left,right,
+        history==es.josxtm.mycad.cad.LinkedConvexIntersection.Operation.UNION_STEPPED?
+         es.josxtm.mycad.cad.VariableHeightOrthogonalMesh.Operation.UNION:
+         es.josxtm.mycad.cad.VariableHeightOrthogonalMesh.Operation.DIFFERENCE);
+      outputTriangles=shell.triangles();volume=shell.volume();componentCount=1;
+     }else if(gridHole){
       es.josxtm.mycad.cad.OrthogonalGridHoleBRep solid=
        es.josxtm.mycad.cad.OrthogonalGridHoleBRep.apply(left,right,operation);
       outputTriangles=solid.triangles();volume=solid.volume;
@@ -2104,8 +2151,10 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   * distance editing when a linked line contour produced that mesh. */
  void clearStoredMeshSelection(){
   selectedStoredMeshIndex=-1;selectedStoredMeshObject=null;selectedPolygonFaceId=null;
+  activeSteppedPatch=null;activeSteppedRecipeId=null;pendingSteppedTap=null;
  }
  boolean selectStoredMeshByTriangle(int triangle,double x,double y,double z){
+  activeSteppedPatch=null;activeSteppedRecipeId=null;
   int[] sizes=new int[booleanMeshes.size()];
   for(int i=0;i<sizes.length;i++)sizes[i]=booleanMeshes.get(i).triangles();
   es.josxtm.mycad.cad.StoredMeshTriangleMap.Hit hit=
@@ -2169,7 +2218,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
       "Intersectar con otro contorno B-Rep","Unir dos prismas B-Rep rectangulares",
       "Restar otro prisma B-Rep rectangular","Booleanas de perfiles ortogonales (cóncavos)",
       "Booleanas B-Rep de varios sólidos","Booleanas B-Rep con agujeros pasantes",
-      "Ver solo esta malla","Exportar a STL/OBJ","Gestionar resultados"}:
+      "Ver solo esta malla","Exportar a STL/OBJ","Gestionar resultados",
+      "Unir / restar con alturas distintas"}:
    new String[]{"Ver solo esta malla","Exportar a STL/OBJ",
       "Gestionar resultados"};
   new AlertDialog.Builder(this)
@@ -2189,6 +2239,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
      if(option==7){booleanLinkedOrthogonalPolygons(index);return;}
      if(option==8){booleanLinkedMultiShellPolygons(index);return;}
      if(option==9){booleanLinkedGridHoles(index);return;}
+     if(option==13){booleanLinkedStepped(index);return;}
      option-=10;
     }
     if(option==0)showMeshOnly(original);
@@ -2197,9 +2248,47 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    }).setNegativeButton("Cancelar",null).show();
  }
 
+ /** Select only a shell owned by the exact persisted/rendered snapshot. */
+ boolean selectSteppedPatch(es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit hit){
+  if(hit==null)return false;
+  for(SteppedStoredBinding binding:renderedSteppedBindings){
+   if(hit.globalTriangle<binding.firstTriangle||
+      hit.globalTriangle>=binding.firstTriangle+binding.rendered.triangles()||
+      !hit.shellId.equals(binding.rendered.steppedShell.id()))continue;
+   int index=binding.index;
+   if(index>=booleanMeshes.size()||index>=intersectionRecipes.size()||
+      booleanMeshes.get(index)!=binding.stored||intersectionRecipes.get(index)!=binding.recipe||
+      !java.util.Arrays.equals(binding.rendered.vertices,binding.stored.vertices))
+    return false;
+   selected=-1;selectedSketch=-1;
+   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
+   activeExactFaceHit=null;activeExactEdgeHit=null;
+   selectedStoredMeshIndex=index;selectedStoredMeshObject=binding.stored;
+   selectedPolygonFaceId=null;activeSteppedPatch=hit;activeSteppedRecipeId=binding.recipe.id;
+   java.util.ArrayList<Integer> triangles=new java.util.ArrayList<>();
+   java.util.List<es.josxtm.mycad.cad.VariableHeightOrthogonalBRep.Face> faces=
+    binding.rendered.steppedShell.faces();
+   java.util.HashSet<String> selectedFaces=new java.util.HashSet<>(hit.patch.sourceFaceIds);
+   for(int i=0;i<faces.size();i++)if(selectedFaces.contains(faces.get(i).id)){
+    triangles.add(binding.firstTriangle+2*i);triangles.add(binding.firstTriangle+2*i+1);
+   }
+   int[] highlighted=new int[triangles.size()];
+   for(int i=0;i<highlighted.length;i++)highlighted[i]=triangles.get(i);
+   if(meshView!=null){meshView.highlightEdge(null);meshView.highlightPatch(highlighted);}
+   info.setText(String.format(java.util.Locale.US,
+    "Malla %d · cara B-Rep %d · área %.2f mm² · %d borde(s) interior(es)",
+    index+1,hit.patch.index+1,hit.patch.area,hit.patch.holeCount));
+   scene.invalidate();return true;
+  }
+  return false;
+ }
+
  void showGpuSurfaceSelection(int triangle,double x,double y,double z,
     double ox,double oy,double oz,double dx,double dy,double dz){
+  es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit patch=pendingSteppedTap;
+  pendingSteppedTap=null;
   activeExactFaceHit=null;activeExactEdgeHit=null;
+  if(patch!=null&&patch.globalTriangle==triangle&&selectSteppedPatch(patch))return;
   if(isolatedMeshPreview){clearStoredMeshSelection();activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightEdge(null);info.setText("Vista previa · sin selección de piezas");return;}
   if(selectStoredMeshByTriangle(triangle,x,y,z))return;
   boolean handled=false;
@@ -3305,6 +3394,41 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   * in normal viewing, CAD face selection, STL/OBJ export and live previews.
   */
  MeshEngine.Mesh currentMesh(){return experimentalCadMesh();}
+ /** Split the validated export buffer without changing any global triangle index.
+  * Old meshes keep their exact tessellation; only explicit stepped recipes opt in.
+  */
+ java.util.List<MeshEngine.Mesh> currentSceneMeshes(){
+  MeshEngine.Mesh composed=currentMesh();
+  java.util.ArrayList<MeshEngine.Mesh> meshes=new java.util.ArrayList<>();
+  java.util.ArrayList<SteppedStoredBinding> bindings=new java.util.ArrayList<>();
+  int first=0;
+  if(importedMesh!=null){meshes.add(importedMesh);first+=importedMesh.triangles();}
+  java.util.Map<String,es.josxtm.mycad.cad.LoopExtrusionFeature> sources=
+   intersectionSourceMap(null);
+  for(int i=0;i<booleanMeshes.size();i++){
+   MeshEngine.Mesh stored=booleanMeshes.get(i),rendered=stored;
+   es.josxtm.mycad.cad.LinkedConvexIntersection recipe=
+    i<intersectionRecipes.size()?intersectionRecipes.get(i):null;
+   if(recipe!=null&&recipe.isStepped()){
+    java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=
+     new java.util.LinkedHashMap<>();
+    es.josxtm.mycad.cad.LoopExtrusionFeature a=sources.get(recipe.firstId),b=sources.get(recipe.secondId);
+    if(a==null||b==null)throw new IllegalArgumentException("Faltan operandos B-Rep");
+    lines.putAll(loopSketchSegments(a,null,0,0,0,0));
+    lines.putAll(loopSketchSegments(b,null,0,0,0,0));
+    es.josxtm.mycad.cad.VariableHeightOrthogonalBRep shell=recipe.regenerateStepped(sources,lines);
+    if(!java.util.Arrays.equals(shell.triangles(),stored.vertices))
+     throw new IllegalArgumentException("La malla B-Rep está obsoleta; reconstruye el resultado");
+    rendered=new MeshEngine.Mesh(shell);
+    bindings.add(new SteppedStoredBinding(i,first,stored,rendered,recipe));
+   }
+   meshes.add(rendered);first+=stored.triangles();
+  }
+  meshes.add(new MeshEngine.Mesh(java.util.Arrays.copyOfRange(
+   composed.vertices,first*9,composed.vertices.length)));
+  renderedSteppedBindings=java.util.Collections.unmodifiableList(bindings);
+  return meshes;
+ }
  /**
   * Put a functional 3x3 ViewCube ON TOP of the actual OpenGL viewport, rather
   * than only on the separate canvas view which GPU users cannot touch.
@@ -3313,6 +3437,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  void ensureMeshView(){
   if(meshView!=null)return;
   meshView=new MeshEngine(this);
+  meshView.setSteppedPatchTapListener(hit->pendingSteppedTap=hit);
   meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
     showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
   meshView.setCameraOrientationListener((heading,elevation)->{

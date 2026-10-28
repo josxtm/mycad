@@ -71,6 +71,11 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private double homeMaxTravel=0;
 
  private volatile int highlightedFirstTriangle=-1;
+ private volatile int[] highlightedPatchTriangles=new int[0];
+ /** UI changes invalidate callbacks already queued by the renderer. */
+ private volatile long sceneRevision;
+ private long renderedSceneRevision; // GL-thread snapshot, distinct from queued UI replacements
+ long sceneRevision(){return sceneRevision;}
  private float[] highlightedEdgeVertices=null;
  private float[] faceHandleGpu=null;
  private volatile float[] faceHandleUi=null;
@@ -144,7 +149,15 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    mm,faceDragLimit,faceSnapStepMm);
  }
 
- public void highlightFace(int firstTriangle){highlightedFirstTriangle=firstTriangle;requestRender();}
+ public void highlightFace(int firstTriangle){
+  highlightedPatchTriangles=new int[0];highlightedFirstTriangle=firstTriangle;requestRender();
+ }
+ public void highlightPatch(int[] triangles){
+  if(triangles==null)throw new IllegalArgumentException("Missing patch triangles");
+  int[] copy=triangles.clone();
+  for(int triangle:copy)if(triangle<0)throw new IllegalArgumentException("Invalid patch triangle");
+  highlightedFirstTriangle=-1;highlightedPatchTriangles=copy;requestRender();
+ }
  /** A genuine analytic edge outline, not arbitrary tessellation triangle edges. */
  public void highlightEdge(float[] xyz){
   if(xyz!=null&&(xyz.length<6||xyz.length%3!=0))
@@ -193,8 +206,11 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  /** Transient preview: swap geometry on the GL thread without refitting camera. */
  public void previewMesh(Mesh candidate){
   if(candidate==null)throw new IllegalArgumentException("Missing preview mesh");
+  final long nextRevision=++sceneRevision;
+  highlightedPatchTriangles=new int[0];
   final Mesh snapshot=new Mesh(candidate.vertices.clone());
   queueEvent(()->{
+   renderedSceneRevision=nextRevision;
    gpuTriangles.clear();
    meshes.clear();meshes.add(snapshot);
    rebuildSteppedPatches();
@@ -214,8 +230,11 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   final ArrayList<Mesh> copy=new ArrayList<>(incoming);
   for(Mesh item:copy)if(item==null)
    throw new IllegalArgumentException("Null scene mesh");
+  final long nextRevision=++sceneRevision;
+  highlightedPatchTriangles=new int[0];
   highlightedFirstTriangle=-1;
   queueEvent(()->{
+   renderedSceneRevision=nextRevision;
    gpuTriangles.clear();
    meshes.clear();meshes.addAll(copy);
    rebuildSteppedPatches();
@@ -447,20 +466,27 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
     candidates,viewProjection,width,height,sx,sy);
   }catch(IllegalArgumentException invalidViewport){return;}
   if(chosen==null)return;
-  final int triangle=chosen.triangle;
-  final double x=chosen.x,y=chosen.y,z=chosen.z;
-  final double ox=chosen.ox,oy=chosen.oy,oz=chosen.oz;
-  final double dx=chosen.dx,dy=chosen.dy,dz=chosen.dz;
   final es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit patch=
    steppedPatchTapListener==null?null:steppedPatches.resolve(chosen);
-  post(()->{
+  final long revision=renderedSceneRevision;
+  post(()->dispatchSurfaceHit(revision,chosen,patch));
+ }
+ /** UI-thread delivery; a replaced/previewed scene cannot select an old face. */
+ void dispatchSurfaceHit(long revision,
+     es.josxtm.mycad.cad.ViewportMeshRayPicker.Hit visible,
+     es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit patch){
+   if(revision!=sceneRevision||visible==null)return;
+   final int triangle=visible.triangle;
+   final double x=visible.x,y=visible.y,z=visible.z;
+   final double ox=visible.ox,oy=visible.oy,oz=visible.oz;
+   final double dx=visible.dx,dy=visible.dy,dz=visible.dz;
    if(patch!=null&&steppedPatchTapListener!=null)
     steppedPatchTapListener.onSteppedPatchTap(patch);
+   if(revision!=sceneRevision)return;
    if(surfaceRayListener!=null)
     surfaceRayListener.onSurfaceRay(triangle,x,y,z,ox,oy,oz,dx,dy,dz);
    else if(surfaceTapListener!=null)
     surfaceTapListener.onSurfaceTap(triangle,x,y,z);
-  });
  }
  private void fitCamera(){float[] bounds={Float.MAX_VALUE,Float.MAX_VALUE,Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE};
   for(Mesh m:meshes)for(int i=0;i<m.vertices.length;i+=3)for(int k=0;k<3;k++){float v=m.vertices[i+k];bounds[k]=Math.min(bounds[k],v);bounds[k+3]=Math.max(bounds[k+3],v);}
@@ -498,6 +524,18 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
     GLES30.glPolygonOffset(-2f,-2f);
     GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
     GLES30.glDrawArrays(GLES30.GL_TRIANGLES,local*3,6);
+    GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL);
+   }
+   int[] selectedPatch=highlightedPatchTriangles;
+   if(selectedPatch.length>0){
+    GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL);
+    GLES30.glPolygonOffset(-2f,-2f);
+    GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
+    for(int global:selectedPatch){
+     int patchLocal=global-triangleOffset;
+     if(patchLocal>=0&&patchLocal<mesh.triangles())
+      GLES30.glDrawArrays(GLES30.GL_TRIANGLES,patchLocal*3,3);
+    }
     GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL);
    }
    triangleOffset+=mesh.triangles();
