@@ -3756,7 +3756,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   android.widget.GridLayout cube=new android.widget.GridLayout(this);
   cube.setColumnCount(3);cube.setRowCount(3);
   cube.setPadding(dp(3),dp(3),dp(3),dp(3));
-  cube.setBackgroundColor(Color.argb(230,29,44,63));
+  cube.setBackgroundColor(darkMode?Color.argb(230,29,44,63):Color.argb(240,239,245,251));
   cube.setElevation(dp(5));
   final String[][] labels={
    {"ISO","SUP","ISO"},
@@ -3768,13 +3768,13 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    TextView key=new TextView(this);
    key.setText(labels[row][col]);
    key.setTextSize(10f);
-   key.setTextColor(Color.WHITE);
+   key.setTextColor(darkMode?Color.WHITE:Color.rgb(34,59,84));
    key.setGravity(Gravity.CENTER);
    key.setContentDescription("ViewCube "+labels[row][col]);
    android.graphics.drawable.GradientDrawable shape=
      new android.graphics.drawable.GradientDrawable();
-   shape.setColor(Color.rgb(52,73,97));
-   shape.setStroke(dp(1),Color.rgb(124,151,179));
+   shape.setColor(darkMode?Color.rgb(52,73,97):Color.WHITE);
+   shape.setStroke(dp(1),darkMode?Color.rgb(124,151,179):Color.rgb(181,199,217));
    shape.setCornerRadius(dp(3));
    key.setBackground(shape);
    key.setOnClickListener(tap->{
