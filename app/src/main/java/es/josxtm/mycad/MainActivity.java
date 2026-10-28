@@ -37,22 +37,29 @@ public class MainActivity extends Activity {
   final es.josxtm.mycad.cad.LinkedConvexIntersection recipe;
   final es.josxtm.mycad.cad.NamedGridHoleBody identity;
   final es.josxtm.mycad.cad.NamedConvexIntersection convexIdentity;
+  final es.josxtm.mycad.cad.NamedPlanarBoolean planarIdentity;
   final es.josxtm.mycad.cad.PlanarBooleanView view;
   PlanarStoredBinding(int index,int first,MeshEngine.Mesh stored,
       es.josxtm.mycad.cad.LinkedConvexIntersection recipe,
       es.josxtm.mycad.cad.NamedGridHoleBody identity){
    this.index=index;firstTriangle=first;this.stored=stored;this.recipe=recipe;this.identity=identity;
-   convexIdentity=null;view=es.josxtm.mycad.cad.PlanarBooleanView.from(identity);
+   convexIdentity=null;planarIdentity=null;view=es.josxtm.mycad.cad.PlanarBooleanView.from(identity);
   }
   PlanarStoredBinding(int index,int first,MeshEngine.Mesh stored,
       es.josxtm.mycad.cad.LinkedConvexIntersection recipe,
       es.josxtm.mycad.cad.NamedConvexIntersection identity){
    this.index=index;firstTriangle=first;this.stored=stored;this.recipe=recipe;
-   this.identity=null;convexIdentity=identity;view=es.josxtm.mycad.cad.PlanarBooleanView.from(identity);
+   this.identity=null;convexIdentity=identity;planarIdentity=null;view=es.josxtm.mycad.cad.PlanarBooleanView.from(identity);
+  }
+  PlanarStoredBinding(int index,int first,MeshEngine.Mesh stored,
+      es.josxtm.mycad.cad.LinkedConvexIntersection recipe,
+      es.josxtm.mycad.cad.NamedPlanarBoolean identity){
+   this.index=index;firstTriangle=first;this.stored=stored;this.recipe=recipe;
+   this.identity=null;convexIdentity=null;planarIdentity=identity;view=es.josxtm.mycad.cad.PlanarBooleanView.from(identity);
   }
   PlanarStoredBinding(PlanarStoredBinding original,int first){
    index=original.index;firstTriangle=first;stored=original.stored;recipe=original.recipe;
-   identity=original.identity;convexIdentity=original.convexIdentity;view=original.view;
+   identity=original.identity;convexIdentity=original.convexIdentity;planarIdentity=original.planarIdentity;view=original.view;
   }
  }
  java.util.List<PlanarStoredBinding> renderedPlanarBindings=java.util.Collections.emptyList();
@@ -923,7 +930,7 @@ public class MainActivity extends Activity {
   if(storedIndex>=0&&storedIndex<intersectionRecipes.size()&&
      intersectionRecipes.get(storedIndex)!=null&&
      (intersectionRecipes.get(storedIndex).isStepped()||intersectionRecipes.get(storedIndex).isGridHole()||
-      intersectionRecipes.get(storedIndex).isConvexIntersection())){
+      intersectionRecipes.get(storedIndex).isConvexIntersection()||intersectionRecipes.get(storedIndex).isNamedPlanar())){
    currentSceneMeshes();
    for(SteppedStoredBinding binding:renderedSteppedBindings)if(binding.index==storedIndex){
     display=binding.rendered;
@@ -3647,6 +3654,16 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     es.josxtm.mycad.cad.NamedConvexIntersection identity=recipe.regenerateNamedIntersection(sources,lines);
     if(!java.util.Arrays.equals(identity.shell.triangles(),stored.vertices))
      throw new IllegalArgumentException("La malla de intersección está obsoleta");
+    PlanarStoredBinding binding=new PlanarStoredBinding(i,first,stored,recipe,identity);
+    grids.add(binding);addTopologySnapshot(snapshots,binding.view.topology);
+   }else if(recipe!=null&&recipe.isNamedPlanar()){
+    java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=new java.util.LinkedHashMap<>();
+    es.josxtm.mycad.cad.LoopExtrusionFeature a=sources.get(recipe.firstId),b=sources.get(recipe.secondId);
+    if(a==null||b==null)throw new IllegalArgumentException("Faltan operandos de booleana planar");
+    lines.putAll(loopSketchSegments(a,null,0,0,0,0));lines.putAll(loopSketchSegments(b,null,0,0,0,0));
+    es.josxtm.mycad.cad.NamedPlanarBoolean identity=recipe.regenerateNamedPlanar(sources,lines);
+    if(!java.util.Arrays.equals(identity.triangles(),stored.vertices))
+     throw new IllegalArgumentException("La malla de booleana planar está obsoleta");
     PlanarStoredBinding binding=new PlanarStoredBinding(i,first,stored,recipe,identity);
     grids.add(binding);addTopologySnapshot(snapshots,binding.view.topology);
    }else if(i<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(i)!=null){

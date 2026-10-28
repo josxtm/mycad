@@ -60,4 +60,20 @@ public final class PlanarBooleanView {
   return new PlanarBooleanView(body.bodyId,body.shell.id(),1,0,body.shell.vertices().size(),body.shell.edges().size(),
    mesh,faces,triangles,TopologySnapshot.from(body));
  }
+ public static PlanarBooleanView from(NamedPlanarBoolean body){
+  if(body==null)throw new IllegalArgumentException("Missing named planar Boolean");
+  List<Face> faces=new ArrayList<>();List<String> triangles=new ArrayList<>();
+  int vertices=0,edges=0;StringBuilder geometry=new StringBuilder();
+  for(PolygonPrismBRep shell:body.solids()){
+   geometry.append(shell.id()).append('/');vertices+=shell.vertices().size();edges+=shell.edges().size();
+   for(PolygonPrismBRep.Face face:shell.faces())faces.add(new Face(body.faceId(face.id),face.id,face.area));
+   float[] mesh=shell.triangles();
+   for(int i=0;i<mesh.length/9;i++){
+    PolygonPrismBRep.Face face=PolygonPrismFacePicker.resolve(shell,i);
+    if(face==null)throw new IllegalArgumentException("Missing planar Boolean face");triangles.add(face.id);
+   }
+  }
+  return new PlanarBooleanView(body.bodyId,geometry.toString(),body.solids().size(),0,vertices,edges,
+   body.triangles(),faces,triangles,TopologySnapshot.from(body));
+ }
 }

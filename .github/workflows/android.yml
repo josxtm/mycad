@@ -128,7 +128,7 @@ jobs:
           java -cp build/geometry-tests SteppedVisiblePatchBridgeTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SteppedScenePatchRegistry.java tests/SteppedScenePatchRegistryTest.java
           java -cp build/geometry-tests SteppedScenePatchRegistryTest
-          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SourceTopologyNames.java app/src/main/java/es/josxtm/mycad/cad/NamedGridHoleBody.java app/src/main/java/es/josxtm/mycad/cad/NamedSteppedBody.java app/src/main/java/es/josxtm/mycad/cad/NamedConvexIntersection.java app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedConvexIntersectionTest.java tests/LinkedAnalyticBooleanTest.java
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SourceTopologyNames.java app/src/main/java/es/josxtm/mycad/cad/NamedGridHoleBody.java app/src/main/java/es/josxtm/mycad/cad/NamedSteppedBody.java app/src/main/java/es/josxtm/mycad/cad/NamedConvexIntersection.java app/src/main/java/es/josxtm/mycad/cad/NamedPlanarBoolean.java app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedConvexIntersectionTest.java tests/LinkedAnalyticBooleanTest.java
           java -cp build/geometry-tests LinkedConvexIntersectionTest
           java -cp build/geometry-tests LinkedAnalyticBooleanTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/NamedSteppedBodyTest.java
@@ -215,6 +215,8 @@ jobs:
           java -cp build/geometry-tests TopologyReferenceTest
           javac -cp build/geometry-tests -sourcepath app/src/main/java -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/PlanarBooleanView.java tests/NamedConvexIntersectionTest.java
           java -cp build/geometry-tests NamedConvexIntersectionTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/NamedPlanarBooleanTest.java
+          java -cp build/geometry-tests NamedPlanarBooleanTest
           } 2>&1 | tee reports/geometria.log
       # CI habitual valida Java, tests Android y Lint, SIN generar un APK.
       - name: Compilar código y comprobar pruebas y Lint (sin APK)

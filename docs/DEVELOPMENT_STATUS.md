@@ -3,15 +3,15 @@
 ## Base y alcance
 
 - Repositorio exclusivo: `josxtm/mycad`.
-- Base remota: `0c57f8e7d8d44032ffb4754f4a38ce0c2354a72b`, PR #132 integrada.
-- Última etapa integrada: referencias tipadas y reconciliación de topología.
-- [android.yml #594](https://github.com/josxtm/mycad/actions/runs/40725744292): correcto.
-- El hito anterior #590 conserva su APK; esta continuación requiere su propio CI.
+- Base remota: `0a443419f1ca4d4e0ddf4934ee9ee07c65f47d11`, PR #133 integrada.
+- Última etapa integrada: intersecciones convexas nombradas y referencias tipadas.
+- [android.yml #597](https://github.com/josxtm/mycad/actions/runs/40730118057): correcto.
+- El hito anterior #597 conserva su APK; esta continuación requiere su propio CI.
 - Las PR #80/#86 permanecen en borrador, sin fusionar.
 
-## Fase A actual: identidades de intersecciones convexas no ortogonales
+## Fase A actual: identidades de booleanas planares y componentes
 
-Rama: `feature/cad-named-convex-intersections`.
+Rama: `feature/cad-named-planar-booleans`.
 
 `NamedGridHoleBody` asigna nombres persistentes a vértices, aristas y caras de
 booleanas ortogonales de igual altura, incluidos agujeros pasantes y varios
@@ -70,12 +70,34 @@ dos triángulos). La asociación también exige la revisión de la escena realme
 instalada: una previsualización temporal o un visor oculto no pueden reutilizarla.
 El JSON, las recetas y la teselación se conservan.
 
+`NamedPlanarBoolean` añade las once rutas restantes de recetas planares:
+UNION/INTERSECTION/DIFFERENCE_ANALYTIC, UNION/DIFFERENCE_ORTHOGONAL,
+UNION/INTERSECTION/DIFFERENCE_POLYGONAL y las tres MULTISHELL. Cada ruta llama
+exactamente a su kernel histórico y conserva las coordenadas, el orden de los
+cascarones y todos los triángulos persistidos. Incluye la unión inclinada convexa,
+la unión anidada que reutiliza un cascarón origen y las intersecciones cóncavas de
+altura desigual. La identidad del propietario sigue siendo el UUID de la receta.
+
+Las caras laterales incluyen las identidades de sus extremos para distinguir
+segmentos cóncavos separados sobre el mismo plano. Las tapas de un solo cascarón
+mantienen su rol semántico. En MULTISHELL cada componente se identifica por su
+contorno de procedencia, sin índices ni coordenadas: una separación/fusión retira
+las tapas anteriores y crea referencias para las nuevas. Es una política
+conservadora: otros cambios del contorno también pueden invalidar sus tapas.
+No se adivina una transferencia por proximidad o volumen. Las entidades de
+frontera que conservan procedencia pueden permanecer entre componentes.
+
+El adaptador común conecta estas rutas al visor, al inspector, a la selección de
+la cara completa y a la reconciliación transaccional. Rechaza mallas adulteradas,
+versiones obsoletas y cambios de propietario. Los namespaces publicados de
+`NamedSteppedBody`, `NamedGridHoleBody` y `NamedConvexIntersection` no se alteran.
+
 ## Verificación de esta revisión
 
 - Integridad y suite geométrica completa de android.yml: superadas localmente.
 - Motor: planos XY/XZ/YZ, ambos signos, agujero → apertura lateral, componentes
   independientes, edición dimensional, versiones obsoletas y compatibilidad v1.
-- Java SDK 35, lenguaje/bytecode Java 8 y 47 pruebas Robolectric/IO: superadas.
+- Java SDK 35, lenguaje/bytecode Java 8 y 51 pruebas Robolectric/IO: superadas.
 - Regresiones de reconciliación: agujero → apertura lateral mediante el diálogo
   real de editar perfil, undo, referencias creadas/eliminadas, tipo incorrecto,
   otro propietario, versión anterior, cilindros y prismas no ortogonales.
@@ -84,6 +106,10 @@ El JSON, las recetas y la teselación se conservan.
 - Intersección inclinada: seis combinaciones plano/signo, cambios dimensionales,
   traslaciones, nacimiento/desaparición de vértices, cambio del límite de altura,
   perfil colineal y triángulo agudo a coordenadas altas.
+- Once rutas: comparación exacta contra las mallas históricas, todos los planos
+  y signos, unión inclinada, U cóncava, separación/fusión y reordenado de componentes.
+- Android: selección/reapertura de las once rutas, separación mediante edición
+  real del lado de origen, undo y rechazo transaccional de mallas adulteradas.
 - Android: tapa completa, persistencia, edición real del perfil origen,
   previsualización temporal y eventos pendientes de un visor oculto.
 - Gradle local sigue restringido por sockets del daemon; compilación Android y
@@ -98,26 +124,28 @@ El error Java 8 de #591 quedó corregido y verificado por #592 antes de integrar
 
 ## Próximas tareas y límites
 
-1. Ampliar el nombrado a uniones/restas y a las rutas restantes (por ejemplo
-   UNION_ANALYTIC, INTERSECTION_ANALYTIC y resultados poligonales cóncavos), antes
-   de declarar completada la fase A por software. La nueva ruta convexa se activa
-   para INTERSECTION; no sustituye silenciosamente las demás.
-2. Definir la identidad de componentes al separarse/fusionarse y ampliar el
-   soporte de B-Rep curva reconstruible, manteniendo invalidez explícita.
-3. Después continuar operaciones CAD del motor con regeneración transaccional.
+1. Auditar las recetas de perforación circular y de extrusión de cara que aún
+   almacenan mallas sin propietario UUID persistido. Ampliar su representación
+   analítica/topológica sin presentar facetas de teselación como caras curvas.
+2. Revisar la cobertura de cadenas de operaciones y la persistencia explícita
+   de referencias de subentidades, con migración de proyectos anteriores.
+3. Completar la aceptación automática de la fase A antes de pasar a ampliar
+   las operaciones CAD de la fase B. La validación física sigue independiente.
 
-Fase A estimada en 90 %: aún parcial. Las caras con agujeros siguen siendo quads
-del complejo celular; las intersecciones tienen tapas poligonales y caras laterales.
-No hay selección interactiva de todos sus bordes. No se atribuye soporte general de NURBS o cambios topológicos
-arbitrarios. Se conservan bocetos, cotas, extrusión, ViewCube, navegación, edición,
-undo/redo, guardar/abrir e intercambio existente.
+Fase A estimada en 93 %: aún parcial. Todas las operaciones de
+`LinkedConvexIntersection` tienen ya adaptación nombrada, pero esto no equivale
+al soporte de todas las familias CAD. Las perforaciones circulares existentes
+siguen produciendo mallas; no son todavía una B-Rep curva completa. No hay
+selección interactiva de todas las aristas ni soporte general de NURBS/cambios
+topológicos arbitrarios. Se conservan bocetos, cotas, extrusión, ViewCube,
+navegación, edición, undo/redo, guardar/abrir e intercambio existente.
 
 ## Recuperación
 
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-named-convex-intersections
+git switch feature/cad-named-planar-booleans
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
@@ -128,7 +156,7 @@ JDK 17, Gradle 8.9 y SDK Android 35. Si la PR ya fue integrada, crear una nueva
 rama desde origin/main y leer este estado antes de modificar código. No rebasar,
 forzar ramas compartidas ni modificar main directamente.
 
-En este entorno el checkout recuperable es `/workspace/mycad-convex-identities`.
+En este entorno el checkout recuperable es `/workspace/mycad-planar-identities`.
 Git por terminal no tiene acceso de red; la publicación usa el conector GitHub,
-con padre remoto `0c57f8e`. Los ancestros de materialización local no se publican.
+con padre remoto `0a44341`. Los ancestros de materialización local no se publican.
 La historia remota de la rama es la referencia para reanudar en un entorno normal.

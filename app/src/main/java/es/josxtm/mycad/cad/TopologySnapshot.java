@@ -108,6 +108,19 @@ public final class TopologySnapshot {
   for(PolygonPrismBRep.Face f:body.shell.faces()){b.add(Kind.FACE,body.faceId(f.id),f.id);b.number(f.area);}
   return new TopologySnapshot(b);
  }
+ public static TopologySnapshot from(NamedPlanarBoolean body){
+  if(body==null)throw new IllegalArgumentException("Missing named planar Boolean");
+  Builder b=new Builder(body.bodyId,"PLANAR_"+body.operation);
+  for(PolygonPrismBRep shell:body.solids()){
+   b.field(shell.id());b.number(shell.distance());b.number(shell.plane());
+   for(PolygonPrismBRep.Vertex v:shell.vertices()){
+    b.add(Kind.VERTEX,body.vertexId(v.id),v.id);b.point(v.x,v.y,v.z);
+   }
+   for(PolygonPrismBRep.Edge e:shell.edges())b.add(Kind.EDGE,body.edgeId(e.id),e.id);
+   for(PolygonPrismBRep.Face f:shell.faces()){b.add(Kind.FACE,body.faceId(f.id),f.id);b.number(f.area);}
+  }
+  return new TopologySnapshot(b);
+ }
  public static TopologySnapshot from(PolygonPrismBRep body){
   if(body==null)throw new IllegalArgumentException("Missing polygon prism");
   Builder b=new Builder(body.id(),"POLYGON_PRISM");b.number(body.distance());b.number(body.plane());

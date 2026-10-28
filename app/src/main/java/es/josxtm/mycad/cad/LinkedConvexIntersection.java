@@ -82,6 +82,14 @@ public final class LinkedConvexIntersection {
    throw new IllegalArgumentException("Booleana escalonada demasiado grande");
   return named;
  }
+ public boolean isNamedPlanar(){return NamedPlanarBoolean.supports(operation);}
+ public NamedPlanarBoolean regenerateNamedPlanar(Map<String,LoopExtrusionFeature> features,
+      Map<String,ClosedSketchExtrusion.Segment> lines){
+  if(!isNamedPlanar()||features==null||lines==null)throw new IllegalArgumentException("Faltan fuentes de booleana planar");
+  LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
+  if(a==null||b==null||!firstId.equals(a.id)||!secondId.equals(b.id))throw new IllegalArgumentException("Falta un operando B-Rep");
+  return NamedPlanarBoolean.apply(id,a.asBRep(lines),b.asBRep(lines),operation);
+ }
  public boolean isConvexIntersection(){return operation==Operation.INTERSECTION;}
  public NamedConvexIntersection regenerateNamedIntersection(Map<String,LoopExtrusionFeature> features,
       Map<String,ClosedSketchExtrusion.Segment> lines){

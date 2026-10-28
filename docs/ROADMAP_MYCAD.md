@@ -426,3 +426,15 @@ previsualización temporal y eventos pendientes del visor oculto. Java 8, 47 pru
 Android/IO y suite geométrica local superadas; aceptación física pendiente.
 Fase A estimada en 90 %, aún sin completar el nombrado de uniones/restas restantes,
 resultados cóncavos generales ni todas las familias curvas.
+
+## Continuación: booleanas planares con identidades persistentes
+
+- Base verificada: PR #133 integrada, main `0a44341`, android.yml [#597](https://github.com/josxtm/mycad/actions/runs/40730118057) verde.
+- Rama: `feature/cad-named-planar-booleans`.
+- Nombrado por procedencia en las once recetas ANALYTIC/ORTHOGONAL/POLYGONAL/MULTISHELL restantes.
+- Identidades tipadas de vértices, aristas y caras, selección Android, inspector y reconciliación; teselación histórica idéntica.
+- Separación/fusión: tapas de componentes se retiran y recrean según contorno de procedencia; no se reasignan por índice o proximidad.
+- Regresiones: planos/signos, unión no ortogonal, intersección cóncava de altura desigual, U cóncava, división, undo, reapertura y geometría adulterada.
+- 51 pruebas Android/IO; integridad y suite geométrica de CI. Gradle/Lint requieren CI verde antes de integrar.
+- Fase A estimada 93 %, parcial: faltan otras familias y migración de propietarios/referencias. Perforaciones curvas aún basadas en mallas.
+- Validación física Android/EGL y rendimiento pendientes. Recuperación y límites en `docs/DEVELOPMENT_STATUS.md`.
