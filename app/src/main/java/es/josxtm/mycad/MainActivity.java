@@ -10,8 +10,14 @@ import android.content.Intent;
 import android.net.Uri;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import es.josxtm.mycad.ui.CadAppearance;
+import static es.josxtm.mycad.ui.CadAppearance.Role.*;
 
 public class MainActivity extends Activity {
+ int themeIndex=0;
+ CadAppearance appearance=CadAppearance.preset(0),customAppearance=CadAppearance.preset(0);
+ View gpuCube;
+
  ArrayList<MeshEngine.Mesh> booleanMeshes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceUnionRecipe> unionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.DrilledBoxRecipe> holeRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LoopExtrusionFeature> loopExtrusionFeatures=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.LinkedConvexIntersection> intersectionRecipes=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.FaceExtrusionChain> extrusionChains=new ArrayList<>(); ArrayList<es.josxtm.mycad.cad.ChainBooleanFeature> chainFeatures=new ArrayList<>(); es.josxtm.mycad.cad.ChainBooleanRebuildCache.State booleanRebuildSnapshot; boolean booleanRebuildBusy=false; String activeCylinderFaceId=null,activeAnalyticEdgeId=null; ArrayList<Part> parts=new ArrayList<>(); ArrayList<Sketch> sketches=new ArrayList<>(); int sketchTool=0,sketchPlane=0; int selectedSketch=-1; Scene scene; int selected=-1; TextView info; boolean flat=false; boolean darkMode=false;float rotateSensitivity=1f,zoomSensitivity=1f,dragSensitivity=1f;boolean gridVisible=true,snapEnabled=false,cameraLock=true,axesVisible=true;float gridStep=5f;int gridPlane=0,moveMode=0,moveAxis=0;boolean movie=false,movieAll=false,movieLoop=true;float movieSpeed=.6f; ArrayDeque<String> undo=new ArrayDeque<>(),redo=new ArrayDeque<>(); String pendingExport,pendingDxfExport; boolean fileBusy=false; TextView nextStep;LinearLayout rootLayout,topBar,leftBar,rightBar;TextView titleView;
  static final int SAVE_FILE=101, OPEN_FILE=102, IMPORT_MESH=103, EXPORT_MESH=104, IMPORT_DXF=105, EXPORT_DXF=106; MeshEngine meshView; FrameLayout meshPanel; MeshEngine.Mesh importedMesh; boolean meshMode=false,cadGpuMesh=false,isolatedMeshPreview=false,faceDragEnabled=false; int selectedStoredMeshIndex=-1; MeshEngine.Mesh selectedStoredMeshObject=null; String selectedPolygonFaceId=null; es.josxtm.mycad.cad.CadFaceReference activeCadFace; es.josxtm.mycad.cad.AnalyticPrimitiveRayPicker.Hit activeExactFaceHit; es.josxtm.mycad.cad.AnalyticEdgePicker.Hit activeExactEdgeHit; String meshExportFormat="stl"; MeshEngine.Mesh pendingMeshExport; int interactionMode=0; boolean rotationMode=false; TextView modeIndicator;
  class Sketch {String id=java.util.UUID.randomUUID().toString();int type,plane=0;float x1,y1,x2,y2;Sketch(int t,float a,float b,float c,float d){type=t;x1=a;y1=b;x2=c;y2=d;}}
@@ -69,9 +75,13 @@ public class MainActivity extends Activity {
  java.util.Map<String,es.josxtm.mycad.cad.TopologySnapshot> topologySnapshots=java.util.Collections.emptyMap();
  java.util.Map<String,es.josxtm.mycad.cad.TopologyReconciliation> topologyChanges=java.util.Collections.emptyMap();
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
- public void onCreate(Bundle b){super.onCreate(b);
+ public void onCreate(Bundle b){
+ AppearancePreferences storedAppearance=AppearancePreferences.load(getPreferences(MODE_PRIVATE));
+ themeIndex=storedAppearance.index;appearance=storedAppearance.palette;customAppearance=storedAppearance.custom;darkMode=appearance.dark();
+ setTheme(darkMode?android.R.style.Theme_Material_NoActionBar:android.R.style.Theme_Material_Light_NoActionBar);
+ super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);rootLayout=root;root.setBackgroundColor(Color.rgb(18,25,36));
- TextView title=new TextView(this);title.setText("MyCAD · 0.6.1 UI");titleView=title;title.setTextSize(17);title.setTextColor(Color.WHITE);
+ TextView title=new TextView(this);title.setText("MyCAD · 0.6.1");titleView=title;title.setTextSize(17);title.setTextColor(Color.WHITE);
  LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);root.addView(top);topBar=top;
  top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
  icon(top,"↶","Deshacer",()->history(true));icon(top,"↷","Rehacer",()->history(false));icon(top,"▣","Guardar archivo",()->exportFile());icon(top,"⚙","Ajustes",()->settings());icon(top,"▶","Modo película",()->movieMenu());icon(top,"⋮","Menú de proyecto",()->projectMenu());
@@ -88,7 +98,7 @@ public class MainActivity extends Activity {
   View control=modes.getChildAt(i);control.setMinimumWidth(dp(88));
   control.setLayoutParams(new LinearLayout.LayoutParams(-2,dp(48)));
  }
- modeIndicator=new TextView(this);modeIndicator.setText("● Navegar");modeIndicator.setTextSize(12);modeIndicator.setPadding(dp(12),dp(5),dp(8),dp(5));modeIndicator.setContentDescription("Modo de interacción actual");modeIndicator.setOnClickListener(v->chooseInteractionMode());root.addView(modeIndicator);nextStep=new TextView(this);nextStep.setTextColor(Color.rgb(112,220,229));nextStep.setTextSize(11);root.addView(nextStep);
+ modeIndicator=new TextView(this);modeIndicator.setText("● Navegar");modeIndicator.setTextSize(12);modeIndicator.setPadding(dp(12),dp(5),dp(8),dp(5));modeIndicator.setContentDescription("Modo de interacción actual");modeIndicator.setOnClickListener(v->chooseInteractionMode());root.addView(modeIndicator);nextStep=new TextView(this);nextStep.setTextColor(appearance.color(ACCENT));nextStep.setTextSize(11);root.addView(nextStep);
  root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(16+insets.getSystemWindowInsetLeft(),16+insets.getSystemWindowInsetTop(),16+insets.getSystemWindowInsetRight(),16+insets.getSystemWindowInsetBottom());return insets;});setContentView(root);root.requestApplyInsets();loadSettings();applyTheme();load();if(b!=null)pendingExport=b.getString("pendingExport");updateStep();
  }
  void button(LinearLayout l,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setTextSize(12);l.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->{if(fileBusy){toast("Espera a que termine la operación de archivo");return;}r.run();});}
@@ -96,8 +106,8 @@ public class MainActivity extends Activity {
   View v=new View(this){
    final Paint pen=new Paint(3);
    @Override protected void onDraw(Canvas c){super.onDraw(c);
-    boolean dark=darkMode;int ink=dark?Color.rgb(226,236,248):Color.rgb(39,62,87);
-    pen.setColor(dark?Color.rgb(34,47,64):Color.rgb(235,241,248));pen.setStyle(Paint.Style.FILL);c.drawRoundRect(1,1,getWidth()-1,getHeight()-1,dp(10),dp(10),pen);
+    int ink=appearance.ink(appearance.color(PANEL));
+    pen.setColor(appearance.color(PANEL));pen.setStyle(Paint.Style.FILL);c.drawRoundRect(1,1,getWidth()-1,getHeight()-1,dp(10),dp(10),pen);
     float cx=getWidth()/2f,cy=getHeight()/2f,unit=dp(10);
     pen.setColor(ink);pen.setStyle(Paint.Style.STROKE);pen.setStrokeWidth(dp(2));pen.setStrokeCap(Paint.Cap.ROUND);pen.setStrokeJoin(Paint.Join.ROUND);
     if(name.contains("Deshacer")||name.contains("Rehacer")){boolean rev=name.contains("Rehacer");float d=rev?1:-1;c.drawArc(cx-unit,cy-unit*.8f,cx+unit,cy+unit*.8f,rev?205:-25,270,false,pen);c.drawLine(cx+d*unit,cy-unit*.7f,cx+d*unit,cy+unit*.15f,pen);c.drawLine(cx+d*unit,cy-unit*.7f,cx+d*unit*.2f,cy-unit*.4f,pen);}
@@ -115,7 +125,7 @@ public class MainActivity extends Activity {
   v.setOnClickListener(w->{if(fileBusy){toast("Operación de archivo en curso");return;}action.run();});v.setOnLongClickListener(w->{toast(name);return true;});
  }
  int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
- void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)","Arrastrar cara directamente en 3D","Arrastrar arista directamente en 3D","Precisión de arrastre (imán)","Importar bocetos DXF (XY)","Exportar bocetos DXF (XY)"};new AlertDialog.Builder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;case 24:toggleFaceDragOnModel();break;case 25:toggleEdgeDragOnModel();break;case 26:chooseDragPrecision();break;case 27:importDxfSketches();break;case 28:exportDxfSketches();break;}}).show();}
+ void projectMenu(){String[] items={"Nuevo diseño","Abrir archivo","Guardar archivo","Importar STL / OBJ","Exportar STL / OBJ","Visor 3D GPU","Guía de uso","Plan de versiones","Diagnóstico motor CAD","Alternar visor CAD experimental","Editar cara seleccionada","Extruir cara (nuevo cuerpo)","Historial de extrusiones","Booleanas guardadas","Perforar prisma (circular)","Booleanas prisma + cilindro","Estado de dependencias CAD","Auditar vínculos de bocetos","Árbol paramétrico e impactos","Reconstruir booleanas encadenadas","Editar cara cilíndrica B-Rep","Inspeccionar sólido B-Rep (caras y aristas)","Editar arista B-Rep seleccionada","Previsualizar cara/arista (controles táctiles)","Arrastrar cara directamente en 3D","Arrastrar arista directamente en 3D","Precisión de arrastre (imán)","Importar bocetos DXF (XY)","Exportar bocetos DXF (XY)"};new AppearanceDialogBuilder(this).setTitle("Proyecto MyCAD").setItems(items,(d,n)->{switch(n){case 0:newDesign();break;case 1:confirmOpen();break;case 2:exportFile();break;case 3:importMesh();break;case 4:exportMeshMenu();break;case 5:toggleMeshView();break;case 6:guide();break;case 7:roadmap();break;case 8:cadEngineDiagnostic();break;case 9:toggleCadGpuMesh();break;case 10:editSelectedCadFace();break;case 11:extrudeSelectedCadFace();break;case 12:manageExtrusionChains();break;case 13:showSavedChainBooleans();break;case 14:drillSelectedBox();break;case 15:cylinderBoxBooleanMenu();break;case 16:showChainDependencyReport();break;case 17:showLinkedSketchAudit();break;case 18:showParametricFeatureTree();break;case 19:rebuildSavedChainBooleans();break;case 20:editSelectedCylinderFace();break;case 21:inspectSelectedAnalyticSolid();break;case 22:editSelectedAnalyticEdge();break;case 23:previewSelectedBRepMove();break;case 24:toggleFaceDragOnModel();break;case 25:toggleEdgeDragOnModel();break;case 26:chooseDragPrecision();break;case 27:importDxfSketches();break;case 28:exportDxfSketches();break;}}).show();}
  es.josxtm.mycad.cad.ParametricFeatureGraph buildParametricFeatureGraph(){
   es.josxtm.mycad.cad.ParametricFeatureGraph.Builder builder=
    new es.josxtm.mycad.cad.ParametricFeatureGraph.Builder();
@@ -140,7 +150,7 @@ public class MainActivity extends Activity {
   final es.josxtm.mycad.cad.ParametricFeatureGraph graph;
   try{graph=buildParametricFeatureGraph();}
   catch(Exception error){
-   new AlertDialog.Builder(this).setTitle("Vínculos paramétricos incorrectos")
+   new AppearanceDialogBuilder(this).setTitle("Vínculos paramétricos incorrectos")
     .setMessage("Hay referencias a objetos que ya no existen, identificadores duplicados "+
      "o dependencias inconsistentes. Revisa las auditorías de bocetos e historial.")
     .setPositiveButton("Cerrar",null).show();
@@ -153,7 +163,7 @@ public class MainActivity extends Activity {
    es.josxtm.mycad.cad.ParametricFeatureGraph.Node node=order.get(i);
    names[i]=node.label+" · depende de "+node.parentIds().size();
   }
-  new AlertDialog.Builder(this).setTitle("Árbol paramétrico · "+order.size()+" elementos")
+  new AppearanceDialogBuilder(this).setTitle("Árbol paramétrico · "+order.size()+" elementos")
    .setItems(names,(dialog,index)->{
     es.josxtm.mycad.cad.ParametricFeatureGraph.Node node=order.get(index);
     java.util.List<es.josxtm.mycad.cad.ParametricFeatureGraph.Node> impacted=
@@ -165,7 +175,7 @@ public class MainActivity extends Activity {
     if(impacted.size()>15)body.append("\\n…");
     body.append("\\n\\nDiagnóstico: las dependencias son informativas; la regeneración "+
      "geométrica sigue limitada a las operaciones actualmente soportadas.");
-    new AlertDialog.Builder(this).setTitle(node.label)
+    new AppearanceDialogBuilder(this).setTitle(node.label)
      .setMessage(body.toString()).setPositiveButton("Cerrar",null).show();
    }).setNegativeButton("Cerrar",null).show();
  }
@@ -176,7 +186,7 @@ public class MainActivity extends Activity {
    "\\nBooleanas vinculadas: "+graph.booleanCount+"\\nEstado: "+
    (graph.isValid()?"Referencias correctas":"REFERENCIAS INCORRECTAS");
   if(!graph.isValid())for(String error:graph.errors)summary+="\\n"+error;
-  new AlertDialog.Builder(this).setTitle("Dependencias paramétricas")
+  new AppearanceDialogBuilder(this).setTitle("Dependencias paramétricas")
    .setMessage(summary).setPositiveButton("Cerrar",null).show();
  }
  void showLinkedSketchAudit(){
@@ -198,7 +208,7 @@ public class MainActivity extends Activity {
    message.append("\\n").append(report.diagnostics.get(i));
   if(report.diagnostics.size()>12)message.append("\\n…");
   message.append("\\n\\nSolo diagnóstico: no cambia ningún cuerpo.");
-  new AlertDialog.Builder(this).setTitle("Auditoría de vínculos boceto / 3D")
+  new AppearanceDialogBuilder(this).setTitle("Auditoría de vínculos boceto / 3D")
    .setMessage(message.toString()).setPositiveButton("Cerrar",null).show();
  }
  void cadEngineDiagnostic(){
@@ -216,14 +226,14 @@ public class MainActivity extends Activity {
     +"\\nPiezas sin vínculo: "+result.unlinkedParts
     +"\\nExtrusiones inválidas o sin boceto: "+result.invalidExtrusions
     +"\\n\\nSolo diagnóstico: no modifica el diseño ni sustituye al motor actual.";
-   new AlertDialog.Builder(this).setTitle("Diagnóstico del motor CAD").setMessage(summary).setPositiveButton("Cerrar",null).show();
+   new AppearanceDialogBuilder(this).setTitle("Diagnóstico del motor CAD").setMessage(summary).setPositiveButton("Cerrar",null).show();
   }catch(Exception error){toast("No se pudo analizar el diseño");}
  }
- void chooseSketchPlane(){new AlertDialog.Builder(this).setTitle("Plano de boceto").setSingleChoiceItems(new String[]{"XY · planta","XZ · alzado","YZ · lateral"},sketchPlane,(d,n)->{sketchPlane=n;flat=true;sketchTool=0;scene.invalidate();info.setText("Plano "+new String[]{"XY","XZ","YZ"}[n]+" seleccionado · Elige herramienta de boceto");d.dismiss();sketchMenu();}).setNegativeButton("Cancelar",null).show();}
+ void chooseSketchPlane(){new AppearanceDialogBuilder(this).setTitle("Plano de boceto").setSingleChoiceItems(new String[]{"XY · planta","XZ · alzado","YZ · lateral"},sketchPlane,(d,n)->{sketchPlane=n;flat=true;sketchTool=0;scene.invalidate();info.setText("Plano "+new String[]{"XY","XZ","YZ"}[n]+" seleccionado · Elige herramienta de boceto");d.dismiss();sketchMenu();}).setNegativeButton("Cancelar",null).show();}
  void sketchMenu(){
   String[] items={"Salir de boceto","Línea","Rectángulo","Círculo","Acotar seleccionado",
    "Extruir seleccionado","Eliminar último boceto","Eliminar boceto seleccionado","Extruir contorno cerrado de líneas (malla)","Extruir arrastrando con el dedo"};
-  new AlertDialog.Builder(this).setTitle("Boceto táctil · plano "+new String[]{"XY","XZ","YZ"}[sketchPlane])
+  new AppearanceDialogBuilder(this).setTitle("Boceto táctil · plano "+new String[]{"XY","XZ","YZ"}[sketchPlane])
    .setItems(items,(dialog,choice)->{
     if(choice==4){dimensionSketch();return;}
     if(choice==5){extrudeSketch();return;}
@@ -281,7 +291,7 @@ public class MainActivity extends Activity {
   entry.setInputType(8194|4096);
   entry.setSingleLine(true);entry.setText("20");
   entry.setSelectAllOnFocus(true);
-  new AlertDialog.Builder(this).setTitle("Extruir contorno de líneas")
+  new AppearanceDialogBuilder(this).setTitle("Extruir contorno de líneas")
    .setMessage("Distancia en mm (+ hacia delante, − hacia atrás). "+
      "Se creará una malla 3D cerrada, también para perfiles cóncavos. "+
      "No será una pieza B-Rep paramétrica; "+
@@ -465,7 +475,7 @@ public class MainActivity extends Activity {
    es.josxtm.mycad.cad.LoopExtrusionFeature recipe=loopExtrusionFeatures.get(index);
    es.josxtm.mycad.cad.PolygonPrismBRep bRep=recipe.asBRep(
      loopSketchSegments(recipe,null,0,0,0,0));
-   new AlertDialog.Builder(this).setTitle("Topología B-Rep · contorno "+(index+1))
+   new AppearanceDialogBuilder(this).setTitle("Topología B-Rep · contorno "+(index+1))
     .setMessage("Sólido analítico con caras planas y contorno cóncavo. "+
      "La malla visible sigue siendo una representación triangulada.\\n\\n"+
      "Caras: "+bRep.faces().size()+"\\n"+
@@ -498,7 +508,7 @@ public class MainActivity extends Activity {
   final es.josxtm.mycad.cad.LoopExtrusionFeature link=loopExtrusionFeatures.get(index);
   EditText input=new EditText(this);input.setInputType(8194|4096);
   input.setSingleLine(true);input.setText("1");
-  new AlertDialog.Builder(this).setTitle("Desplazar cara lateral B-Rep · mm")
+  new AppearanceDialogBuilder(this).setTitle("Desplazar cara lateral B-Rep · mm")
    .setMessage("Distancia positiva hacia fuera; negativa hacia dentro. "+
     "Se mueven los dos vértices de esa cara y los extremos adyacentes "+
     "del boceto. Si se cruza o rompe el perfil, no se guarda nada.")
@@ -577,7 +587,7 @@ public class MainActivity extends Activity {
     editLoopExtrusionDistance(index);return;
    }
    final String lateralId=selectedFace.id,sourceLine=selectedFace.sourceLineId;
-   new AlertDialog.Builder(this).setTitle("Cara lateral B-Rep")
+   new AppearanceDialogBuilder(this).setTitle("Cara lateral B-Rep")
     .setItems(new String[]{"Desplazar cara (mm)","Editar línea original del perfil"},(dialog,action)->{
      if(action==0)offsetPolygonSideFace(index,original,lateralId);
      else editLoopSourceLine(index,sourceLine);
@@ -633,7 +643,7 @@ public class MainActivity extends Activity {
   final es.josxtm.mycad.cad.LoopExtrusionFeature original=loopExtrusionFeatures.get(index);
   EditText input=new EditText(this);input.setInputType(8194|4096);
   input.setText(String.valueOf(original.distance));
-  new AlertDialog.Builder(this).setTitle("Distancia de extrusión · mm")
+  new AppearanceDialogBuilder(this).setTitle("Distancia de extrusión · mm")
    .setMessage("Se regenerará desde las líneas originales con distancia firmada. "+
     "Se comprobarán todos los resultados vinculados antes de guardar.")
    .setView(input).setNegativeButton("Cancelar",null)
@@ -693,7 +703,7 @@ public class MainActivity extends Activity {
    linkedLoops+" extrusión(es), "+linkedBooleans+" intersección(es) dependiente(s). "+
    "Puedes conservar los cuerpos como independientes o eliminarlos junto al boceto. "+
    "Ambas operaciones se pueden deshacer.";
-  new AlertDialog.Builder(this).setTitle("Eliminar boceto y dependencias")
+  new AppearanceDialogBuilder(this).setTitle("Eliminar boceto y dependencias")
    .setMessage(detail)
    .setNegativeButton("Cancelar",null)
    .setNeutralButton("Conservar cuerpos",(dialog,which)->
@@ -763,7 +773,7 @@ public class MainActivity extends Activity {
   return body;
  }
  void chooseSketchExtrusion(){
-  new AlertDialog.Builder(this).setTitle("Extruir boceto seleccionado")
+  new AppearanceDialogBuilder(this).setTitle("Extruir boceto seleccionado")
    .setItems(new String[]{"Arrastrar con el dedo", "Introducir altura / deslizador"},
     (dialog,choice)->{if(choice==0)startSketchPushPull();else extrudeSketch();})
    .setNegativeButton("Cancelar",null).show();
@@ -825,7 +835,7 @@ public class MainActivity extends Activity {
    }
    public void afterTextChanged(android.text.Editable editable){}
   });
-  AlertDialog dialog=new AlertDialog.Builder(this)
+  AlertDialog dialog=new AppearanceDialogBuilder(this)
    .setTitle("Extrusión · vista previa 3D")
    .setView(panel)
    .setNegativeButton("Cancelar",null)
@@ -865,20 +875,38 @@ public class MainActivity extends Activity {
  int draftIndex(ArrayList<Part> all,Part draft){
   int direct=all.indexOf(draft);return direct>=0?direct:all.size()-1;
  }
- void dimensionSketch(){if(selectedSketch<0||selectedSketch>=sketches.size()){toast("Selecciona primero un boceto");return;}Sketch q=sketches.get(selectedSketch);if(q.type==1){EditText lengthInput=new EditText(this);lengthInput.setInputType(8194|4096);lengthInput.setText(String.format(java.util.Locale.US,"%.2f",Math.hypot(q.x2-q.x1,q.y2-q.y1)));new AlertDialog.Builder(this).setTitle("Longitud de línea · mm").setView(lengthInput).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,which)->{try{float length=Float.parseFloat(lengthInput.getText().toString().replace(',','.'));if(!Float.isFinite(length)||length<=0||length>10000)throw new Exception();float dx=q.x2-q.x1,dy=q.y2-q.y1;float oldLength=(float)Math.hypot(dx,dy);if(oldLength<.0001f)throw new Exception();float nextX=q.x1+dx*length/oldLength,nextY=q.y1+dy*length/oldLength;
+ void dimensionSketch(){if(selectedSketch<0||selectedSketch>=sketches.size()){toast("Selecciona primero un boceto");return;}Sketch q=sketches.get(selectedSketch);if(q.type==1){EditText lengthInput=new EditText(this);lengthInput.setInputType(8194|4096);lengthInput.setText(String.format(java.util.Locale.US,"%.2f",Math.hypot(q.x2-q.x1,q.y2-q.y1)));new AppearanceDialogBuilder(this).setTitle("Longitud de línea · mm").setView(lengthInput).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,which)->{try{float length=Float.parseFloat(lengthInput.getText().toString().replace(',','.'));if(!Float.isFinite(length)||length<=0||length>10000)throw new Exception();float dx=q.x2-q.x1,dy=q.y2-q.y1;float oldLength=(float)Math.hypot(dx,dy);if(oldLength<.0001f)throw new Exception();float nextX=q.x1+dx*length/oldLength,nextY=q.y1+dy*length/oldLength;
  java.util.Map<Integer,MeshEngine.Mesh> staged=
   prepareLinkedLoopEdit(q,q.x1,q.y1,nextX,nextY);
  checkpoint();q.x2=nextX;q.y2=nextY;rebuildLinkedParts(q);
- applyLinkedLoopEdit(staged);save();scene.invalidate();info.setText("Línea acotada · "+length+" mm");}catch(Exception ex){toast("Longitud inválida (0–10000 mm)");}}).show();return;}LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(8),dp(20),dp(8));EditText[] e=new EditText[2];String[] labels=q.type==3?new String[]{"Diámetro (mm)"}:new String[]{"Ancho (mm)","Fondo (mm)"};for(int i=0;i<labels.length;i++){TextView label=new TextView(this);label.setText(labels[i]);box.addView(label);e[i]=new EditText(this);e[i].setInputType(8194|4096);e[i].setText(""+(q.type==3?2*Math.hypot(q.x2-q.x1,q.y2-q.y1):i==0?Math.abs(q.x2-q.x1):Math.abs(q.y2-q.y1)));box.addView(e[i]);}new AlertDialog.Builder(this).setTitle("Acotar perfil").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,w)->{try{float a=Float.parseFloat(e[0].getText().toString().replace(',','.'));float b=e[1]==null?a:Float.parseFloat(e[1].getText().toString().replace(',','.'));if(!Float.isFinite(a+b)||a<=0||b<=0||a>10000||b>10000)throw new Exception();float nextX=q.type==3?q.x1+a/2:q.x1+(q.x2>=q.x1?a:-a);float nextY=q.type==3?q.y1:q.y1+(q.y2>=q.y1?b:-b);if(!validateLinkedSketchEdit(q,q.x1,q.y1,nextX,nextY))throw new Exception();checkpoint();q.x2=nextX;q.y2=nextY;rebuildLinkedParts(q);save();scene.invalidate();}catch(Exception ex){toast("Cota inválida");}}).show();}
- void loadSettings(){android.content.SharedPreferences p=getPreferences(MODE_PRIVATE);darkMode=p.getBoolean("dark",false);rotateSensitivity=p.getFloat("rot",1f);zoomSensitivity=p.getFloat("zoom",1f);dragSensitivity=p.getFloat("drag",1f);gridVisible=p.getBoolean("gridVisible",true);snapEnabled=p.getBoolean("snap",false);gridStep=p.getFloat("gridStep",5);gridPlane=p.getInt("gridPlane",0);axesVisible=p.getBoolean("axes",true);cameraLock=p.getBoolean("cameraLock",true);moveMode=p.getInt("moveMode",0);moveAxis=p.getInt("moveAxis",0);}
- void applyTheme(){int bg=darkMode?Color.rgb(18,25,36):Color.rgb(248,250,253),fg=darkMode?Color.WHITE:Color.rgb(25,38,55),bar=darkMode?Color.rgb(34,47,64):Color.rgb(233,239,246);rootLayout.setBackgroundColor(bg);titleView.setTextColor(fg);info.setTextColor(fg);if(modeIndicator!=null)modeIndicator.setTextColor(darkMode?Color.rgb(125,208,255):Color.rgb(24,99,185));for(LinearLayout group:new LinearLayout[]{topBar,leftBar,rightBar})for(int i=0;i<group.getChildCount();i++){View v=group.getChildAt(i);if(v instanceof TextView){((TextView)v).setTextColor(fg);v.setBackgroundColor(bar);}}scene.invalidate();for(LinearLayout group:new LinearLayout[]{topBar,leftBar,rightBar})for(int i=0;i<group.getChildCount();i++)group.getChildAt(i).invalidate();}
+ applyLinkedLoopEdit(staged);save();scene.invalidate();info.setText("Línea acotada · "+length+" mm");}catch(Exception ex){toast("Longitud inválida (0–10000 mm)");}}).show();return;}LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(8),dp(20),dp(8));EditText[] e=new EditText[2];String[] labels=q.type==3?new String[]{"Diámetro (mm)"}:new String[]{"Ancho (mm)","Fondo (mm)"};for(int i=0;i<labels.length;i++){TextView label=new TextView(this);label.setText(labels[i]);box.addView(label);e[i]=new EditText(this);e[i].setInputType(8194|4096);e[i].setText(""+(q.type==3?2*Math.hypot(q.x2-q.x1,q.y2-q.y1):i==0?Math.abs(q.x2-q.x1):Math.abs(q.y2-q.y1)));box.addView(e[i]);}new AppearanceDialogBuilder(this).setTitle("Acotar perfil").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,w)->{try{float a=Float.parseFloat(e[0].getText().toString().replace(',','.'));float b=e[1]==null?a:Float.parseFloat(e[1].getText().toString().replace(',','.'));if(!Float.isFinite(a+b)||a<=0||b<=0||a>10000||b>10000)throw new Exception();float nextX=q.type==3?q.x1+a/2:q.x1+(q.x2>=q.x1?a:-a);float nextY=q.type==3?q.y1:q.y1+(q.y2>=q.y1?b:-b);if(!validateLinkedSketchEdit(q,q.x1,q.y1,nextX,nextY))throw new Exception();checkpoint();q.x2=nextX;q.y2=nextY;rebuildLinkedParts(q);save();scene.invalidate();}catch(Exception ex){toast("Cota inválida");}}).show();}
+ void loadSettings(){android.content.SharedPreferences p=getPreferences(MODE_PRIVATE);AppearancePreferences colors=AppearancePreferences.load(p);themeIndex=colors.index;appearance=colors.palette;customAppearance=colors.custom;darkMode=appearance.dark();rotateSensitivity=p.getFloat("rot",1f);zoomSensitivity=p.getFloat("zoom",1f);dragSensitivity=p.getFloat("drag",1f);gridVisible=p.getBoolean("gridVisible",true);snapEnabled=p.getBoolean("snap",false);gridStep=p.getFloat("gridStep",5);gridPlane=p.getInt("gridPlane",0);axesVisible=p.getBoolean("axes",true);cameraLock=p.getBoolean("cameraLock",true);moveMode=p.getInt("moveMode",0);moveAxis=p.getInt("moveAxis",0);}
+ void selectAppearance(int index,CadAppearance custom){
+  themeIndex=CadAppearance.normalize(index);customAppearance=custom;appearance=themeIndex==5?custom:CadAppearance.preset(themeIndex);
+  darkMode=appearance.dark();AppearancePreferences.save(getPreferences(MODE_PRIVATE),themeIndex,customAppearance);applyTheme();
+ }
+ void chooseTheme(){AppearanceChooser.show(this);}
+ void applyTheme(){
+  setTheme(appearance.dark()?android.R.style.Theme_Material_NoActionBar:android.R.style.Theme_Material_Light_NoActionBar);
+  int background=appearance.color(BACKGROUND),panel=appearance.color(PANEL);
+  rootLayout.setBackgroundColor(background);AppearanceStyler.tree(rootLayout,appearance,background);
+  for(LinearLayout bar:new LinearLayout[]{topBar,leftBar,rightBar}){bar.setBackgroundColor(panel);AppearanceStyler.tree(bar,appearance,panel);}
+  if(modeIndicator!=null)modeIndicator.setTextColor(appearance.ink(background));
+  if(nextStep!=null)nextStep.setTextColor(appearance.ink(background));
+  if(gpuCube!=null)AppearanceStyler.cube(gpuCube,appearance);
+  if(meshView!=null)meshView.setAppearance(appearance);
+  android.view.Window window=getWindow();window.setStatusBarColor(panel);window.setNavigationBarColor(panel);
+  int flags=window.getDecorView().getSystemUiVisibility();int mask=View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+  window.getDecorView().setSystemUiVisibility((flags&~mask)|(CadAppearance.onColor(panel)==0xff000000?mask:0));
+  scene.invalidate();
+ }
  void storeSettings(){getPreferences(MODE_PRIVATE).edit().putBoolean("dark",darkMode).putFloat("rot",rotateSensitivity).putFloat("zoom",zoomSensitivity).putFloat("drag",dragSensitivity).putBoolean("gridVisible",gridVisible).putBoolean("snap",snapEnabled).putFloat("gridStep",gridStep).putInt("gridPlane",gridPlane).putBoolean("axes",axesVisible).putBoolean("cameraLock",cameraLock).putInt("moveMode",moveMode).putInt("moveAxis",moveAxis).apply();applyTheme();}
 
- void settings(){String[] opts={"Tema: "+(darkMode?"Oscuro":"Claro"),"Velocidad de giro: "+rotateSensitivity,"Sensibilidad zoom: "+zoomSensitivity,"Sensibilidad arrastre: "+dragSensitivity,"Cuadrícula y precisión","Bloquear cámara al editar: "+(cameraLock?"Sí":"No"),"Modo película"};new AlertDialog.Builder(this).setTitle("Ajustes de MyCAD").setItems(opts,(d,n)->{if(n==0){darkMode=!darkMode;storeSettings();settings();}else if(n==4)gridSettings();else if(n==5){cameraLock=!cameraLock;storeSettings();settings();}else if(n==6)movieMenu();else{String name=new String[]{"","Giro 3D","Zoom","Arrastre"}[n];float current=n==1?rotateSensitivity:n==2?zoomSensitivity:dragSensitivity;SeekBar bar=new SeekBar(this);bar.setMax(195);bar.setProgress(Math.round(current*100)-5);new AlertDialog.Builder(this).setTitle(name+" · 5 % a 200 %").setView(bar).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,w)->{float v=(bar.getProgress()+5)/100f;if(n==1)rotateSensitivity=v;else if(n==2)zoomSensitivity=v;else dragSensitivity=v;storeSettings();settings();}).show();}}).show();}
- void gridSettings(){String[] opts={"Mostrar cuadrícula: "+(gridVisible?"Sí":"No"),"Ajustar a cuadrícula: "+(snapEnabled?"Sí":"No"),"Paso: "+gridStep+" mm","Plano: "+new String[]{"XY","XZ","YZ"}[gridPlane],"Mostrar ejes: "+(axesVisible?"Sí":"No")};new AlertDialog.Builder(this).setTitle("Cuadrícula y precisión").setItems(opts,(d,n)->{if(n==0)gridVisible=!gridVisible;else if(n==1)snapEnabled=!snapEnabled;else if(n==4)axesVisible=!axesVisible;else if(n==2){String[] steps={"1 mm","5 mm","10 mm","Personalizado"};new AlertDialog.Builder(this).setTitle("Separación de cuadrícula").setItems(steps,(di,k)->{if(k<3){gridStep=new float[]{1,5,10}[k];storeSettings();gridSettings();}else{EditText field=new EditText(this);field.setInputType(8194|4096);field.setText(""+gridStep);new AlertDialog.Builder(this).setTitle("Paso personalizado (mm)").setView(field).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(dd,w)->{try{float v=Float.parseFloat(field.getText().toString().replace(',','.'));if(!Float.isFinite(v)||v<.1f||v>1000)throw new Exception();gridStep=v;storeSettings();gridSettings();}catch(Exception ex){toast("Introduce un paso entre 0,1 y 1000 mm");}}).show();}}).show();return;}else if(n==3){new AlertDialog.Builder(this).setTitle("Plano de cuadrícula").setSingleChoiceItems(new String[]{"XY","XZ","YZ"},gridPlane,(di,k)->{gridPlane=k;di.dismiss();storeSettings();gridSettings();}).show();return;}storeSettings();gridSettings();}).setNegativeButton("Cerrar",null).show();}
+ void settings(){String[] opts={"Apariencia · "+CadAppearance.NAMES[themeIndex],"Velocidad de giro: "+rotateSensitivity,"Sensibilidad zoom: "+zoomSensitivity,"Sensibilidad arrastre: "+dragSensitivity,"Cuadrícula y precisión","Bloquear cámara al editar: "+(cameraLock?"Sí":"No"),"Modo película"};new AppearanceDialogBuilder(this).setTitle("Ajustes de MyCAD").setItems(opts,(d,n)->{if(n==0){chooseTheme();}else if(n==4)gridSettings();else if(n==5){cameraLock=!cameraLock;storeSettings();settings();}else if(n==6)movieMenu();else{String name=new String[]{"","Giro 3D","Zoom","Arrastre"}[n];float current=n==1?rotateSensitivity:n==2?zoomSensitivity:dragSensitivity;SeekBar bar=new SeekBar(this);bar.setMax(195);bar.setProgress(Math.round(current*100)-5);new AppearanceDialogBuilder(this).setTitle(name+" · 5 % a 200 %").setView(bar).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(di,w)->{float v=(bar.getProgress()+5)/100f;if(n==1)rotateSensitivity=v;else if(n==2)zoomSensitivity=v;else dragSensitivity=v;storeSettings();settings();}).show();}}).show();}
+ void gridSettings(){String[] opts={"Mostrar cuadrícula: "+(gridVisible?"Sí":"No"),"Ajustar a cuadrícula: "+(snapEnabled?"Sí":"No"),"Paso: "+gridStep+" mm","Plano: "+new String[]{"XY","XZ","YZ"}[gridPlane],"Mostrar ejes: "+(axesVisible?"Sí":"No")};new AppearanceDialogBuilder(this).setTitle("Cuadrícula y precisión").setItems(opts,(d,n)->{if(n==0)gridVisible=!gridVisible;else if(n==1)snapEnabled=!snapEnabled;else if(n==4)axesVisible=!axesVisible;else if(n==2){String[] steps={"1 mm","5 mm","10 mm","Personalizado"};new AppearanceDialogBuilder(this).setTitle("Separación de cuadrícula").setItems(steps,(di,k)->{if(k<3){gridStep=new float[]{1,5,10}[k];storeSettings();gridSettings();}else{EditText field=new EditText(this);field.setInputType(8194|4096);field.setText(""+gridStep);new AppearanceDialogBuilder(this).setTitle("Paso personalizado (mm)").setView(field).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(dd,w)->{try{float v=Float.parseFloat(field.getText().toString().replace(',','.'));if(!Float.isFinite(v)||v<.1f||v>1000)throw new Exception();gridStep=v;storeSettings();gridSettings();}catch(Exception ex){toast("Introduce un paso entre 0,1 y 1000 mm");}}).show();}}).show();return;}else if(n==3){new AppearanceDialogBuilder(this).setTitle("Plano de cuadrícula").setSingleChoiceItems(new String[]{"XY","XZ","YZ"},gridPlane,(di,k)->{gridPlane=k;di.dismiss();storeSettings();gridSettings();}).show();return;}storeSettings();gridSettings();}).setNegativeButton("Cerrar",null).show();}
  void setInteractionMode(int n){if(scene.pushPullSession!=null)scene.cancelPushPull();interactionMode=n;scene.movingEntity=n==1;info.setText(new String[]{"NAVEGAR · Arrastra para girar · Pellizca para zoom","MOVER · Usa flechas XYZ o arrastra el cuerpo","EDITAR · Arrastra los controladores"}[n]);if(modeIndicator!=null)modeIndicator.setText(new String[]{"● Navegar","● Mover","● Editar"}[n]);scene.invalidate();}
- void rotateSelectedZ(){if(selected<0){toast("Selecciona un cuerpo");return;}Part p=parts.get(selected);EditText e=new EditText(this);e.setInputType(8194|4096);e.setText(""+p.rotationZ);new AlertDialog.Builder(this).setTitle("Rotación Z (grados)").setView(e).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float a=Float.parseFloat(e.getText().toString().replace(',','.'));if(!Float.isFinite(a))throw new Exception();checkpoint();p.rotationZ=a;save();scene.invalidate();}catch(Exception ex){toast("Ángulo inválido");}}).show();}
- void rotateSelected3D(){if(selected<0){toast("Selecciona un cuerpo");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(18),dp(8),dp(18),dp(8));EditText[] fields=new EditText[3];float[] vals={p.rotationX,p.rotationY,p.rotationZ};String[] labels={"X rojo · grados","Y verde · grados","Z azul · grados"};for(int k=0;k<3;k++){TextView t=new TextView(this);t.setText(labels[k]);box.addView(t);fields[k]=new EditText(this);fields[k].setInputType(8194|4096);fields[k].setText(""+vals[k]);box.addView(fields[k]);}new AlertDialog.Builder(this).setTitle("GIRAR 3D · XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] a=new float[3];for(int k=0;k<3;k++){a[k]=Float.parseFloat(fields[k].getText().toString().replace(',','.'));if(!Float.isFinite(a[k])||Math.abs(a[k])>36000)throw new Exception();}checkpoint();p.rotationX=a[0];p.rotationY=a[1];p.rotationZ=a[2];save();scene.invalidate();}catch(Exception ex){toast("Introduce ángulos válidos");}}).show();}
+ void rotateSelectedZ(){if(selected<0){toast("Selecciona un cuerpo");return;}Part p=parts.get(selected);EditText e=new EditText(this);e.setInputType(8194|4096);e.setText(""+p.rotationZ);new AppearanceDialogBuilder(this).setTitle("Rotación Z (grados)").setView(e).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float a=Float.parseFloat(e.getText().toString().replace(',','.'));if(!Float.isFinite(a))throw new Exception();checkpoint();p.rotationZ=a;save();scene.invalidate();}catch(Exception ex){toast("Ángulo inválido");}}).show();}
+ void rotateSelected3D(){if(selected<0){toast("Selecciona un cuerpo");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(18),dp(8),dp(18),dp(8));EditText[] fields=new EditText[3];float[] vals={p.rotationX,p.rotationY,p.rotationZ};String[] labels={"X rojo · grados","Y verde · grados","Z azul · grados"};for(int k=0;k<3;k++){TextView t=new TextView(this);t.setText(labels[k]);box.addView(t);fields[k]=new EditText(this);fields[k].setInputType(8194|4096);fields[k].setText(""+vals[k]);box.addView(fields[k]);}new AppearanceDialogBuilder(this).setTitle("GIRAR 3D · XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] a=new float[3];for(int k=0;k<3;k++){a[k]=Float.parseFloat(fields[k].getText().toString().replace(',','.'));if(!Float.isFinite(a[k])||Math.abs(a[k])>36000)throw new Exception();}checkpoint();p.rotationX=a[0];p.rotationY=a[1];p.rotationZ=a[2];save();scene.invalidate();}catch(Exception ex){toast("Introduce ángulos válidos");}}).show();}
  void booleanAnalysis(){
   if(selected<0||selected>=parts.size()||parts.size()<2){toast("Selecciona un prisma y crea otro para comparar");return;}
   final Part primary=parts.get(selected);
@@ -894,7 +922,7 @@ public class MainActivity extends Activity {
    candidates.add(i);labels.add("Cuerpo "+(i+1));
   }
   if(candidates.isEmpty()){toast("Se necesita otro prisma rectangular sin rotación");return;}
-  new AlertDialog.Builder(this).setTitle("Análisis booleano · segundo prisma")
+  new AppearanceDialogBuilder(this).setTitle("Análisis booleano · segundo prisma")
    .setItems(labels.toArray(new String[0]),(dialog,n)->{
     Part secondary=parts.get(candidates.get(n));
     try{
@@ -903,7 +931,7 @@ public class MainActivity extends Activity {
      String values=String.format(java.util.Locale.US,
       "Intersección: %.2f mm³\nUnión: %.2f mm³\nA menos B: %.2f mm³\n\nSolo análisis de volúmenes. No se ha creado ni modificado ningún sólido.",
       BoxBoolean.overlap(a,b),BoxBoolean.unionVolume(a,b),BoxBoolean.differenceVolume(a,b));
-     new AlertDialog.Builder(this).setTitle("Operaciones booleanas")
+     new AppearanceDialogBuilder(this).setTitle("Operaciones booleanas")
        .setMessage(values+"\\n\\nPuedes visualizar la malla resultante en el visor GPU.")
        .setPositiveButton("Ver malla", (dd,which)->chooseBooleanPreview(a,b))
        .setNegativeButton("Cerrar",null).show();
@@ -912,7 +940,7 @@ public class MainActivity extends Activity {
  }
  void chooseBooleanPreview(BoxBoolean.Box a,BoxBoolean.Box b){
   String[] modes={"Unir (A ∪ B)","Intersección (A ∩ B)","Restar (A − B)"};
-  new AlertDialog.Builder(this).setTitle("Previsualizar resultado booleano")
+  new AppearanceDialogBuilder(this).setTitle("Previsualizar resultado booleano")
    .setItems(modes,(d,choice)->{
     BoxBooleanMesh.Operation operation=choice==0?BoxBooleanMesh.Operation.UNION:choice==1?BoxBooleanMesh.Operation.INTERSECTION:BoxBooleanMesh.Operation.DIFFERENCE;
     float[] triangles=BoxBooleanMesh.build(a,b,operation);
@@ -923,7 +951,7 @@ public class MainActivity extends Activity {
     isolatedMeshPreview=true;activeCadFace=null;meshView.highlightFace(-1);
     meshView.setMeshes(java.util.Collections.singletonList(new MeshEngine.Mesh(triangles)));
     info.setText("Previsualización booleana · "+(triangles.length/9)+" triángulos");
-    new AlertDialog.Builder(this).setTitle("Guardar resultado booleano")
+    new AppearanceDialogBuilder(this).setTitle("Guardar resultado booleano")
      .setMessage("Guardar una copia de la malla en el proyecto. Los dos sólidos originales se conservarán. Podrás exportar todo como STL/OBJ.")
      .setPositiveButton("Guardar malla",(confirm,which)->{
       checkpoint();booleanMeshes.add(new MeshEngine.Mesh(triangles));unionRecipes.add(null);holeRecipes.add(null);loopExtrusionFeatures.add(null);intersectionRecipes.add(null);save();
@@ -1008,7 +1036,7 @@ public class MainActivity extends Activity {
   if(candidates.isEmpty()){
    toast("Necesitas otro contorno B-Rep del mismo plano y dirección");return;
   }
-  new AlertDialog.Builder(this).setTitle("Intersección B-Rep · elegir segundo sólido")
+  new AppearanceDialogBuilder(this).setTitle("Intersección B-Rep · elegir segundo sólido")
    .setMessage("Primera fase: dos perfiles convexos en el mismo plano, "+
     "con extrusiones hacia el mismo lado. "+
     "Se creará una intersección vinculada a los dos sólidos, que se regenerará cuando cambien sus perfiles o alturas.")
@@ -1087,7 +1115,7 @@ public class MainActivity extends Activity {
   if(candidates.isEmpty()){
    toast("Se necesitan dos prismas de perfil rectangular con igual altura");return;
   }
-  new AlertDialog.Builder(this).setTitle("Unión B-Rep · segundo prisma")
+  new AppearanceDialogBuilder(this).setTitle("Unión B-Rep · segundo prisma")
    .setMessage("Únicamente perfiles rectangulares, mismo plano y altura "+
     "firmada, con solape real. La nueva unión puede tener forma de L. "+
     "Ambos sólidos permanecen y la unión quedará vinculada a sus bocetos y alturas.")
@@ -1164,7 +1192,7 @@ public class MainActivity extends Activity {
   if(candidates.isEmpty()){
    toast("Se necesitan dos prismas de perfil rectangular con igual altura");return;
   }
-  new AlertDialog.Builder(this).setTitle("Resta B-Rep · seleccionar cortador")
+  new AppearanceDialogBuilder(this).setTitle("Resta B-Rep · seleccionar cortador")
    .setMessage("Únicamente perfiles rectangulares, mismo plano y altura "+
     "firmada, con solape real. La diferencia puede tener forma de L; se rechazan agujeros o cuerpos separados. "+
     "El sólido original y el cortador se conservan; la resta queda vinculada.")
@@ -1229,7 +1257,7 @@ public class MainActivity extends Activity {
      loopExtrusionFeatures.get(first)==null||booleanMeshes.size()>=100){
    toast("Selecciona una extrusión de contorno B-Rep");return;
   }
-  new AlertDialog.Builder(this).setTitle("Booleanas B-Rep · perfiles ortogonales")
+  new AppearanceDialogBuilder(this).setTitle("Booleanas B-Rep · perfiles ortogonales")
    .setMessage("Admite perfiles cóncavos de líneas horizontales/verticales "+
      "del mismo plano y altura. Los resultados con agujeros o varios cuerpos "+
      "se rechazan sin guardar cambios.")
@@ -1255,7 +1283,7 @@ public class MainActivity extends Activity {
      first>=loopExtrusionFeatures.size()||loopExtrusionFeatures.get(first)==null){
    toast("Selecciona un contorno B-Rep para realizar la booleana");return;
   }
-  new AlertDialog.Builder(this).setTitle("Booleanas B-Rep · varios sólidos")
+  new AppearanceDialogBuilder(this).setTitle("Booleanas B-Rep · varios sólidos")
    .setMessage("Admite varios cuerpos separados como resultado de unión, "+
     "resta o intersección. Cada cuerpo mantiene su B-Rep cerrado; la "+
     "malla guardada agrupa los componentes. Sin agujeros interiores.")
@@ -1283,7 +1311,7 @@ public class MainActivity extends Activity {
      loopExtrusionFeatures.get(first)==null||booleanMeshes.size()>=100){
    toast("Selecciona una extrusión de contorno B-Rep");return;
   }
-  new AlertDialog.Builder(this).setTitle("Booleanas B-Rep · agujeros pasantes")
+  new AppearanceDialogBuilder(this).setTitle("Booleanas B-Rep · agujeros pasantes")
    .setMessage("Nuevo núcleo de caras planas orientadas: admite agujeros "+
     "pasantes y cuerpos separados en perfiles ortogonales coplanares con "+
     "la misma altura firmada. Aún no admite agujeros ciegos ni curvas.")
@@ -1302,7 +1330,7 @@ public class MainActivity extends Activity {
  }
 
  void booleanLinkedStepped(int first){
-  new AlertDialog.Builder(this).setTitle("Booleanas B-Rep · alturas distintas")
+  new AppearanceDialogBuilder(this).setTitle("Booleanas B-Rep · alturas distintas")
    .setMessage("Dos perfiles ortogonales del mismo plano y sentido de extrusión. "+
     "El resultado conserva su receta y permite seleccionar caras planas en el visor GPU.")
    .setItems(new String[]{"Unir","Restar"},(dialog,option)->
@@ -1339,7 +1367,7 @@ public class MainActivity extends Activity {
    toast(stepped?"Necesitas otro perfil del mismo plano y sentido":
     "Necesitas un segundo perfil del mismo plano y altura");return;
   }
-  new AlertDialog.Builder(this).setTitle(operation+" B-Rep · segundo perfil")
+  new AppearanceDialogBuilder(this).setTitle(operation+" B-Rep · segundo perfil")
    .setItems(labels.toArray(new String[0]),(dialog,selection)->{
     int second=candidates.get(selection);
     if(fileBusy||booleanMeshes.size()>=100||first>=booleanMeshes.size()||
@@ -1450,10 +1478,10 @@ public class MainActivity extends Activity {
    if(drill!=null)names[i]+=" · "+
     (drill.drillDepth==0?"pasante":drill.drillDepth+" mm de profundidad");
   }
-  new AlertDialog.Builder(this).setTitle("Resultados booleanos")
+  new AppearanceDialogBuilder(this).setTitle("Resultados booleanos")
    .setItems(names,(dialog,index)->{
     MeshEngine.Mesh mesh=booleanMeshes.get(index);
-    new AlertDialog.Builder(this).setTitle(names[index])
+    new AppearanceDialogBuilder(this).setTitle(names[index])
      .setItems(new String[]{"Ver solo este resultado","Exportar solo este resultado","Eliminar resultado","Editar extrusión fusionada","Editar perforación circular","Editar distancia de contorno","Editar perfil original del contorno","Inspeccionar topología B-Rep","Intersectar con otro contorno B-Rep","Unir dos prismas B-Rep rectangulares","Restar otro prisma B-Rep rectangular","Booleanas de perfiles ortogonales (cóncavos)","Booleanas B-Rep de varios sólidos","Booleanas B-Rep con agujeros pasantes"},(d,choice)->{
       if(choice==0){showMeshOnly(mesh);}
       else if(choice==1){exportMeshMenuFor(mesh);}
@@ -1468,7 +1496,7 @@ public class MainActivity extends Activity {
       else if(choice==11){booleanLinkedOrthogonalPolygons(index);}
       else if(choice==12){booleanLinkedMultiShellPolygons(index);}
       else if(choice==13){booleanLinkedGridHoles(index);}
-      else new AlertDialog.Builder(this).setTitle("Eliminar resultado")
+      else new AppearanceDialogBuilder(this).setTitle("Eliminar resultado")
        .setMessage("¿Eliminar esta malla del proyecto? Los prismas originales permanecerán.")
        .setNegativeButton("Cancelar",null)
        .setPositiveButton("Eliminar",(confirm,which)->{
@@ -1510,7 +1538,7 @@ public class MainActivity extends Activity {
    }
   }
   if(indexes.isEmpty()){toast("Crea un cilindro para usarlo como cortador");return;}
-  new AlertDialog.Builder(this).setTitle("Elegir cilindro cortador")
+  new AppearanceDialogBuilder(this).setTitle("Elegir cilindro cortador")
    .setItems(names.toArray(new String[0]),(d,which)->{
     final int cutterIndex=indexes.get(which);
     final Part cylinder=parts.get(cutterIndex);
@@ -1522,13 +1550,13 @@ public class MainActivity extends Activity {
       cylinder.w,cylinder.h,new es.josxtm.mycad.cad.RigidTransform(
        cylinder.x,cylinder.y,cylinder.z,cylinder.rotationX,cylinder.rotationY,cylinder.rotationZ));
     }catch(Exception failure){
-     new AlertDialog.Builder(this).setTitle("Operación no compatible")
+     new AppearanceDialogBuilder(this).setTitle("Operación no compatible")
       .setMessage("El cilindro debe estar alineado con un eje local del prisma, entrar por su cara positiva y caber completamente en la sección. No se modificó el diseño.")
       .setPositiveButton("Cerrar",null).show();return;
     }
     String[] options={"Previsualizar corte (A − cilindro)","Previsualizar intersección (A ∩ cilindro)",
      "Guardar corte editable","Guardar intersección como malla"};
-    new AlertDialog.Builder(this).setTitle("Prisma + cilindro · "+result.cut.axis.name())
+    new AppearanceDialogBuilder(this).setTitle("Prisma + cilindro · "+result.cut.axis.name())
      .setMessage(String.format(java.util.Locale.US,
        "Material intersectado: %.2f mm³. Corte %s. El guardado sustituye los dos cuerpos originales.",
        result.intersectionVolume,result.cut.drillDepth==0?"pasante":result.cut.drillDepth+" mm"))
@@ -1544,7 +1572,7 @@ public class MainActivity extends Activity {
          !cylinder.sourceSketchId.isEmpty()||surface.length>18000){
        toast("No se puede guardar: revisa selección y vínculos");return;
       }
-      new AlertDialog.Builder(this).setTitle("Confirmar operación")
+      new AppearanceDialogBuilder(this).setTitle("Confirmar operación")
        .setMessage("Se sustituirán el prisma y el cilindro por la malla resultante. Puedes deshacer.")
        .setNegativeButton("Cancelar",null).setPositiveButton("Guardar",(confirm,w)->{
         if(parts.size()<=Math.max(boxIndex,cutterIndex)||
@@ -1603,7 +1631,7 @@ public class MainActivity extends Activity {
    input.setText(String.valueOf(defaults[i]));inputs[i]=input;fields.addView(input);
   }
   android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.addView(fields);
-  new AlertDialog.Builder(this).setTitle("Perforación circular · pasante o ciega")
+  new AppearanceDialogBuilder(this).setTitle("Perforación circular · pasante o ciega")
    .setMessage("Elige el eje local X/Y/Z. La perforación gira con la pieza. Profundidad 0 = pasante; positiva = taladro ciego desde la cara exterior positiva.")
    .setView(scroll).setNegativeButton("Cancelar",null)
    .setNeutralButton("Previsualizar",(dialog,which)->{
@@ -1670,7 +1698,7 @@ public class MainActivity extends Activity {
    inputs[i].setText(String.valueOf(initial[i]));fields.addView(inputs[i]);
   }
   android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.addView(fields);
-  AlertDialog editor=new AlertDialog.Builder(this).setTitle("Editar perforación circular")
+  AlertDialog editor=new AppearanceDialogBuilder(this).setTitle("Editar perforación circular")
    .setView(scroll).setNegativeButton("Cancelar",null).setPositiveButton("Regenerar",(dialog,which)->{
     try{
      if(index>=holeRecipes.size()||holeRecipes.get(index)!=previous)throw new IllegalArgumentException();
@@ -1708,7 +1736,7 @@ public class MainActivity extends Activity {
   final es.josxtm.mycad.cad.FaceUnionRecipe recipe=unionRecipes.get(meshIndex);
   EditText input=new EditText(this);input.setInputType(8194|4096);
   input.setText(String.valueOf(recipe.distance));
-  new AlertDialog.Builder(this).setTitle("Editar extrusión fusionada · mm")
+  new AppearanceDialogBuilder(this).setTitle("Editar extrusión fusionada · mm")
    .setMessage("Regenera la malla desde el prisma original y la distancia nueva.")
    .setView(input).setNegativeButton("Cancelar",null).setPositiveButton("Regenerar",(d,w)->{
     try{
@@ -1729,7 +1757,7 @@ public class MainActivity extends Activity {
    }).show();
  }
  void exportMeshMenuFor(MeshEngine.Mesh target){
-  new AlertDialog.Builder(this).setTitle("Exportar geometría")
+  new AppearanceDialogBuilder(this).setTitle("Exportar geometría")
    .setItems(new String[]{"STL binario","OBJ"},(dialog,choice)->{
     meshExportFormat=choice==0?"stl":"obj";pendingMeshExport=target;
     Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);
@@ -1750,7 +1778,7 @@ public class MainActivity extends Activity {
    "Y · inferior izquierda","Y · inferior derecha","Y · superior izquierda","Y · superior derecha",
    "Z · frontal izquierda","Z · frontal derecha","Z · posterior izquierda","Z · posterior derecha"
   };
-  new AlertDialog.Builder(this).setTitle("Aristas del cuerpo "+(bodyIndex+1))
+  new AppearanceDialogBuilder(this).setTitle("Aristas del cuerpo "+(bodyIndex+1))
    .setItems(names,(dialog,index)->{
     if(bodyIndex>=parts.size()||parts.get(bodyIndex)!=p)return;
     try{
@@ -1762,7 +1790,7 @@ public class MainActivity extends Activity {
       "Longitud: %.2f mm\nInicio XYZ: %.2f, %.2f, %.2f\nFin XYZ: %.2f, %.2f, %.2f\nReferencia lógica: %s",
       edge.length,edge.start[0],edge.start[1],edge.start[2],
       edge.end[0],edge.end[1],edge.end[2],edge.key);
-     new AlertDialog.Builder(this).setTitle(names[index])
+     new AppearanceDialogBuilder(this).setTitle(names[index])
       .setMessage(message).setPositiveButton("Cerrar",null).show();
     }catch(Exception error){toast("No se pudo calcular la arista");}
    }).setNegativeButton("Cancelar",null).show();
@@ -1772,33 +1800,33 @@ public class MainActivity extends Activity {
   if(activeSteppedPatch!=null){inspectSelectedSteppedFace();return;}
   if(selected<0||selected>=parts.size()){toast("Selecciona primero un cuerpo");return;}
   Part p=parts.get(selected);
-  if(p.circle){new AlertDialog.Builder(this).setTitle("Superficies del cilindro")
+  if(p.circle){new AppearanceDialogBuilder(this).setTitle("Superficies del cilindro")
     .setItems(new String[]{"Tapa superior","Tapa inferior","Superficie lateral"},(d,n)->{
       info.setText("Cuerpo "+(selected+1)+" · "+new String[]{"Tapa superior","Tapa inferior","Superficie lateral"}[n]);
     }).show();return;}
   final String[] faceNames={"Superior (+Z)","Inferior (-Z)","Derecha (+X)","Izquierda (-X)","Posterior (+Y)","Frontal (-Y)"};
-  new AlertDialog.Builder(this).setTitle("Caras del prisma "+(selected+1))
+  new AppearanceDialogBuilder(this).setTitle("Caras del prisma "+(selected+1))
    .setItems(faceNames,(d,n)->{
     float area=n<2?p.w*p.d:n<4?p.d*p.h:p.w*p.h;
     info.setText(String.format(java.util.Locale.US,"%s · área %.2f mm²",faceNames[n],area));
-    new AlertDialog.Builder(this).setTitle(faceNames[n])
+    new AppearanceDialogBuilder(this).setTitle(faceNames[n])
      .setMessage(String.format(java.util.Locale.US,"Área nominal: %.2f mm²\nSelección informativa. No se modifica la geometría.",area))
      .setPositiveButton("Aceptar",null).show();
    }).setNegativeButton("Cancelar",null).show();
  }
- void bodyTree(){if(parts.isEmpty()){toast("Todavía no hay cuerpos");return;}String[] names=new String[parts.size()];for(int i=0;i<parts.size();i++){Part p=parts.get(i);names[i]=(i==selected?"● ":"○ ")+"Cuerpo "+(i+1)+" · "+(p.circle?"Cilindro":"Prisma")+(p.sourceSketchId.isEmpty()?"":" · Vinculado")+" · "+Math.round(p.w)+"×"+Math.round(p.d)+"×"+Math.round(p.h)+" mm";}new AlertDialog.Builder(this).setTitle("Árbol de cuerpos").setSingleChoiceItems(names,selected,(d,i)->{selected=i;selectedSketch=-1;scene.invalidate();d.dismiss();}).setPositiveButton("Cerrar",null).show();}
- void chooseInteractionMode(){new AlertDialog.Builder(this).setTitle("Modo de interacción").setSingleChoiceItems(new String[]{"NAVEGAR · Girar cámara con un dedo","MOVER · Arrastrar pieza seleccionada","EDITAR · Arrastrar controladores"},interactionMode,(d,n)->{setInteractionMode(n);d.dismiss();}).setNegativeButton("Cancelar",null).show();}
- void moveOptions(){if(selected<0){toast("Selecciona una pieza primero");return;}String[] opts={"Libre (plano de trabajo)","Ortogonal (X o Y dominante)","Seguir eje X / Y / Z","Radial (distancia al origen fija)","Distancia exacta (XYZ)","Posición exacta XYZ"};new AlertDialog.Builder(this).setTitle("Mover pieza · Restricciones").setItems(opts,(d,n)->{if(n==5){positionSelected();return;}if(n==4){moveExact();return;}moveMode=n;if(n==2){new AlertDialog.Builder(this).setTitle("Elegir eje").setSingleChoiceItems(new String[]{"X","Y","Z"},moveAxis,(di,k)->{moveAxis=k;di.dismiss();storeSettings();setInteractionMode(1);toast("Arrastra la pieza sobre el eje "+new String[]{"X","Y","Z"}[k]);}).show();}else{storeSettings();interactionMode=1;scene.movingEntity=true;toast("Modo "+opts[n]+" · arrastra la pieza");}}).show();}
- void moveExact(){if(selected<0)return;Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] inputs=new EditText[3];for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"Desplazamiento X (mm)","Desplazamiento Y (mm)","Desplazamiento Z (mm)"}[i]);box.addView(label);inputs[i]=new EditText(this);inputs[i].setInputType(8194|4096);inputs[i].setText("0");box.addView(inputs[i]);}new AlertDialog.Builder(this).setTitle("Mover distancia exacta").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(inputs[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i]))throw new Exception();}checkpoint();p.x+=v[0];p.y+=v[1];p.z+=v[2];save();scene.invalidate();}catch(Exception ex){toast("Desplazamiento no válido");}}).show();}
+ void bodyTree(){if(parts.isEmpty()){toast("Todavía no hay cuerpos");return;}String[] names=new String[parts.size()];for(int i=0;i<parts.size();i++){Part p=parts.get(i);names[i]=(i==selected?"● ":"○ ")+"Cuerpo "+(i+1)+" · "+(p.circle?"Cilindro":"Prisma")+(p.sourceSketchId.isEmpty()?"":" · Vinculado")+" · "+Math.round(p.w)+"×"+Math.round(p.d)+"×"+Math.round(p.h)+" mm";}new AppearanceDialogBuilder(this).setTitle("Árbol de cuerpos").setSingleChoiceItems(names,selected,(d,i)->{selected=i;selectedSketch=-1;scene.invalidate();d.dismiss();}).setPositiveButton("Cerrar",null).show();}
+ void chooseInteractionMode(){new AppearanceDialogBuilder(this).setTitle("Modo de interacción").setSingleChoiceItems(new String[]{"NAVEGAR · Girar cámara con un dedo","MOVER · Arrastrar pieza seleccionada","EDITAR · Arrastrar controladores"},interactionMode,(d,n)->{setInteractionMode(n);d.dismiss();}).setNegativeButton("Cancelar",null).show();}
+ void moveOptions(){if(selected<0){toast("Selecciona una pieza primero");return;}String[] opts={"Libre (plano de trabajo)","Ortogonal (X o Y dominante)","Seguir eje X / Y / Z","Radial (distancia al origen fija)","Distancia exacta (XYZ)","Posición exacta XYZ"};new AppearanceDialogBuilder(this).setTitle("Mover pieza · Restricciones").setItems(opts,(d,n)->{if(n==5){positionSelected();return;}if(n==4){moveExact();return;}moveMode=n;if(n==2){new AppearanceDialogBuilder(this).setTitle("Elegir eje").setSingleChoiceItems(new String[]{"X","Y","Z"},moveAxis,(di,k)->{moveAxis=k;di.dismiss();storeSettings();setInteractionMode(1);toast("Arrastra la pieza sobre el eje "+new String[]{"X","Y","Z"}[k]);}).show();}else{storeSettings();interactionMode=1;scene.movingEntity=true;toast("Modo "+opts[n]+" · arrastra la pieza");}}).show();}
+ void moveExact(){if(selected<0)return;Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] inputs=new EditText[3];for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"Desplazamiento X (mm)","Desplazamiento Y (mm)","Desplazamiento Z (mm)"}[i]);box.addView(label);inputs[i]=new EditText(this);inputs[i].setInputType(8194|4096);inputs[i].setText("0");box.addView(inputs[i]);}new AppearanceDialogBuilder(this).setTitle("Mover distancia exacta").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(inputs[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i]))throw new Exception();}checkpoint();p.x+=v[0];p.y+=v[1];p.z+=v[2];save();scene.invalidate();}catch(Exception ex){toast("Desplazamiento no válido");}}).show();}
  float snap(float v){return snapEnabled&&gridStep>0?Math.round(v/gridStep)*gridStep:v;}
- void movieMenu(){String[] opts={"Seleccionar pieza…","Girar pieza seleccionada","Girar conjunto completo","Velocidad de giro","Repetición: "+(movieLoop?"Sí":"No"),movie?"Pausar película":"Iniciar película"};new AlertDialog.Builder(this).setTitle("Modo película 3D").setItems(opts,(d,n)->{if(n==0){choose();return;}if(n==1||n==2){if(n==1&&selected<0){toast("Selecciona primero una pieza 3D");return;}if(movie)scene.stopMovie();movieAll=n==2;movie=true;flat=false;scene.startMovie();}else if(n==3){SeekBar bar=new SeekBar(this);bar.setMax(100);bar.setProgress(Math.round(movieSpeed*50));new AlertDialog.Builder(this).setTitle("Velocidad película").setView(bar).setPositiveButton("Aplicar",(di,w)->{movieSpeed=.1f+bar.getProgress()/50f;}).show();}else if(n==4){movieLoop=!movieLoop;movieMenu();}else{movie=!movie;if(movie){flat=false;scene.startMovie();}else scene.stopMovie();}}).show();}
+ void movieMenu(){String[] opts={"Seleccionar pieza…","Girar pieza seleccionada","Girar conjunto completo","Velocidad de giro","Repetición: "+(movieLoop?"Sí":"No"),movie?"Pausar película":"Iniciar película"};new AppearanceDialogBuilder(this).setTitle("Modo película 3D").setItems(opts,(d,n)->{if(n==0){choose();return;}if(n==1||n==2){if(n==1&&selected<0){toast("Selecciona primero una pieza 3D");return;}if(movie)scene.stopMovie();movieAll=n==2;movie=true;flat=false;scene.startMovie();}else if(n==3){SeekBar bar=new SeekBar(this);bar.setMax(100);bar.setProgress(Math.round(movieSpeed*50));new AppearanceDialogBuilder(this).setTitle("Velocidad película").setView(bar).setPositiveButton("Aplicar",(di,w)->{movieSpeed=.1f+bar.getProgress()/50f;}).show();}else if(n==4){movieLoop=!movieLoop;movieMenu();}else{movie=!movie;if(movie){flat=false;scene.startMovie();}else scene.stopMovie();}}).show();}
  void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}
- void choose(){if(parts.isEmpty()){toast("Añade una figura");return;}String[] a=new String[parts.size()];for(int i=0;i<a.length;i++){Part p=parts.get(i);a[i]=(i+1)+". "+(p.circle?"Círculo":"Rectángulo")+" "+p.w+" × "+p.d+" × "+p.h+" mm";}new AlertDialog.Builder(this).setTitle("Seleccionar pieza").setItems(a,(d,n)->{selected=n;selectedSketch=-1;scene.invalidate();toast("Pieza "+(n+1)+" seleccionada");}).show();}
+ void choose(){if(parts.isEmpty()){toast("Añade una figura");return;}String[] a=new String[parts.size()];for(int i=0;i<a.length;i++){Part p=parts.get(i);a[i]=(i+1)+". "+(p.circle?"Círculo":"Rectángulo")+" "+p.w+" × "+p.d+" × "+p.h+" mm";}new AppearanceDialogBuilder(this).setTitle("Seleccionar pieza").setItems(a,(d,n)->{selected=n;selectedSketch=-1;scene.invalidate();toast("Pieza "+(n+1)+" seleccionada");}).show();}
  void editLinkedOrPart(){
   if(selected<0||selected>=parts.size())return;
   Part p=parts.get(selected);
   if(p.sourceSketchId.isEmpty()){edit(p.circle,true);return;}
-  new AlertDialog.Builder(this).setTitle("Editar extrusión vinculada")
+  new AppearanceDialogBuilder(this).setTitle("Editar extrusión vinculada")
    .setItems(new String[]{"Modificar altura (mm)","Editar perfil original","Editar cuerpo independientemente","Acotar perfil original (mm)"},(d,n)->{
     if(n==0){editExtrusionHeight(p);return;}
     if(n==1||n==3){
@@ -1814,7 +1842,7 @@ public class MainActivity extends Activity {
  }
  void editExtrusionHeight(Part p){
   EditText input=new EditText(this);input.setInputType(8194|4096);input.setText(String.valueOf(p.h));
-  new AlertDialog.Builder(this).setTitle("Altura de extrusión · mm").setView(input).setNegativeButton("Cancelar",null)
+  new AppearanceDialogBuilder(this).setTitle("Altura de extrusión · mm").setView(input).setNegativeButton("Cancelar",null)
    .setPositiveButton("Aplicar",(d,n)->{try{
     float height=Float.parseFloat(input.getText().toString().replace(',','.'));
     GeometryMath.requirePositive(height);
@@ -1890,7 +1918,7 @@ public class MainActivity extends Activity {
  String[] labels={circle?"Diámetro (mm)":"Ancho (mm)","Fondo (mm)","Espesor (mm)","Posición X (mm)"};
  float[] vals={p.w,p.d,p.h,p.x};EditText[] fields=new EditText[4];
  for(int i=0;i<4;i++){TextView t=new TextView(this);t.setText(labels[i]);box.addView(t);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);if(circle&&i==1){t.setVisibility(View.GONE);fields[i].setVisibility(View.GONE);}}
- AlertDialog dlg=new AlertDialog.Builder(this).setTitle(existing?"Editar pieza":"Figura y extrusión").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",null).create();
+ AlertDialog dlg=new AppearanceDialogBuilder(this).setTitle(existing?"Editar pieza":"Figura y extrusión").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",null).create();
  dlg.setOnShowListener(v->dlg.getButton(-1).setOnClickListener(w->{try{float a=Float.parseFloat(fields[0].getText().toString().replace(',','.'));float d=circle?a:Float.parseFloat(fields[1].getText().toString().replace(',','.'));float h=Float.parseFloat(fields[2].getText().toString().replace(',','.'));float x=Float.parseFloat(fields[3].getText().toString().replace(',','.'));if(!Float.isFinite(a+d+h+x)||a<=0||d<=0||h<=0||a>10000||d>10000||h>10000||Math.abs(x)>10000)throw new Exception();Part q=new Part(circle,a,d,h,x);if(existing){q.id=p.id;q.y=p.y;q.z=p.z;q.rotationX=p.rotationX;q.rotationY=p.rotationY;q.rotationZ=p.rotationZ;q.sourceSketchId="";}checkpoint();if(existing)parts.set(selected,q);else{parts.add(q);selected=parts.size()-1;}save();scene.invalidate();dlg.dismiss();}catch(Exception e){toast("Introduce medidas positivas hasta 10000 mm y posición válida");}}));dlg.show();
  }
 
@@ -2203,7 +2231,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    if(meshMode&&meshView!=null)renderCurrentCadMesh();
   }catch(Exception error){toast("No se pudo recuperar la revisión; historial conservado");}
  }
- void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
+ void positionSelected(){if(selected<0){toast("Selecciona una pieza");return;}Part p=parts.get(selected);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);EditText[] fields=new EditText[3];float[] vals={p.x,p.y,p.z};for(int i=0;i<3;i++){TextView label=new TextView(this);label.setText(new String[]{"X (mm)","Y (mm)","Z (mm)"}[i]);box.addView(label);fields[i]=new EditText(this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AppearanceDialogBuilder(this).setTitle("Mover pieza XYZ").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[3];for(int i=0;i<3;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}checkpoint();p.x=v[0];p.y=v[1];p.z=v[2];save();scene.invalidate();}catch(Exception e){toast("Coordenadas no válidas");}}).show();}
  void save(){try{getPreferences(MODE_PRIVATE).edit().putString("design",encode()).apply();updateStep();}catch(Exception e){toast("No se pudo guardar el borrador interno");}}
  void load(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);try{ParsedDesign restored=decode(getPreferences(MODE_PRIVATE).getString("design","[]"));parts=restored.parts;sketches=restored.sketches;booleanMeshes=restored.meshes;unionRecipes=restored.recipes;holeRecipes=restored.drills;loopExtrusionFeatures=restored.loops;intersectionRecipes=restored.intersections;extrusionChains=restored.chains;chainFeatures=restored.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;scene.invalidate();if(meshMode&&meshView!=null)renderCurrentCadMesh();updateStep();}catch(Exception e){toast("No se pudo recuperar el borrador");}}
  protected void onPause(){
@@ -2229,7 +2257,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   activeCadFace=null;selected=-1;selectedSketch=-1;
   if(meshView!=null)meshView.highlightFace(triangle-(hit.localTriangle%2));
   info.setText("Cadena "+(chainIndex+1)+" · extrusión "+(stepIndex+1)+" seleccionada");
-  new AlertDialog.Builder(this).setTitle("Extrusión "+(stepIndex+1)+" · cadena "+(chainIndex+1))
+  new AppearanceDialogBuilder(this).setTitle("Extrusión "+(stepIndex+1)+" · cadena "+(chainIndex+1))
    .setItems(new String[]{"Editar distancia","Abrir historial"},(d,n)->{
     if(chainIndex>=extrusionChains.size()||extrusionChains.get(chainIndex)!=chain||stepIndex>=chain.size())return;
     if(n==0)chainDistanceDialog(chain,chainIndex,stepIndex,chain.history().get(stepIndex).face);
@@ -2320,7 +2348,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
       "Unir / restar con alturas distintas"}:
    new String[]{"Ver solo esta malla","Exportar a STL/OBJ",
       "Gestionar resultados"};
-  new AlertDialog.Builder(this)
+  new AppearanceDialogBuilder(this)
    .setTitle("Malla "+(index+1)+(linked?" · contorno paramétrico":""))
    .setItems(options,(dialog,option)->{
     if(index>=booleanMeshes.size()||booleanMeshes.get(index)!=original){
@@ -2430,7 +2458,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    }
    if(indices[operand]<0){toast("Falta un perfil de origen");return;}
   }
-  new AlertDialog.Builder(this).setTitle("Parámetros del resultado B-Rep")
+  new AppearanceDialogBuilder(this).setTitle("Parámetros del resultado B-Rep")
    .setMessage("Editar una altura de origen regenerará el resultado y sus dependencias.")
    .setItems(new String[]{"Altura del primer perfil · "+sources[0].distance+" mm",
     "Altura del segundo perfil · "+sources[1].distance+" mm"},(dialog,which)->{
@@ -2448,7 +2476,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   }
   es.josxtm.mycad.cad.SteppedBoundaryEdgePicker.Hit edge=activeSteppedEdge;
   float[] p=edge.endpoints();
-  new AlertDialog.Builder(this).setTitle("Arista del resultado B-Rep")
+  new AppearanceDialogBuilder(this).setTitle("Arista del resultado B-Rep")
    .setMessage(String.format(java.util.Locale.US,
     "Longitud: %.3f mm\nInicio XYZ: %.3f, %.3f, %.3f\nFin XYZ: %.3f, %.3f, %.3f\n"+
     "Parche: %d · adyacente: %d\nReceta: %s\nArista persistente: %s\nReferencia geométrica: %s",
@@ -2459,7 +2487,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  void inspectSelectedSteppedFace(){
   SteppedStoredBinding binding=selectedSteppedBinding();
   if(binding==null){toast("La cara B-Rep ha cambiado; vuelve a seleccionarla");return;}
-  new AlertDialog.Builder(this).setTitle("Cara del resultado B-Rep")
+  new AppearanceDialogBuilder(this).setTitle("Cara del resultado B-Rep")
    .setMessage(String.format(java.util.Locale.US,
     "Área: %.3f mm²\nBordes interiores: %d\nReceta: %s\nCara persistente: %s\nVersión geométrica: %s",
     activeSteppedPatch.patch.area,activeSteppedPatch.patch.holeCount,binding.identity.bodyId,
@@ -2509,7 +2537,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    toast("La cara B-Rep ha cambiado; vuelve a seleccionarla");return;
   }
   es.josxtm.mycad.cad.PlanarBooleanView.Face face=binding.view.findFace(activePlanarFaceId);
-  new AlertDialog.Builder(this).setTitle("Cara B-Rep · resultado planar")
+  new AppearanceDialogBuilder(this).setTitle("Cara B-Rep · resultado planar")
    .setMessage(String.format(java.util.Locale.US,
     "Área: %.3f mm²\nCara persistente: %s\nReceta: %s\nVersión geométrica: %s\n"+
     "Caras: %d · aristas: %d · vértices: %d",
@@ -2632,7 +2660,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   for(int i=0;i<extrusionChains.size();i++)choices.add("Cadena "+(i+1)+" · "+extrusionChains.get(i).size()+" extrusiones");
   choices.add("Crear cadena desde pieza seleccionada");
   choices.add("Reordenar cadenas sin romper dependencias");
-  new AlertDialog.Builder(this).setTitle("Historial paramétrico")
+  new AppearanceDialogBuilder(this).setTitle("Historial paramétrico")
    .setItems(choices.toArray(new String[0]),(dialog,index)->{
     if(index==extrusionChains.size()){
      if(selected<0||selected>=parts.size()||parts.get(selected).circle){toast("Selecciona un prisma rectangular");return;}
@@ -2649,10 +2677,10 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   if(extrusionChains.size()<2){toast("Necesitas al menos dos cadenas");return;}
   String[] names=new String[extrusionChains.size()];
   for(int i=0;i<names.length;i++)names[i]="Cadena "+(i+1)+" · "+extrusionChains.get(i).size()+" extrusiones";
-  new AlertDialog.Builder(this).setTitle("Elegir cadena para mover")
+  new AppearanceDialogBuilder(this).setTitle("Elegir cadena para mover")
    .setItems(names,(dialog,index)->{
     final es.josxtm.mycad.cad.FaceExtrusionChain current=extrusionChains.get(index);
-    new AlertDialog.Builder(this).setTitle("Reordenar "+names[index])
+    new AppearanceDialogBuilder(this).setTitle("Reordenar "+names[index])
      .setItems(new String[]{"Mover hacia arriba","Mover hacia abajo"},(d,option)->{
       int destination=index+(option==0?-1:1);
       if(destination<0||destination>=extrusionChains.size()){toast("Ya está en el extremo");return;}
@@ -2686,7 +2714,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   actions.add("Intersección con prisma seleccionado");
   actions.add("Guardar corte paramétrico");
   actions.add("Guardar intersección paramétrica");
-  new AlertDialog.Builder(this).setTitle("Cadena "+(index+1))
+  new AppearanceDialogBuilder(this).setTitle("Cadena "+(index+1))
    .setItems(actions.toArray(new String[0]),(dialog,choice)->{
     if(choice==actions.size()-1){saveChainBooleanFeature(index,MultiBoxUnion.Operation.CHAIN_INTERSECTION);return;}
     if(choice==actions.size()-2){saveChainBooleanFeature(index,MultiBoxUnion.Operation.CHAIN_DIFFERENCE);return;}
@@ -2700,7 +2728,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
      int stepIndex=choice-1;
      final String[] faces={"X_MIN","X_MAX","Y_MIN","Y_MAX","Z_MIN","Z_MAX"};
      if(stepIndex<0){
-      new AlertDialog.Builder(this).setTitle("Cara de la nueva extrusión")
+      new AppearanceDialogBuilder(this).setTitle("Cara de la nueva extrusión")
        .setItems(faces,(d,n)->chainDistanceDialog(chain,index,-1,es.josxtm.mycad.cad.BoxFaceSelection.Face.valueOf(faces[n]))).show();
      }else chainDistanceDialog(chain,index,stepIndex,chain.history().get(stepIndex).face);
     }
@@ -2744,13 +2772,13 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
       "\\nReutilizadas: "+result.reused+
       "\\nTriángulos de previsualización: "+result.state.totalTriangles()+
       "\\n\\nResultado temporal: no modifica ni duplica cuerpos guardados.";
-     new AlertDialog.Builder(this).setTitle("Reconstrucción paramétrica")
+     new AppearanceDialogBuilder(this).setTitle("Reconstrucción paramétrica")
       .setMessage(summary).setPositiveButton("Cerrar",null).show();
     });
    }catch(Exception error){
     runOnUiThread(()->{
      booleanRebuildBusy=false;
-     new AlertDialog.Builder(this).setTitle("Reconstrucción no completada")
+     new AppearanceDialogBuilder(this).setTitle("Reconstrucción no completada")
       .setMessage("Una operación ha fallado o la malla excede los límites del visor. "+
        "El proyecto y el último resultado válido se han conservado.")
       .setPositiveButton("Cerrar",null).show();
@@ -2765,10 +2793,10 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    es.josxtm.mycad.cad.ChainBooleanFeature f=chainFeatures.get(i);
    names[i]=(f.operation==MultiBoxUnion.Operation.CHAIN_DIFFERENCE?"Corte":"Intersección")+" · cadena "+(f.resolvedChainIndex(extrusionChains)+1);
   }
-  new AlertDialog.Builder(this).setTitle("Booleanas paramétricas")
+  new AppearanceDialogBuilder(this).setTitle("Booleanas paramétricas")
    .setItems(names,(dialog,index)->{
     final es.josxtm.mycad.cad.ChainBooleanFeature original=chainFeatures.get(index);
-    new AlertDialog.Builder(this).setTitle(names[index])
+    new AppearanceDialogBuilder(this).setTitle(names[index])
      .setItems(new String[]{"Mostrar resultado regenerado","Editar cortador XYZ y medidas","Cambiar corte / intersección","Eliminar operación"},(d,choice)->{
       if(index>=chainFeatures.size()||chainFeatures.get(index)!=original){
        toast("La operación ha cambiado");return;
@@ -2790,7 +2818,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
         toast("Operación actualizada y regenerable");
        }catch(Exception error){toast("No se pudo cambiar la operación");}
       }else{
-       new AlertDialog.Builder(this).setTitle("Eliminar operación paramétrica")
+       new AppearanceDialogBuilder(this).setTitle("Eliminar operación paramétrica")
         .setMessage("La operación se eliminará del historial. Podrás deshacer este cambio.")
         .setNegativeButton("Cancelar",null)
         .setPositiveButton("Eliminar",(confirm,w)->{
@@ -2814,7 +2842,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    input.setText(String.valueOf(original[i]));inputs[i]=input;fields.addView(input);
   }
   android.widget.ScrollView scroller=new android.widget.ScrollView(this);scroller.addView(fields);
-  new AlertDialog.Builder(this).setTitle("Editar cortador · "+(index+1))
+  new AppearanceDialogBuilder(this).setTitle("Editar cortador · "+(index+1))
    .setView(scroller).setNegativeButton("Cancelar",null).setPositiveButton("Regenerar",(d,w)->{
     try{
      if(index>=chainFeatures.size()||chainFeatures.get(index)!=previous)throw new IllegalArgumentException();
@@ -2860,7 +2888,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  void chainDistanceDialog(es.josxtm.mycad.cad.FaceExtrusionChain chain,int index,int step,es.josxtm.mycad.cad.BoxFaceSelection.Face face){
   EditText amount=new EditText(this);amount.setInputType(8194|4096);
   amount.setText(step<0?"10":String.valueOf(chain.history().get(step).distance));
-  new AlertDialog.Builder(this).setTitle(face.name()+" · milímetros").setView(amount)
+  new AppearanceDialogBuilder(this).setTitle(face.name()+" · milímetros").setView(amount)
    .setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(dialog,w)->{
     try{
      if(index>=extrusionChains.size()||extrusionChains.get(index)!=chain)throw new IllegalArgumentException();
@@ -2905,7 +2933,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   if(parent.circle||parts.size()>=500){toast("Solo prismas · máximo 500 piezas");return;}
   final es.josxtm.mycad.cad.BoxFaceSelection.Face face=activeCadFace.face;
   EditText input=new EditText(this);input.setInputType(8194|4096);input.setText("10");
-  new AlertDialog.Builder(this).setTitle("Extruir cara "+face.name()+" · mm")
+  new AppearanceDialogBuilder(this).setTitle("Extruir cara "+face.name()+" · mm")
    .setMessage("Extruir crea un prisma independiente. Fusionar crea una malla booleana y sustituye el prisma original; puedes deshacer.")
    .setView(input).setNegativeButton("Cancelar",null)
    .setNeutralButton("Fusionar malla",(dialog,which)->commitFaceExtrusion(index,parent,face,input,true))
@@ -2973,7 +3001,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    face==es.josxtm.mycad.cad.CylinderBRep.Kind.CYLINDER_TOP?
    "Tapa superior: cambia la altura y conserva fija la base.":
    "Tapa inferior: cambia la altura y conserva fija la tapa superior.";
-  new AlertDialog.Builder(this).setTitle("Editar cara cilíndrica · mm")
+  new AppearanceDialogBuilder(this).setTitle("Editar cara cilíndrica · mm")
    .setMessage(description+"\nPositivo hacia fuera, negativo hacia dentro.")
    .setView(input).setNegativeButton("Cancelar",null)
    .setPositiveButton("Aplicar",(dialog,which)->{
@@ -3051,7 +3079,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   int selectedIndex=0;
   for(int i=0;i<step.length;i++)
    if(Math.abs(saved-step[i])<1e-6f)selectedIndex=i;
-  new AlertDialog.Builder(this).setTitle("Precisión del arrastre 3D")
+  new AppearanceDialogBuilder(this).setTitle("Precisión del arrastre 3D")
    .setSingleChoiceItems(labels,selectedIndex,(dialog,choice)->{
     float value=step[choice];
     getPreferences(MODE_PRIVATE).edit().putFloat("dragSnapMm",value).apply();
@@ -3085,7 +3113,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    String face=edge.adjacentFaceIds().get(i);
    choices[i]="Desplazar "+face.substring(face.lastIndexOf('/')+1);
   }
-  new AlertDialog.Builder(this).setTitle("Dirección de la arista")
+  new AppearanceDialogBuilder(this).setTitle("Dirección de la arista")
    .setItems(choices,(menu,axis)->{
     try{
      if(fileBusy||selected!=partIndex||parts.get(partIndex)!=part||
@@ -3133,7 +3161,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
            "Arista B-Rep · dirección %d · Δ %.2f mm · V %.2f mm³",
            axis+1,delta,proposed.volume()));
          if(!finished)return;
-         new AlertDialog.Builder(this).setTitle("Confirmar desplazamiento de arista")
+         new AppearanceDialogBuilder(this).setTitle("Confirmar desplazamiento de arista")
           .setMessage(String.format(java.util.Locale.US,
             "Desplazar %s %.2f mm. Confirmar una sola edición.",
             choices[axis],delta))
@@ -3240,7 +3268,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
        "Cara B-Rep · Δ %.2f mm · volumen provisional %.2f mm³",
        deltaMm,proposal.volume()));
      if(!finished)return;
-     new AlertDialog.Builder(this).setTitle("Confirmar movimiento 3D")
+     new AppearanceDialogBuilder(this).setTitle("Confirmar movimiento 3D")
       .setMessage(String.format(java.util.Locale.US,
        "Desplazar cara %.2f mm. La pieza se guardará como una sola edición.",
        deltaMm))
@@ -3329,7 +3357,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   }
   final es.josxtm.mycad.cad.PrimitiveBRepBody[] pending={null};
   final double[] offsets={0,0};
-  final AlertDialog dialog=new AlertDialog.Builder(this)
+  final AlertDialog dialog=new AppearanceDialogBuilder(this)
    .setTitle(edge?"Previsualizar movimiento de arista":"Previsualizar movimiento de cara")
    .setView(panel)
    .setNegativeButton("Cancelar",null)
@@ -3442,7 +3470,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    inputs[i].setText("0");
    panel.addView(inputs[i]);
   }
-  new AlertDialog.Builder(this).setTitle("Editar arista · "+edge.kind)
+  new AppearanceDialogBuilder(this).setTitle("Editar arista · "+edge.kind)
    .setMessage("Desplaza sus dos caras adyacentes en milímetros.\n"+
      "Positivo: hacia fuera. Negativo: hacia dentro. "+
      "Deja 0 para mantener una cara fija.\n"+
@@ -3503,7 +3531,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     "B-Rep %s · V %.1f mm³ · S %.1f mm²",solid.kind,
     solid.volume(),solid.surfaceArea());
    // On Android, Builder.setMessage() hides the ListView configured by setItems().
-   new AlertDialog.Builder(this).setTitle(title)
+   new AppearanceDialogBuilder(this).setTitle(title)
     .setItems(names,(dialog,index)->{
      if(index<surfaces.size()){
       es.josxtm.mycad.cad.PrimitiveBRepBody.Face f=surfaces.get(index);
@@ -3511,7 +3539,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
       String details=String.format(java.util.Locale.US,
        "ID: %s\nÁrea: %.3f mm²\nNormal mundial (ángulo local 0): %.3f / %.3f / %.3f\nAristas:\n%s",
        f.id,f.area,n[0],n[1],n[2],f.edgeIds().toString());
-      new AlertDialog.Builder(this).setTitle("Cara "+f.kind).setMessage(details)
+      new AppearanceDialogBuilder(this).setTitle("Cara "+f.kind).setMessage(details)
        .setPositiveButton("Cerrar",null).show();
      }else{
       es.josxtm.mycad.cad.PrimitiveBRepBody.Edge e=boundaries.get(index-surfaces.size());
@@ -3520,7 +3548,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
        e.id,e.kind,e.length,e.adjacentFaceIds().toString());
       // The inspector is also a precise selection path when touch tolerance is insufficient.
       activeAnalyticEdgeId=e.id;activeExactEdgeHit=null;
-      new AlertDialog.Builder(this).setTitle("Arista analítica").setMessage(details)
+      new AppearanceDialogBuilder(this).setTitle("Arista analítica").setMessage(details)
        .setNegativeButton("Cerrar",null)
        .setPositiveButton("Editar desplazamiento",(confirmation,which)->{
         if(selected>=0&&selected<parts.size()&&parts.get(selected)==part)
@@ -3555,7 +3583,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    final int partIndex=activeCadFace.partIndex;
    final Part original=part;
    EditText input=new EditText(this);input.setInputType(8194|4096);input.setText("5");
-   new AlertDialog.Builder(this).setTitle("Editar boceto desde cara · mm")
+   new AppearanceDialogBuilder(this).setTitle("Editar boceto desde cara · mm")
     .setMessage("La cara opuesta permanece fija; se actualizan las extrusiones vinculadas.")
     .setView(input).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(dialog,which)->{
      try{
@@ -3576,7 +3604,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   final es.josxtm.mycad.cad.BoxFaceSelection.Face face=activeCadFace.face;
   final int partIndex=activeCadFace.partIndex;
   EditText input=new EditText(this);input.setInputType(8194|4096);input.setText("5");
-  new AlertDialog.Builder(this).setTitle("Desplazar cara "+face.name()+" · mm")
+  new AppearanceDialogBuilder(this).setTitle("Desplazar cara "+face.name()+" · mm")
    .setMessage("Positivo: hacia fuera. Negativo: hacia dentro.").setView(input)
    .setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(dialog,which)->{
     try{
@@ -3761,7 +3789,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   */
  void ensureMeshView(){
   if(meshView!=null)return;
-  meshView=new MeshEngine(this);
+  meshView=new MeshEngine(this);meshView.setAppearance(appearance);
   meshView.setSteppedPatchTapListener(hit->pendingSteppedTap=hit);
   meshView.setSurfaceRayListener((triangle,x,y,z,ox,oy,oz,dx,dy,dz)->
     showGpuSurfaceSelection(triangle,x,y,z,ox,oy,oz,dx,dy,dz));
@@ -3778,7 +3806,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   android.widget.GridLayout cube=new android.widget.GridLayout(this);
   cube.setColumnCount(3);cube.setRowCount(3);
   cube.setPadding(dp(3),dp(3),dp(3),dp(3));
-  cube.setBackgroundColor(darkMode?Color.argb(230,29,44,63):Color.argb(240,239,245,251));
+  gpuCube=cube;cube.setBackgroundColor(appearance.color(CUBE));
   cube.setElevation(dp(5));
   final String[][] labels={
    {"ISO","SUP","ISO"},
@@ -3790,13 +3818,13 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    TextView key=new TextView(this);
    key.setText(labels[row][col]);
    key.setTextSize(10f);
-   key.setTextColor(darkMode?Color.WHITE:Color.rgb(34,59,84));
+   key.setTextColor(appearance.ink(appearance.color(CUBE)));
    key.setGravity(Gravity.CENTER);
    key.setContentDescription("ViewCube "+labels[row][col]);
    android.graphics.drawable.GradientDrawable shape=
      new android.graphics.drawable.GradientDrawable();
-   shape.setColor(darkMode?Color.rgb(52,73,97):Color.WHITE);
-   shape.setStroke(dp(1),darkMode?Color.rgb(124,151,179):Color.rgb(181,199,217));
+   shape.setColor(appearance.color(CUBE));
+   shape.setStroke(dp(1),appearance.color(GRID));
    shape.setCornerRadius(dp(3));
    key.setBackground(shape);
    key.setOnClickListener(tap->{
@@ -3864,7 +3892,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     }
    };
    if(excluded>0)
-    new AlertDialog.Builder(this).setTitle("Exportación DXF limitada a XY")
+    new AppearanceDialogBuilder(this).setTitle("Exportación DXF limitada a XY")
      .setMessage("Se exportarán "+shapes.size()+" bocetos XY. Se omitirán "+
       excluded+" bocetos XZ/YZ. El diseño MyCAD original se conserva.")
      .setNegativeButton("Cancelar",(dialog,which)->pendingDxfExport=null)
@@ -3923,7 +3951,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    }catch(Exception error){
     runOnUiThread(()->{
      fileBusy=false;
-     new AlertDialog.Builder(this).setTitle("DXF no compatible")
+     new AppearanceDialogBuilder(this).setTitle("DXF no compatible")
       .setMessage("El diseño original se conserva. "+error.getMessage())
       .setPositiveButton("Cerrar",null).show();
     });
@@ -3932,7 +3960,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  }
 
  void importMesh(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");try{startActivityForResult(i,IMPORT_MESH);}catch(Exception e){toast("No se pudo abrir el selector");}}
- void exportMeshMenu(){pendingMeshExport=null;if(importedMesh==null&&parts.isEmpty()&&booleanMeshes.isEmpty()){toast("Primero crea una pieza o importa una malla");return;}new AlertDialog.Builder(this).setTitle("Exportar malla importada").setItems(new String[]{"STL binario","OBJ"},(d,n)->{meshExportFormat=n==0?"stl":"obj";Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(n==0?"model/stl":"text/plain");i.putExtra(Intent.EXTRA_TITLE,"MyCAD_export."+meshExportFormat);try{startActivityForResult(i,EXPORT_MESH);}catch(Exception e){toast("No se pudo abrir el selector");}}).show();}
+ void exportMeshMenu(){pendingMeshExport=null;if(importedMesh==null&&parts.isEmpty()&&booleanMeshes.isEmpty()){toast("Primero crea una pieza o importa una malla");return;}new AppearanceDialogBuilder(this).setTitle("Exportar malla importada").setItems(new String[]{"STL binario","OBJ"},(d,n)->{meshExportFormat=n==0?"stl":"obj";Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(n==0?"model/stl":"text/plain");i.putExtra(Intent.EXTRA_TITLE,"MyCAD_export."+meshExportFormat);try{startActivityForResult(i,EXPORT_MESH);}catch(Exception e){toast("No se pudo abrir el selector");}}).show();}
  void handleMeshResult(int request,int result,Intent data){
   if(result!=RESULT_OK||data==null||data.getData()==null)return;
   Uri uri=data.getData();if(fileBusy)return;fileBusy=true;
@@ -3941,7 +3969,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    if(c!=null){try{if(c.moveToFirst())filename=c.getString(0);}finally{c.close();}}
    MeshEngine.Mesh m;try(InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new IOException("Archivo inaccesible");m=MeshIO.read(filename,in);}
    runOnUiThread(()->{importedMesh=m;fileBusy=false;if(!meshMode)toggleMeshView();else renderCurrentCadMesh();toast("Malla importada: "+m.triangles()+" triángulos");});
-  }catch(Exception e){runOnUiThread(()->{fileBusy=false;new AlertDialog.Builder(this).setTitle("Error al importar").setMessage(e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();}
+  }catch(Exception e){runOnUiThread(()->{fileBusy=false;new AppearanceDialogBuilder(this).setTitle("Error al importar").setMessage(e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();}
   else{MeshEngine.Mesh m=pendingMeshExport!=null?pendingMeshExport:currentMesh();pendingMeshExport=null;String format=meshExportFormat;new Thread(()->{try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){
    if(out==null)throw new IOException("Archivo inaccesible");if(format.equals("stl"))MeshIO.writeStl(m,out);else MeshIO.writeObj(m,out);
    runOnUiThread(()->{fileBusy=false;toast("Malla exportada correctamente");});
@@ -3954,7 +3982,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  }
  void confirmOpen(){
  if(fileBusy)return;
- new AlertDialog.Builder(this).setTitle("Abrir archivo MyCAD").setMessage("El archivo sustituirá el diseño actual. Guarda antes un archivo si quieres conservarlo. El borrador interno no es una copia independiente.").setNegativeButton("Cancelar",null).setPositiveButton("Elegir archivo",(d,w)->{
+ new AppearanceDialogBuilder(this).setTitle("Abrir archivo MyCAD").setMessage("El archivo sustituirá el diseño actual. Guarda antes un archivo si quieres conservarlo. El borrador interno no es una copia independiente.").setNegativeButton("Cancelar",null).setPositiveButton("Elegir archivo",(d,w)->{
  try{Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);intent.addCategory(Intent.CATEGORY_OPENABLE);intent.setType("*/*");startActivityForResult(intent,OPEN_FILE);}catch(Exception e){toast("No se pudo abrir el selector de archivos");}
  }).show();
  }
@@ -3972,10 +4000,10 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  ParsedDesign loaded=decode(text);
  runOnUiThread(()->{fileBusy=false;checkpoint();parts=loaded.parts;sketches=loaded.sketches;booleanMeshes=loaded.meshes;unionRecipes=loaded.recipes;holeRecipes=loaded.drills;loopExtrusionFeatures=loaded.loops;intersectionRecipes=loaded.intersections;extrusionChains=loaded.chains;chainFeatures=loaded.features;selected=parts.isEmpty()?-1:0;selectedSketch=-1;save();scene.invalidate();info.setText("Archivo abierto · "+parts.size()+" piezas");toast("Diseño abierto correctamente");});
  }
- }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AlertDialog.Builder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
+ }catch(Exception e){runOnUiThread(()->{fileBusy=false;info.setText("Operación fallida · El diseño actual se conserva");new AppearanceDialogBuilder(this).setTitle("No se pudo completar").setMessage("Comprueba que sea un archivo MyCAD válido y que la ubicación esté disponible. "+e.getMessage()).setPositiveButton("Aceptar",null).show();});}}).start();
  }
- void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AlertDialog.Builder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();loopExtrusionFeatures.clear();intersectionRecipes.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
- void guide(){new AlertDialog.Builder(this).setTitle("Guía · Boceto a sólido")
+ void newDesign(){activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightFace(-1);movie=false;scene.stopMovie();if(fileBusy)return;new AppearanceDialogBuilder(this).setTitle("Nuevo diseño").setMessage("Se vaciará el lienzo. Guarda antes un archivo para conservar el diseño actual.").setNegativeButton("Cancelar",null).setPositiveButton("Crear nuevo",(d,w)->{checkpoint();parts.clear();sketches.clear();booleanMeshes.clear();unionRecipes.clear();holeRecipes.clear();loopExtrusionFeatures.clear();intersectionRecipes.clear();extrusionChains.clear();chainFeatures.clear();sketchTool=0;selectedSketch=-1;selected=-1;save();scene.invalidate();info.setText("Diseño nuevo · Medidas en mm");}).show();}
+ void guide(){new AppearanceDialogBuilder(this).setTitle("Guía · Boceto a sólido")
  .setMessage(
  "1. BOCETO 2D: elige XY, XZ o YZ y Rectángulo o Círculo. Dibuja el perfil con el dedo.\n\n"+
  "2. ACOTAR: con el perfil seleccionado, usa Acotar seleccionado en el menú de boceto e introduce las medidas en mm.\n\n"+
@@ -3985,7 +4013,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  "6. GUARDAR: elige nombre y carpeta en el selector de Android y confirma allí. ABRIR recupera el archivo .mycad.json con los bocetos y sólidos.\n\n"+
  "El borrador interno se recupera al iniciar, pero no sustituye a guardar un archivo. Vuelve a guardar después de editar. La cámara y la selección no se conservan en el archivo."
  ).setPositiveButton("Entendido",null).show();}
- void roadmap(){new AlertDialog.Builder(this).setTitle("Plan de desarrollo").setMessage(
+ void roadmap(){new AppearanceDialogBuilder(this).setTitle("Plan de desarrollo").setMessage(
  "AHORA · v0.4.2\nArchivos, guía y validación del ciclo guardar/abrir en el móvil.\n\n"+
  "SIGUIENTE · v0.4.3 (propuesta)\nDeshacer/rehacer, selección tocando, mover en X/Y/Z y ajustar la vista al conjunto.\n\n"+
  "DESPUÉS · v0.4 (propuesta)\nBocetos táctiles: líneas, rectángulos, círculos y cotas.\n\n"+
@@ -4086,21 +4114,21 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   if(flat)return;
   float size=cubeSize(),left=cubeLeft(),top=cubeTop(),cell=size/3f;
   paint.setStyle(Paint.Style.FILL);
-  paint.setColor(darkMode?Color.rgb(47,64,83):Color.rgb(239,245,251));
+  paint.setColor(appearance.color(CUBE));
   c.drawRoundRect(left,top,left+size,top+size,dp(8),dp(8),paint);
-  paint.setColor(darkMode?Color.rgb(96,120,146):Color.rgb(132,153,174));
+  paint.setColor(appearance.color(GRID));
   paint.setStrokeWidth(dp(1));
   for(int k=1;k<3;k++){c.drawLine(left+k*cell,top,left+k*cell,top+size,paint);c.drawLine(left,top+k*cell,left+size,top+k*cell,paint);}
   String[][] labels={{"ISO","SUP","ISO"},{"IZQ","FREN","DER"},{"ISO","INF","ISO"}};
   paint.setTextAlign(Paint.Align.CENTER);paint.setTextSize(dp(9));
-  paint.setColor(darkMode?Color.WHITE:Color.rgb(20,36,50));
+  paint.setColor(appearance.ink(appearance.color(CUBE)));
   for(int row=0;row<3;row++)for(int col=0;col<3;col++)c.drawText(labels[row][col],left+(col+.5f)*cell,top+(row+.57f)*cell,paint);
   // Distinguish the currently facing camera direction without changing presets.
   int activeCol=(int)Math.round(((yaw%(Math.PI*2)+Math.PI*2)%(Math.PI*2))/(Math.PI/2))%4;
   int activeRow=pitch>0.95f?0:(pitch<-.35f?2:1);
   int activeCellCol=activeRow==1?(activeCol==1?0:activeCol==3?2:1):1;
   paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));
-  paint.setColor(darkMode?Color.rgb(110,207,255):Color.rgb(33,118,210));
+  paint.setColor(appearance.color(ACCENT));
   c.drawRoundRect(left+activeCellCol*cell+dp(2),top+activeRow*cell+dp(2),left+(activeCellCol+1)*cell-dp(2),top+(activeRow+1)*cell-dp(2),dp(5),dp(5),paint);
   paint.setStyle(Paint.Style.FILL);paint.setTextAlign(Paint.Align.LEFT);
  }
@@ -4110,17 +4138,17 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
  void stopMovie(){if(movieFrame!=null)movieHandler.removeCallbacks(movieFrame);if(movieCameraSaved){yaw=movieOldYaw;pitch=movieOldPitch;zoom=movieOldZoom;flat=movieOldFlat;movieCameraSaved=false;invalidate();}}
  float[] rotatePoint(Part p,float x,float y,float z){double ax=Math.toRadians(p.rotationX),ay=Math.toRadians(p.rotationY),az=Math.toRadians(p.rotationZ);double cy=Math.cos(ax),sy=Math.sin(ax),yy=y*cy-z*sy,zz=y*sy+z*cy;double cx=Math.cos(ay),sx=Math.sin(ay),xx=x*cx+zz*sx,z2=-x*sx+zz*cx;double cz=Math.cos(az),sz=Math.sin(az);return new float[]{(float)(xx*cz-yy*sz),(float)(xx*sz+yy*cz),(float)z2};}
  float[] project(float x,float y,float z){if(movieCameraSaved){x-=moviePivotX;y-=moviePivotY;z-=moviePivotZ;}if(flat)return new float[]{getWidth()/2f+x*zoom+panX*zoom,getHeight()/2f-y*zoom-panY*zoom,z};float u=(float)(x*Math.cos(yaw)-y*Math.sin(yaw));float v=(float)(x*Math.sin(yaw)+y*Math.cos(yaw));return new float[]{getWidth()/2f+u*zoom+panX*zoom,getHeight()/2f+(float)(v*Math.sin(pitch)-z*Math.cos(pitch))*zoom-panY*zoom,(float)(v*Math.cos(pitch)+z*Math.sin(pitch))};}
- protected void onDraw(Canvas c){super.onDraw(c);c.drawColor(darkMode?Color.rgb(24,33,46):Color.rgb(239,244,249));paint.setStrokeWidth(1);paint.setColor(darkMode?Color.rgb(44,57,73):Color.rgb(201,213,224));if(gridVisible){float step=Math.max(.1f,gridStep);int count=Math.min(160,(int)(400/step));for(int i=-count;i<=count;i++){float t=i*step;float[] a,b;if(gridPlane==0){a=project(t,-200,0);b=project(t,200,0);}else if(gridPlane==1){a=project(t,0,-200);b=project(t,0,200);}else{a=project(0,t,-200);b=project(0,t,200);}c.drawLine(a[0],a[1],b[0],b[1],paint);if(gridPlane==0){a=project(-200,t,0);b=project(200,t,0);}else if(gridPlane==1){a=project(-200,0,t);b=project(200,0,t);}else{a=project(0,-200,t);b=project(0,200,t);}c.drawLine(a[0],a[1],b[0],b[1],paint);}}if(axesVisible){float[][] origin={project(0,0,0),project(100,0,0),project(0,100,0),project(0,0,100)};for(int k=1;k<=3;k++){paint.setColor(new int[]{0,Color.RED,Color.GREEN,Color.BLUE}[k]);paint.setStrokeWidth(3);c.drawLine(origin[0][0],origin[0][1],origin[k][0],origin[k][1],paint);}}
+ protected void onDraw(Canvas c){super.onDraw(c);c.drawColor(appearance.color(CANVAS));paint.setStrokeWidth(1);paint.setColor(appearance.color(GRID));if(gridVisible){float step=Math.max(.1f,gridStep);int count=Math.min(160,(int)(400/step));for(int i=-count;i<=count;i++){float t=i*step;float[] a,b;if(gridPlane==0){a=project(t,-200,0);b=project(t,200,0);}else if(gridPlane==1){a=project(t,0,-200);b=project(t,0,200);}else{a=project(0,t,-200);b=project(0,t,200);}c.drawLine(a[0],a[1],b[0],b[1],paint);if(gridPlane==0){a=project(-200,t,0);b=project(200,t,0);}else if(gridPlane==1){a=project(-200,0,t);b=project(200,0,t);}else{a=project(0,-200,t);b=project(0,200,t);}c.drawLine(a[0],a[1],b[0],b[1],paint);}}if(axesVisible){float[][] origin={project(0,0,0),project(100,0,0),project(0,100,0),project(0,0,100)};for(int k=1;k<=3;k++){paint.setColor(new int[]{0,appearance.color(AXIS_X),appearance.color(AXIS_Y),appearance.color(AXIS_Z)}[k]);paint.setStrokeWidth(3);c.drawLine(origin[0][0],origin[0][1],origin[k][0],origin[k][1],paint);}}
  if(pushPullSession!=null&&!pushPullIsCurrent())cancelPushPull();
  ArrayList<Face> faces=new ArrayList<>();
  ArrayList<Part> visibleParts=new ArrayList<>(parts);
  if(pushPullDraft!=null)visibleParts.add(pushPullDraft);
  for(int j=0;j<visibleParts.size();j++){Part p=visibleParts.get(j);int n=p.circle?64:4;float[][] low=new float[n][],high=new float[n][];
  for(int i=0;i<n;i++){float x,y;if(p.circle){x=(float)Math.cos(i*2*Math.PI/n)*p.w/2;y=(float)Math.sin(i*2*Math.PI/n)*p.d/2;}else{x=(i==0||i==3)?-p.w/2:p.w/2;y=i<2?-p.d/2:p.d/2;}float[] lo=rotatePoint(p,x,y,-p.h/2),hi=rotatePoint(p,x,y,p.h/2);low[i]=project(lo[0]+p.x,lo[1]+p.y,lo[2]+p.z+p.h/2);high[i]=project(hi[0]+p.x,hi[1]+p.y,hi[2]+p.z+p.h/2);}
- int col=j==selected?Color.rgb(69,186,207):Color.rgb(105,135,165);
+ int col=j==selected?CadAppearance.shade(appearance.color(SELECTION),.8):CadAppearance.shade(appearance.color(MODEL),.8);
  if(!flat)faces.add(new Face(low,col));
  if(!flat)for(int i=0;i<n;i++){int k=(i+1)%n;faces.add(new Face(new float[][]{low[i],low[k],high[k],high[i]},col));}
- faces.add(new Face(high,j==selected?Color.rgb(112,220,229):Color.rgb(154,180,204)));
+ faces.add(new Face(high,j==selected?appearance.color(SELECTION):appearance.color(MODEL)));
  }
  // Linked cuts replace their source Part, so keep them visible in the Canvas
  // workflow as well as in the unified GPU/export mesh.
@@ -4130,32 +4158,32 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   for(int k=0;k<triangles.length;k+=9){
    float[][] triangle=new float[3][];
    for(int j=0;j<3;j++)triangle[j]=project(triangles[k+3*j],triangles[k+3*j+1],triangles[k+3*j+2]);
-   faces.add(new Face(triangle,i==selectedStoredMeshIndex?Color.rgb(69,186,207):Color.rgb(105,135,165)));
+   faces.add(new Face(triangle,i==selectedStoredMeshIndex?CadAppearance.shade(appearance.color(SELECTION),.8):CadAppearance.shade(appearance.color(MODEL),.8)));
   }
  }
  Collections.sort(faces,(a,b)->Float.compare(a.depth,b.depth));
- for(Face f:faces){Path path=new Path();path.moveTo(f.vertices[0][0],f.vertices[0][1]);for(int i=1;i<f.vertices.length;i++)path.lineTo(f.vertices[i][0],f.vertices[i][1]);path.close();paint.setStyle(Paint.Style.FILL);paint.setColor(f.color);c.drawPath(path,paint);paint.setStyle(Paint.Style.STROKE);paint.setColor(Color.rgb(23,65,85));c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}drawSelectedFace(c);if(selected>=0&&selected<parts.size()){if(rotationMode)drawRotationRings(c,parts.get(selected));else if(interactionMode==1)drawMoveGizmo(c,parts.get(selected));else if(interactionMode==2)drawPartHandles(c,parts.get(selected));}
- paint.setColor(darkMode?Color.WHITE:Color.rgb(25,38,55));paint.setTextSize(30);c.drawText(flat?"PLANTA · 2D":"VISTA · 3D",20,40,paint);paint.setStrokeWidth(3);paint.setStyle(Paint.Style.STROKE);for(int i=0;i<sketches.size();i++){paint.setColor(i==selectedSketch?Color.rgb(255,193,91):Color.rgb(112,220,229));paint.setStrokeWidth(i==selectedSketch?6:3);drawSketch(c,sketches.get(i));if(i==selectedSketch&&pushPullSession==null)drawHandles(c,sketches.get(i));}if(preview!=null)drawSketch(c,preview);paint.setStyle(Paint.Style.FILL);if(sketchTool>0){paint.setColor(Color.WHITE);c.drawText("BOCETO "+new String[]{"","LÍNEA","RECTÁNGULO","CÍRCULO"}[sketchTool],20,40,paint);}else if(parts.isEmpty()&&sketches.isEmpty())c.drawText("Añade una figura para empezar",20,getHeight()/2f,paint);
+ for(Face f:faces){Path path=new Path();path.moveTo(f.vertices[0][0],f.vertices[0][1]);for(int i=1;i<f.vertices.length;i++)path.lineTo(f.vertices[i][0],f.vertices[i][1]);path.close();paint.setStyle(Paint.Style.FILL);paint.setColor(f.color);c.drawPath(path,paint);paint.setStyle(Paint.Style.STROKE);paint.setColor(appearance.ink(appearance.color(MODEL)));c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}drawSelectedFace(c);if(selected>=0&&selected<parts.size()){if(rotationMode)drawRotationRings(c,parts.get(selected));else if(interactionMode==1)drawMoveGizmo(c,parts.get(selected));else if(interactionMode==2)drawPartHandles(c,parts.get(selected));}
+ paint.setColor(appearance.ink(appearance.color(CANVAS)));paint.setTextSize(30);c.drawText(flat?"PLANTA · 2D":"VISTA · 3D",20,40,paint);paint.setStrokeWidth(3);paint.setStyle(Paint.Style.STROKE);for(int i=0;i<sketches.size();i++){paint.setColor(i==selectedSketch?appearance.color(SELECTION):appearance.color(ACCENT));paint.setStrokeWidth(i==selectedSketch?6:3);drawSketch(c,sketches.get(i));if(i==selectedSketch&&pushPullSession==null)drawHandles(c,sketches.get(i));}if(preview!=null)drawSketch(c,preview);paint.setStyle(Paint.Style.FILL);if(sketchTool>0){paint.setColor(appearance.ink(appearance.color(CANVAS)));c.drawText("BOCETO "+new String[]{"","LÍNEA","RECTÁNGULO","CÍRCULO"}[sketchTool],20,40,paint);}else if(parts.isEmpty()&&sketches.isEmpty())c.drawText("Añade una figura para empezar",20,getHeight()/2f,paint);
  drawOrientationCube(c);
  }
  Sketch preview;float mmX(float px){return (px-getWidth()/2f)/zoom-panX;}float mmY(float py){return (getHeight()/2f-py)/zoom-panY;}
- void handle(Canvas c,float x,float y){paint.setStyle(Paint.Style.FILL);paint.setColor(Color.rgb(255,185,65));c.drawCircle(x,y,dp(6),paint);paint.setColor(Color.WHITE);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);c.drawCircle(x,y,dp(6),paint);}
+ void handle(Canvas c,float x,float y){paint.setStyle(Paint.Style.FILL);paint.setColor(appearance.color(SELECTION));c.drawCircle(x,y,dp(6),paint);paint.setColor(appearance.ink(appearance.color(CANVAS)));paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);c.drawCircle(x,y,dp(6),paint);}
  void drawHandles(Canvas c,Sketch q){float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);if(q.type==1){handle(c,a[0],a[1]);handle(c,b[0],b[1]);}else if(q.type==2){handle(c,a[0],a[1]);handle(c,a[0],b[1]);handle(c,b[0],a[1]);handle(c,b[0],b[1]);handle(c,(a[0]+b[0])/2,(a[1]+b[1])/2);}else{handle(c,a[0],a[1]);handle(c,b[0],b[1]);}paint.setStyle(Paint.Style.STROKE);}
  int hitHandle(float sx,float sy){if(selectedSketch<0||selectedSketch>=sketches.size())return -1;Sketch q=sketches.get(selectedSketch);float[] a=sketchPoint(q,q.x1,q.y1),b=sketchPoint(q,q.x2,q.y2);float[][] pts=q.type==1||q.type==3?new float[][]{a,b}:new float[][]{a,{a[0],b[1]},{b[0],a[1]},b,{(a[0]+b[0])/2,(a[1]+b[1])/2}};for(int i=0;i<pts.length;i++)if(Math.hypot(sx-pts[i][0],sy-pts[i][1])<dp(22))return i;return -1;}
- void editSketch(){if(selectedSketch<0)return;Sketch q=sketches.get(selectedSketch);LinearLayout box=new LinearLayout(MainActivity.this);box.setOrientation(LinearLayout.VERTICAL);String[] names={"Inicio X","Inicio Y","Final X","Final Y"};float[] vals={q.x1,q.y1,q.x2,q.y2};EditText[] fields=new EditText[4];for(int i=0;i<4;i++){TextView label=new TextView(MainActivity.this);label.setText(names[i]+" (mm)");box.addView(label);fields[i]=new EditText(MainActivity.this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AlertDialog.Builder(MainActivity.this).setTitle("Editar boceto · mm").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[4];for(int i=0;i<4;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}if(!validateLinkedSketchEdit(q,v[0],v[1],v[2],v[3]))throw new Exception();
+ void editSketch(){if(selectedSketch<0)return;Sketch q=sketches.get(selectedSketch);LinearLayout box=new LinearLayout(MainActivity.this);box.setOrientation(LinearLayout.VERTICAL);String[] names={"Inicio X","Inicio Y","Final X","Final Y"};float[] vals={q.x1,q.y1,q.x2,q.y2};EditText[] fields=new EditText[4];for(int i=0;i<4;i++){TextView label=new TextView(MainActivity.this);label.setText(names[i]+" (mm)");box.addView(label);fields[i]=new EditText(MainActivity.this);fields[i].setInputType(8194|4096);fields[i].setText(""+vals[i]);box.addView(fields[i]);}new AppearanceDialogBuilder(MainActivity.this).setTitle("Editar boceto · mm").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Aplicar",(d,w)->{try{float[] v=new float[4];for(int i=0;i<4;i++){v[i]=Float.parseFloat(fields[i].getText().toString().replace(',','.'));if(!Float.isFinite(v[i])||Math.abs(v[i])>10000)throw new Exception();}if(!validateLinkedSketchEdit(q,v[0],v[1],v[2],v[3]))throw new Exception();
  java.util.Map<Integer,MeshEngine.Mesh> staged=
   prepareLinkedLoopEdit(q,v[0],v[1],v[2],v[3]);
  checkpoint();q.x1=v[0];q.y1=v[1];q.x2=v[2];q.y2=v[3];rebuildLinkedParts(q);
  applyLinkedLoopEdit(staged);save();invalidate();}catch(Exception ex){toast("Coordenadas no válidas");}}).show();}
 
  float[][] partPoints(Part p){float z=p.z+p.h;if(p.circle)return new float[][]{{p.x,p.y,z},{p.x+p.w/2,p.y,z},{p.x,p.y,z-p.h/2}};return new float[][]{{p.x+p.w/2,p.y,z},{p.x,p.y+p.d/2,z},{p.x,p.y,z-p.h/2},{p.x,p.y,z}};}
- void drawPartHandles(Canvas c,Part p){float[][] pts=partPoints(p);for(int i=0;i<pts.length;i++){float[] q=project(pts[i][0],pts[i][1],pts[i][2]);handle(c,q[0],q[1]);paint.setStyle(Paint.Style.FILL);paint.setColor(Color.WHITE);paint.setTextSize(dp(11));c.drawText(p.circle?new String[]{"C","R","H"}[i]:new String[]{"W","D","H","C"}[i],q[0]+dp(8),q[1]-dp(8),paint);}paint.setStyle(Paint.Style.FILL);}
+ void drawPartHandles(Canvas c,Part p){float[][] pts=partPoints(p);for(int i=0;i<pts.length;i++){float[] q=project(pts[i][0],pts[i][1],pts[i][2]);handle(c,q[0],q[1]);paint.setStyle(Paint.Style.FILL);paint.setColor(appearance.ink(appearance.color(CANVAS)));paint.setTextSize(dp(11));c.drawText(p.circle?new String[]{"C","R","H"}[i]:new String[]{"W","D","H","C"}[i],q[0]+dp(8),q[1]-dp(8),paint);}paint.setStyle(Paint.Style.FILL);}
  int hitPartHandle(float sx,float sy){if(selected<0||selected>=parts.size())return -1;float[][] pts=partPoints(parts.get(selected));for(int i=0;i<pts.length;i++){float[] q=project(pts[i][0],pts[i][1],pts[i][2]);if(Math.hypot(sx-q[0],sy-q[1])<dp(19))return i;}return -1;}
  void resizePart(float dx,float dy){if(selected<0)return;Part p=parts.get(selected);float cy=(float)Math.cos(yaw),sy=(float)Math.sin(yaw),sp=(float)Math.sin(pitch),cp=(float)Math.cos(pitch);float mm=dragSensitivity/Math.max(.02f,zoom);float ux=flat?dx*mm:(dx*cy+dy*sy/Math.max(.15f,Math.abs(sp)))*mm;float uy=flat?-dy*mm:(-dx*sy+dy*cy/Math.max(.15f,Math.abs(sp)))*mm;float uz=-dy*mm/Math.max(.25f,Math.abs(cp));if(p.circle){if(partHandle==1){p.w=p.d=Math.max(.1f,Math.min(10000,snap(originalW+2*ux)));}else if(partHandle==2){p.h=Math.max(.1f,Math.min(10000,snap(originalH+uz)));}}else{if(partHandle==0)p.w=Math.max(.1f,Math.min(10000,snap(originalW+2*ux)));else if(partHandle==1)p.d=Math.max(.1f,Math.min(10000,snap(originalD+2*uy)));else if(partHandle==2)p.h=Math.max(.1f,Math.min(10000,snap(originalH+uz)));}info.setText(String.format(java.util.Locale.US,"ANCHO %.1f · FONDO %.1f · ALTO %.1f mm",p.w,p.d,p.h));invalidate();}
  void movePart(float dx,float dy){if(selected<0)return;Part p=parts.get(selected);float ux=dx/zoom*dragSensitivity,uy=-dy/zoom*dragSensitivity;if(!flat){float cy=(float)Math.cos(yaw),sy=(float)Math.sin(yaw),sp=(float)Math.sin(pitch);float screenY=dy/Math.max(.2f,Math.abs(sp));ux=(dx*cy+screenY*sy)/zoom*dragSensitivity;uy=(-dx*sy+screenY*cy)/zoom*dragSensitivity;}float x=originalX,y=originalY,z=originalZ;if(moveMode==1){if(Math.abs(ux)>=Math.abs(uy))x+=ux;else y+=uy;}else if(moveMode==2){if(moveAxis==0)x+=ux;else if(moveAxis==1)y+=uy;else z+=-dy/Math.max(.1f,zoom)*dragSensitivity;}else if(moveMode==3){float radius=(float)Math.hypot(originalX,originalY);float angle=(float)Math.atan2(originalY,originalX)+(ux*originalY-uy*originalX)/(Math.max(1,radius*radius));x=radius*(float)Math.cos(angle);y=radius*(float)Math.sin(angle);}else{x+=ux;y+=uy;}p.x=snap(x);p.y=snap(y);p.z=snap(z);info.setText(String.format(java.util.Locale.US,"X %.1f · Y %.1f · Z %.1f mm",p.x,p.y,p.z));invalidate();}
- void drawRotationRings(Canvas c,Part p){float radius=Math.max(dp(62),Math.min(dp(112),Math.max(p.w,Math.max(p.d,p.h))*zoom*.65f));float[] center=project(p.x,p.y,p.z+p.h/2);for(int axis=0;axis<3;axis++){paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(axis==activeRotateAxis?5:3));paint.setColor(new int[]{Color.rgb(235,90,90),Color.rgb(70,208,120),Color.rgb(75,140,255)}[axis]);android.graphics.Path path=new android.graphics.Path();for(int k=0;k<=72;k++){double t=k*Math.PI/36;float xx=axis==0?0:(float)Math.cos(t),yy=axis==1?0:(float)Math.sin(t),zz=axis==2?0:(float)(axis==0?Math.sin(t):Math.cos(t));float[] q=project(p.x+xx*radius/zoom,p.y+yy*radius/zoom,p.z+p.h/2+zz*radius/zoom);if(k==0)path.moveTo(q[0],q[1]);else path.lineTo(q[0],q[1]);}c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}paint.setColor(Color.WHITE);paint.setTextSize(dp(12));c.drawText(String.format(java.util.Locale.US,"X %.0f°  Y %.0f°  Z %.0f°",p.rotationX,p.rotationY,p.rotationZ),center[0]-dp(65),center[1]+radius+dp(24),paint);}
+ void drawRotationRings(Canvas c,Part p){float radius=Math.max(dp(62),Math.min(dp(112),Math.max(p.w,Math.max(p.d,p.h))*zoom*.65f));float[] center=project(p.x,p.y,p.z+p.h/2);for(int axis=0;axis<3;axis++){paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(axis==activeRotateAxis?5:3));paint.setColor(new int[]{appearance.color(AXIS_X),appearance.color(AXIS_Y),appearance.color(AXIS_Z)}[axis]);android.graphics.Path path=new android.graphics.Path();for(int k=0;k<=72;k++){double t=k*Math.PI/36;float xx=axis==0?0:(float)Math.cos(t),yy=axis==1?0:(float)Math.sin(t),zz=axis==2?0:(float)(axis==0?Math.sin(t):Math.cos(t));float[] q=project(p.x+xx*radius/zoom,p.y+yy*radius/zoom,p.z+p.h/2+zz*radius/zoom);if(k==0)path.moveTo(q[0],q[1]);else path.lineTo(q[0],q[1]);}c.drawPath(path,paint);paint.setStyle(Paint.Style.FILL);}paint.setColor(appearance.ink(appearance.color(CANVAS)));paint.setTextSize(dp(12));c.drawText(String.format(java.util.Locale.US,"X %.0f°  Y %.0f°  Z %.0f°",p.rotationX,p.rotationY,p.rotationZ),center[0]-dp(65),center[1]+radius+dp(24),paint);}
  int hitRotationRing(float x,float y){if(!rotationMode||selected<0)return -1;Part p=parts.get(selected);float radius=Math.max(dp(62),Math.min(dp(112),Math.max(p.w,Math.max(p.d,p.h))*zoom*.65f));float best=dp(22);int found=-1;for(int axis=0;axis<3;axis++){for(int k=0;k<72;k++){double t=k*Math.PI/36;float xx=axis==0?0:(float)Math.cos(t),yy=axis==1?0:(float)Math.sin(t),zz=axis==2?0:(float)(axis==0?Math.sin(t):Math.cos(t));float[] q=project(p.x+xx*radius/zoom,p.y+yy*radius/zoom,p.z+p.h/2+zz*radius/zoom);float d=(float)Math.hypot(x-q[0],y-q[1]);if(d<best){best=d;found=axis;}}}return found;}
-  void drawMoveGizmo(Canvas c,Part p){float[] center=project(p.x,p.y,p.z+p.h/2);float len=dp(55);for(int axis=0;axis<3;axis++){float[] end=axis==0?project(p.x+25,p.y,p.z+p.h/2):axis==1?project(p.x,p.y+25,p.z+p.h/2):project(p.x,p.y,p.z+p.h/2+25);float vx=end[0]-center[0],vy=end[1]-center[1],norm=(float)Math.hypot(vx,vy);if(norm<1){vx=axis==2?0:1;vy=axis==2?-1:0;norm=1;}vx=vx/norm*len;vy=vy/norm*len;paint.setColor(new int[]{Color.rgb(235,90,90),Color.rgb(70,208,120),Color.rgb(75,140,255)}[axis]);paint.setStrokeWidth(dp(4));c.drawLine(center[0],center[1],center[0]+vx,center[1]+vy,paint);c.drawCircle(center[0]+vx,center[1]+vy,dp(11),paint);paint.setColor(Color.WHITE);paint.setTextSize(dp(13));c.drawText(new String[]{"X","Y","Z"}[axis],center[0]+vx-dp(5),center[1]+vy+dp(5),paint);}paint.setColor(Color.WHITE);paint.setTextSize(dp(11));c.drawText(String.format(java.util.Locale.US,"X %.1f  Y %.1f  Z %.1f mm",p.x,p.y,p.z),Math.max(5,center[0]-dp(70)),center[1]+dp(80),paint);}
+  void drawMoveGizmo(Canvas c,Part p){float[] center=project(p.x,p.y,p.z+p.h/2);float len=dp(55);for(int axis=0;axis<3;axis++){float[] end=axis==0?project(p.x+25,p.y,p.z+p.h/2):axis==1?project(p.x,p.y+25,p.z+p.h/2):project(p.x,p.y,p.z+p.h/2+25);float vx=end[0]-center[0],vy=end[1]-center[1],norm=(float)Math.hypot(vx,vy);if(norm<1){vx=axis==2?0:1;vy=axis==2?-1:0;norm=1;}vx=vx/norm*len;vy=vy/norm*len;paint.setColor(new int[]{appearance.color(AXIS_X),appearance.color(AXIS_Y),appearance.color(AXIS_Z)}[axis]);paint.setStrokeWidth(dp(4));c.drawLine(center[0],center[1],center[0]+vx,center[1]+vy,paint);c.drawCircle(center[0]+vx,center[1]+vy,dp(11),paint);paint.setColor(CadAppearance.onColor(new int[]{appearance.color(AXIS_X),appearance.color(AXIS_Y),appearance.color(AXIS_Z)}[axis]));paint.setTextSize(dp(13));c.drawText(new String[]{"X","Y","Z"}[axis],center[0]+vx-dp(5),center[1]+vy+dp(5),paint);}paint.setColor(appearance.ink(appearance.color(CANVAS)));paint.setTextSize(dp(11));c.drawText(String.format(java.util.Locale.US,"X %.1f  Y %.1f  Z %.1f mm",p.x,p.y,p.z),Math.max(5,center[0]-dp(70)),center[1]+dp(80),paint);}
  int hitMoveGizmo(float sx,float sy){if(selected<0||selected>=parts.size()||interactionMode!=1)return -1;Part p=parts.get(selected);float[] center=project(p.x,p.y,p.z+p.h/2);for(int axis=2;axis>=0;axis--){float[] end=axis==0?project(p.x+25,p.y,p.z+p.h/2):axis==1?project(p.x,p.y+25,p.z+p.h/2):project(p.x,p.y,p.z+p.h/2+25);float vx=end[0]-center[0],vy=end[1]-center[1],norm=(float)Math.hypot(vx,vy);if(norm<1){vx=axis==2?0:1;vy=axis==2?-1:0;norm=1;}float ex=center[0]+vx/norm*dp(55),ey=center[1]+vy/norm*dp(55);if(Math.hypot(sx-ex,sy-ey)<dp(24))return axis;}return -1;}
  float[] sketchPoint(Sketch q,float a,float b){if(flat)return new float[]{getWidth()/2f+a*zoom+panX*zoom,getHeight()/2f-b*zoom-panY*zoom,0};return q.plane==0?project(a,b,0):q.plane==1?project(a,0,b):project(0,a,b);}
  float[][] sketchOutline(Sketch q){
@@ -4251,8 +4279,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   float[][] v=facePolygon(parts.get(selected),selectedFaceIndex);
   Path outline=new Path();outline.moveTo(v[0][0],v[0][1]);
   for(int i=1;i<v.length;i++)outline.lineTo(v[i][0],v[i][1]);outline.close();
-  paint.setStyle(Paint.Style.FILL);paint.setColor(Color.argb(90,255,197,62));c.drawPath(outline,paint);
-  paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(3));paint.setColor(Color.rgb(255,196,56));c.drawPath(outline,paint);
+  paint.setStyle(Paint.Style.FILL);paint.setColor((appearance.color(SELECTION)&0xffffff)|0x5a000000);c.drawPath(outline,paint);
+  paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(3));paint.setColor(appearance.color(SELECTION));c.drawPath(outline,paint);
   paint.setStyle(Paint.Style.FILL);
  }
  boolean pickCanvasLinkedCut(float sx,float sy){

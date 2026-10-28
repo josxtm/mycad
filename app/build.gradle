@@ -7,7 +7,7 @@ android { namespace 'es.josxtm.mycad'; compileSdk 35
    systemProperty 'robolectric.dependency.dir', layout.buildDirectory.dir('robolectric-sdks').get().asFile.absolutePath
   }
  }
- defaultConfig { applicationId 'es.josxtm.mycad.preview'; minSdk 26; targetSdk 35; versionCode 60; versionName '0.6.0' }
+ defaultConfig { applicationId 'es.josxtm.mycad.preview'; minSdk 26; targetSdk 35; versionCode 61; versionName '0.6.1' }
 }
 
 android.applicationVariants.all { variant ->

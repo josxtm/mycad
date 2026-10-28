@@ -227,6 +227,8 @@ jobs:
           java -cp build/geometry-tests CylinderDoubleCoordinatesTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/ProfileDoubleCoordinatesTest.java
           java -cp build/geometry-tests ProfileDoubleCoordinatesTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/ui/CadAppearance.java tests/CadAppearanceTest.java
+          java -cp build/geometry-tests CadAppearanceTest
           } 2>&1 | tee reports/geometria.log
       # CI habitual valida Java, tests Android y Lint, SIN generar un APK.
       - name: Compilar código y comprobar pruebas y Lint (sin APK)
@@ -319,6 +321,7 @@ jobs:
             app/build/reports/tests/testDebugUnitTest/
             app/build/test-results/testDebugUnitTest/
             app/build/reports/lint-results-debug.*
+            app/build/theme-preview/*.png
           if-no-files-found: ignore
           retention-days: 30
       - name: Publicar APK solo tras superar verificaciones

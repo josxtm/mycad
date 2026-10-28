@@ -7,9 +7,17 @@ import android.content.Context;
 import java.nio.*;
 import java.util.*;
 import java.io.*;
+import es.josxtm.mycad.ui.CadAppearance;
+import static es.josxtm.mycad.ui.CadAppearance.Role.*;
 
 /** GPU mesh viewer foundation for MyCAD 0.4.4. Coordinates in millimetres. */
 public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Renderer {
+ private volatile CadAppearance appearance=CadAppearance.preset(0);
+ /** Palette replacement cannot alter camera, scene revision, triangles or picking. */
+ public void setAppearance(CadAppearance palette){if(palette==null)throw new IllegalArgumentException("Missing appearance");appearance=palette;requestRender();}
+ CadAppearance appearance(){return appearance;}
+ private void shaderColor(int color){GLES30.glUniform4f(colorUniform,((color>>>16)&255)/255f,((color>>>8)&255)/255f,(color&255)/255f,1);}
+
  public static final class Mesh {
   public final float[] vertices; // xyz triangles
   private es.josxtm.mycad.cad.MeshRayIndex pickIndex;
@@ -530,10 +538,11 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private int shader(int type,String source){int id=GLES30.glCreateShader(type);GLES30.glShaderSource(id,source);GLES30.glCompileShader(id);int[] ok=new int[1];GLES30.glGetShaderiv(id,GLES30.GL_COMPILE_STATUS,ok,0);if(ok[0]==0)throw new IllegalStateException(GLES30.glGetShaderInfoLog(id));return id;}
  @Override public void onSurfaceChanged(javax.microedition.khronos.opengles.GL10 gl,int w,int h){GLES30.glViewport(0,0,w,h);Matrix.perspectiveM(projection,0,45f,(float)w/Math.max(1,h),.1f,1000000f);}
  @Override public void onDrawFrame(javax.microedition.khronos.opengles.GL10 gl){
-  GLES30.glClearColor(.07f,.1f,.15f,1);GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT|GLES30.GL_DEPTH_BUFFER_BIT);
+  CadAppearance colors=appearance;int canvas=colors.color(CANVAS);
+  GLES30.glClearColor(((canvas>>>16)&255)/255f,((canvas>>>8)&255)/255f,(canvas&255)/255f,1);GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT|GLES30.GL_DEPTH_BUFFER_BIT);
   es.josxtm.mycad.cad.RelativeSceneCoordinates frame=coordinates;
   cameraView(view,frame);
-  Matrix.multiplyMM(mvp,0,projection,0,view,0);GLES30.glUseProgram(program);GLES30.glUniformMatrix4fv(modelViewProjection,1,false,mvp,0);GLES30.glUniform4f(colorUniform,.3f,.78f,.84f,1);
+  Matrix.multiplyMM(mvp,0,projection,0,view,0);GLES30.glUseProgram(program);GLES30.glUniformMatrix4fv(modelViewProjection,1,false,mvp,0);shaderColor(colors.color(MODEL));
   GLES30.glEnableVertexAttribArray(0);
   int triangleOffset=0;
   for(int meshIndex=0;meshIndex<meshes.size();meshIndex++){
@@ -541,13 +550,13 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    // No native allocations per frame: keep a direct buffer per immutable mesh.
    FloatBuffer buf=frame.buffer(meshIndex,gpuTriangles,mesh);
    GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buf);
-   GLES30.glUniform4f(colorUniform,.3f,.78f,.84f,1);
+   shaderColor(colors.color(MODEL));
    GLES30.glDrawArrays(GLES30.GL_TRIANGLES,0,mesh.vertices.length/3);
    int local=highlightedFirstTriangle-triangleOffset;
    if(local>=0&&local+1<mesh.triangles()){
     GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL);
     GLES30.glPolygonOffset(-2f,-2f);
-    GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
+    shaderColor(colors.color(SELECTION));
     GLES30.glDrawArrays(GLES30.GL_TRIANGLES,local*3,6);
     GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL);
    }
@@ -555,7 +564,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    if(selectedPatch.length>0){
     GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL);
     GLES30.glPolygonOffset(-2f,-2f);
-    GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
+    shaderColor(colors.color(SELECTION));
     for(int global:selectedPatch){
      int patchLocal=global-triangleOffset;
      if(patchLocal>=0&&patchLocal<mesh.triangles())
@@ -574,7 +583,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    edgeBuf.put(outline).position(0);
    GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,edgeBuf);
    GLES30.glDisable(GLES30.GL_DEPTH_TEST);
-   GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
+   shaderColor(colors.color(SELECTION));
    GLES30.glLineWidth(3f);
    GLES30.glDrawArrays(GLES30.GL_LINE_STRIP,0,outline.length/3);
    GLES30.glEnable(GLES30.GL_DEPTH_TEST);
@@ -590,12 +599,12 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    buffer.put(h).position(0);
    GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buffer);
    GLES30.glDisable(GLES30.GL_DEPTH_TEST);
-   GLES30.glUniform4f(colorUniform,1f,.45f,.08f,1);
+   shaderColor(colors.color(SELECTION));
    GLES30.glLineWidth(3f);
    GLES30.glDrawArrays(GLES30.GL_LINES,0,2);
    buffer.position(3);
    GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buffer);
-   GLES30.glUniform4f(colorUniform,1f,.96f,.35f,1);
+   shaderColor(colors.color(ACCENT));
    GLES30.glDrawArrays(GLES30.GL_POINTS,0,1);
    GLES30.glEnable(GLES30.GL_DEPTH_TEST);
   }
