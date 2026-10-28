@@ -3,14 +3,14 @@
 ## Base verificada
 
 - Repositorio exclusivo: `josxtm/mycad`.
-- Base de esta continuación: `bb429e05cad41ec316e6f113b2572069ad2b65f5` (PR #128 integrada).
-- Última etapa completada: edición transaccional de alturas desde el resultado
-  B-Rep seleccionado (PR #128, commit `de1861e`); selección integrada en #127.
-- CI de esa etapa: [android.yml #585](https://github.com/josxtm/mycad/actions/runs/40714473648), correcto,
+- Base de esta continuación: `f3cbb300724999bf150e2ded81551862993c2273` (PR #129 integrada).
+- Última etapa completada: selección e inspección de bordes B-Rep (#129), tras
+  vinculación de recetas (#127) y edición transaccional de alturas (#128).
+- CI del hito: [android.yml #588](https://github.com/josxtm/mycad/actions/runs/40716562543), correcto,
   incluidos compilación Android, pruebas y Lint. Integrada sin saltar protecciones.
 - PR #80 y #86: borradores conservados, sin fusionar.
 
-## Fase actual — A: selección e inspección de bordes topológicos
+## Fase actual — A: identidad de entidades separada de la versión geométrica
 
 La ruta de pantalla a rayo, selección visible y registro de parches ya existía.
 Faltaba asociarla con las recetas del editor. Este cambio incorpora:
@@ -49,6 +49,25 @@ y tamaño del shell; es aproximada bajo perspectiva y no modifica la geometría.
 El borde se invalida al cambiar escena/selección y el inspector rechaza referencias
 de una regeneración anterior. No permite aún desplazar una arista escalonada.
 
+### Identidades de origen
+
+`NamedSteppedBody` mantiene el UUID de receta como identidad del cuerpo y genera
+nombres de vértices, aristas, caras quad y parches desde los UUID de vértices de los
+operandos que originan cada coordenada del grid. Los inspectores de caras/aristas
+Android muestran estos nombres junto con la versión geométrica correspondiente.
+
+Los nombres sobreviven a cambios de altura/anchura mientras se conservan los
+operandos ordenados, operación, plano y agrupaciones de coordenadas de origen.
+Una coincidencia que aparece/desaparece cambia los nombres afectados; cambiar
+operación u orden de operandos invalida el namespace. Se rechazan nombres ambiguos.
+No hay transferencia por proximidad geométrica ni promesa de identidad universal
+tras cambios topológicos arbitrarios.
+
+Los nombres se reconstruyen desde los UUID ya guardados: no se cambia el JSON ni
+se guardan tablas redundantes. El ID interno del shell sigue describiendo una
+geometría concreta. Una identidad persistente válida no autoriza a reutilizar un
+rayo, índice de triángulo o parche de otra versión.
+
 La continuación añade esta edición de parámetros sin atribuir una modificación
 libre al parche. El diálogo se invalida si cambia el resultado o su fuente. Si
 la nueva altura produce una topología no soportada, ninguna malla, altura ni
@@ -61,36 +80,37 @@ delante del resultado sigue bloqueando su selección; no se selecciona a través
 
 - Integridad: superada. Se ha actualizado la comprobación del despacho de rayos
   para exigir también el rechazo de generaciones obsoletas y el encuadre aislado.
-- Geometría: suite completa anterior superada; nueva regresión de bordes superada
+- Geometría: suite completa superada; nueva regresión de bordes superada
   en los tres planos y ambos signos (incluye exclusión de seams y referencias obsoletas).
-  Suite completa de la continuación superada localmente. La receta tiene regresiones en seis
+  Identidades comprobadas en seis combinaciones de plano/signo: dimensiones editadas,
+  coordenadas coincidentes, cambios de operación/operandos y referencias obsoletas.
+  La receta tiene regresiones en seis
   combinaciones de plano/signo, ambas operaciones y protección de lotes obsoletos.
 - Compilación Java de producción y pruebas contra SDK 35: superada.
-- Robolectric Android 35: 34 pruebas superadas (24 originales, 5 de selección,
-  3 de edición y 2 de bordes); incluye el flujo del
+- Robolectric Android 35: 36 pruebas superadas (24 originales, 5 de selección,
+  3 de edición, 2 de bordes y 2 de identidad); incluye el flujo del
   menú, JSON, oclusión, selección de bolsillo y callbacks descartados.
 - Gradle local: bloqueado por `SocketException: Operation not permitted` al crear
-  el daemon. Compilación Android y Lint superados en #585 para la etapa anterior;
+  el daemon. Compilación Android y Lint superados en #588 para la etapa anterior;
   la continuación requiere su propio CI.
 - Dispositivo Android / EGL real: pendiente; no se afirma aceptación física.
 - CI de esta revisión: verificar el SHA de la PR de
-  `feature/cad-stepped-boundary-selection` antes de integrar; la publicación de este
+  `feature/cad-stepped-entity-identities` antes de integrar; la publicación de este
   documento precede a su ejecución. Estado del último main integrado y enlace directo
   en [ci-status](https://github.com/josxtm/mycad/blob/ci-status/ESTADO_COMPILACION.md).
 
 ## Pendiente
 
-La fase A global continúa: faltan una identidad semántica persistente de todas
-las caras/aristas/vértices a través de cambios topológicos, operaciones generales
-y más rendimiento. El UUID de receta es estable; el ID interno de shell describe
-una geometría concreta y cambia al regenerar otra forma. No confundir ambos.
+La fase A global continúa: faltan identidad de subentidades en más familias de
+sólidos y ante cambios topológicos generales, operaciones generales y rendimiento.
+El UUID de receta y los nombres de origen son distintos del ID interno de shell.
 
-Siguiente tarea: definir y probar identidad semántica de subentidades a través de
-cambios topológicos, antes de persistir selecciones de caras/aristas entre regeneraciones.
-Validar selección, pan/zoom/ViewCube y edición en teléfono/tablet. El desplazamiento
-libre de parches y aristas escalonados sigue pendiente.
+Siguiente tarea: validar el hito en teléfono/tablet y ampliar selección/identidad
+a más familias geométricas. Antes de operaciones libres sobre parches o aristas,
+definir cómo invalidar dependencias cuando desaparece una entidad de origen.
+El desplazamiento libre de parches y aristas escalonados sigue pendiente.
 
-Estimación de la fase A: aproximadamente 65 % del alcance de integración, con
+Estimación de la fase A: aproximadamente 75 % del alcance de integración, con
 soporte geométrico limitado a las familias actualmente implementadas. No representa
 cobertura en dispositivo ni finalización del motor CAD general.
 
@@ -100,12 +120,12 @@ general de restricciones ni soporte completo de superficies curvas o formatos CA
 
 ## Recuperación
 
-Rama remota de la continuación: `feature/cad-stepped-boundary-selection`.
+Rama remota de la continuación: `feature/cad-stepped-entity-identities`.
 
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-stepped-boundary-selection
+git switch feature/cad-stepped-entity-identities
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
@@ -116,8 +136,8 @@ Requiere JDK 17, Gradle 8.9 y SDK Android 35. Comprobar las verificaciones del S
 remoto actual antes de fusionar. Nunca rebasar ni forzar ramas compartidas.
 
 En este entorno el acceso Git por terminal no funciona. Se ha preparado el código
-en `/workspace/mycad-stepped-boundary`, conservando los checkouts anteriores. El commit
+en `/workspace/mycad-stepped-identities`, conservando los checkouts anteriores. El commit
 `48348a3` es una materialización local de la base remota, no debe publicarse como
 ancestro. La publicación se realiza por el conector GitHub con padre remoto
-`bb429e0`, sin cambiar directamente `main`. Para reanudar en un entorno normal, usar la rama
+`f3cbb30`, sin cambiar directamente `main`. Para reanudar en un entorno normal, usar la rama
 remota, que contiene la historia correcta.

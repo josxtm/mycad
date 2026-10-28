@@ -211,4 +211,27 @@ public class SteppedRecipeAndroidTest {
   assertNull(app.selectedSteppedBinding());app.inspectSelectedEdges();
   assertTrue(org.robolectric.shadows.ShadowToast.getTextOfLatestToast().contains("actual"));
  }
+ @Test public void persistentEntityNamesSurviveActualSaveAndReload() throws Exception {
+  LinkedConvexIntersection owner=recipe(LinkedConvexIntersection.Operation.DIFFERENCE_STEPPED);
+  selectPocket();MainActivity.SteppedStoredBinding before=app.selectedSteppedBinding();
+  String patchId=before.identity.patchId(app.activeSteppedPatch.patch);
+  app.inspectSelectedFaces();
+  assertTrue(shadowOf(ShadowAlertDialog.getLatestAlertDialog()).getMessage().toString().contains(patchId));
+  app.save();app.load();selectPocket();MainActivity.SteppedStoredBinding after=app.selectedSteppedBinding();
+  assertEquals(owner.id,after.identity.bodyId);assertEquals(patchId,after.identity.patchId(app.activeSteppedPatch.patch));
+  for(VariableHeightOrthogonalBRep.Vertex vertex:before.identity.shell.vertices())
+   assertNotNull(after.identity.findVertex(before.identity.vertexId(vertex.id)));
+  for(VariableHeightOrthogonalBRep.Edge edge:before.identity.shell.edges())
+   assertNotNull(after.identity.findEdge(before.identity.edgeId(edge.id)));
+ }
+ @Test public void heightEditKeepsNamesButInvalidatesOldGeometryHits(){
+  recipe(LinkedConvexIntersection.Operation.DIFFERENCE_STEPPED);
+  SteppedVisiblePatchBridge.Hit oldHit=selectPocket();NamedSteppedBody before=app.selectedSteppedBinding().identity;
+  app.editSelectedSteppedFace();choose(0);applyHeight(7);
+  selectPocket();NamedSteppedBody after=app.selectedSteppedBinding().identity;
+  assertEquals(before.bodyId,after.bodyId);assertNotEquals(before.shell.id(),after.shell.id());
+  for(VariableHeightOrthogonalBRep.Face face:before.shell.faces())
+   assertNotNull(after.findFace(before.faceId(face.id)));
+  assertFalse(app.selectSteppedPatch(oldHit));
+ }
 }

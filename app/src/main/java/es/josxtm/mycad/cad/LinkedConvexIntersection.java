@@ -51,6 +51,22 @@ public final class LinkedConvexIntersection {
    throw new IllegalArgumentException("Booleana escalonada demasiado grande");
   return shell;
  }
+ /** Source-derived names are rebuilt lazily for the Android topology inspector. */
+ public NamedSteppedBody regenerateNamedStepped(
+    Map<String,LoopExtrusionFeature> features,
+    Map<String,ClosedSketchExtrusion.Segment> lines){
+  if(!isStepped()||features==null||lines==null)
+   throw new IllegalArgumentException("Faltan fuentes de la booleana escalonada");
+  LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
+  if(a==null||b==null||!firstId.equals(a.id)||!secondId.equals(b.id))
+   throw new IllegalArgumentException("Se eliminó una extrusión de origen");
+  NamedSteppedBody named=NamedSteppedBody.apply(id,a.asBRep(lines),b.asBRep(lines),
+   operation==Operation.UNION_STEPPED?VariableHeightOrthogonalMesh.Operation.UNION:
+    VariableHeightOrthogonalMesh.Operation.DIFFERENCE);
+  if(named.shell.triangles().length>18000)
+   throw new IllegalArgumentException("Booleana escalonada demasiado grande");
+  return named;
+ }
  public ConvexPrismBRepIntersection.Result regenerate(
     Map<String,LoopExtrusionFeature> features,
     Map<String,ClosedSketchExtrusion.Segment> lines){

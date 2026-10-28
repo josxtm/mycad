@@ -354,3 +354,20 @@ y densidad. Regresiones geométricas para seis vistas plano/sentido y 34 pruebas
 Android/IO locales superadas. Aún sin edición geométrica libre de estas aristas,
 identidad semántica tras cambios topológicos ni aceptación en hardware. Fase A estimada
 en 65 %, sin considerar completo el modelador CAD general.
+
+### Identidad de subentidades y versiones geométricas
+
+Las PR #127–#129 están integradas y el hito
+[#588](https://github.com/josxtm/mycad/actions/runs/40716562543) pasó integridad,
+geometría, Android, Lint y generación/verificación de APK. La APK `myCad0.6.0`
+está en los artefactos de ese flujo; aceptación física pendiente.
+
+La continuación `feature/cad-stepped-entity-identities` incorpora nombres
+conservadores de vértices/aristas/caras/parches derivados de los UUID de los
+operandos y la procedencia de las coordenadas del grid. Se conservan al editar
+dimensiones dentro de la misma estructura; coincidencias nuevas o cambios de
+operación/orden de operandos invalidan las referencias correspondientes. No se
+reutilizan rayos ni triángulos antiguos aunque siga existiendo la misma entidad.
+Inspectores Android conectados y reconstrucción determinista tras guardar/abrir,
+sin cambiar el formato JSON. Regresiones de motor y 36 pruebas Android/IO locales.
+Fase A estimada en 75 %; identidad general, rendimiento y hardware siguen pendientes.
