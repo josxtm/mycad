@@ -25,6 +25,22 @@ public final class RelativeSceneCoordinatesTest {
    near(buffer.get(3)-buffer.get(0),.01,2e-7);cache.clear();check(cache.entries()==0,"Cache not invalidated");
    float[] focus=frame.localPoint(frame.originX,frame.originY,frame.originZ);near(focus[0],0,0);near(focus[2],0,0);
   }
+
+  // Selected analytic edges must be rebased in double before float GPU output.
+  double far=1e9;
+  double[] small={far,far,far,far+.01,far,far,far,far+.01,far};
+  RelativeSceneCoordinates overlay=RelativeSceneCoordinates.from(Arrays.asList(small));
+  double[] edge={far,far,far,far+.01,far,far},unchanged=edge.clone();
+  float[] exact=overlay.localPoints(edge);
+  near(exact[3]-exact[0],.01,2e-7);
+  check(Arrays.equals(edge,unchanged),"Precise overlay source changed");
+  float[] legacy=overlay.localPoints(new float[]{(float)far,(float)far,(float)far,
+                                               (float)(far+.01),(float)far,(float)far});
+  check(legacy[3]==legacy[0],"Fixture must expose legacy world-float collapse");
+  reject(()->overlay.localPoints((double[])null));
+  reject(()->overlay.localPoints(new double[]{0,0}));
+  reject(()->overlay.localPoints(new double[]{Double.NaN,0,0}));
+  reject(()->overlay.localPoints(new double[]{1e300,0,0}));
   // A translated ray never changes front/back occlusion or global triangle IDs.
   double[] back={9,9,20,11,9,20,9,11,20},front={9,9,19,11,9,19,9,11,19};
   RelativeSceneCoordinates scene=RelativeSceneCoordinates.from(Arrays.asList(back,front));

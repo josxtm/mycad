@@ -58,6 +58,16 @@ public final class RelativeSceneCoordinates {
   }
   return point;
  }
+ /** Double world-space overlays are rebased BEFORE float quantisation. */
+ public float[] localPoints(double[] world){
+  if(world==null||world.length%3!=0)throw new IllegalArgumentException("Invalid overlay");
+  float[] out=new float[world.length];
+  for(int i=0;i<world.length;i+=3){
+   float[] p=localPoint(world[i],world[i+1],world[i+2]);
+   System.arraycopy(p,0,out,i,3);
+  }
+  return out;
+ }
  public float[] localPoints(float[] world){
   if(world==null||world.length%3!=0)throw new IllegalArgumentException("Invalid overlay");
   float[] out=new float[world.length];
