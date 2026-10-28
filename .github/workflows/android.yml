@@ -133,6 +133,8 @@ jobs:
           java -cp build/geometry-tests LinkedAnalyticBooleanTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedBooleanRegenerationPlan.java tests/LinkedBooleanRegenerationPlanTest.java
           java -cp build/geometry-tests LinkedBooleanRegenerationPlanTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/LinkedSteppedRecipeTest.java
+          java -cp build/geometry-tests LinkedSteppedRecipeTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/OrthogonalPrismBRepUnion.java tests/OrthogonalPrismBRepUnionTest.java
           java -cp build/geometry-tests OrthogonalPrismBRepUnionTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/LinkedConvexIntersection.java tests/LinkedOrthogonalUnionTest.java

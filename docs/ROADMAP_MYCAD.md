@@ -307,3 +307,25 @@ gradle :app:testDebugUnitTest :app:lintDebug --no-daemon
 
 Este punto de guardado pausa el desarrollo por instrucción del usuario; no
 programa tareas en segundo plano ni considera completadas las fases restantes.
+
+## Continuación — recetas escalonadas y selección B-Rep Android
+
+Base remota verificada: PR #126, commit `a776a09`, Actions
+[#582](https://github.com/josxtm/mycad/actions/runs/40706414114) correcto.
+El desarrollo se reanuda en `feature/cad-persisted-brep-binding`; el punto de
+guardado anterior se conserva como registro histórico.
+
+Se añaden unión/resta ortogonales de alturas distintas como recetas persistidas,
+su asociación exacta con shells en el visor, selección del parche visible con área
+y resaltado completo, y descarte de callbacks de escenas reemplazadas. Se conserva
+el orden global de los triángulos de selección/exportación y las operaciones antiguas.
+Las pruebas nuevas cubren el menú Android, JSON, oclusión, selección de un bolsillo,
+topología obsoleta y las seis combinaciones de plano/sentido. Los operandos siguen
+existiendo: aislar el resultado permite tocar caras que ellos ocultan en la escena completa.
+
+Validación física y edición libre de parches/aristas escalonados pendientes. La
+identidad del propietario es el UUID persistente de la receta; los identificadores
+internos de topología representan una regeneración concreta, sin prometer identidad
+semántica de todas las subentidades tras cambios topológicos.
+
+Estado, verificaciones y recuperación actuales: [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md).

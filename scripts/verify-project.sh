@@ -302,8 +302,10 @@ m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="
 assert "EdgeScreenTolerance.computeAtHit(" in a
 assert "solid,ox,oy,oz,x,y,z,meshView.getHeight()" in a
 assert "ViewportMeshRayPicker.pick(" in m
-assert "final double ox=chosen.ox,oy=chosen.oy,oz=chosen.oz;" in m
-assert "final double dx=chosen.dx,dy=chosen.dy,dz=chosen.dz;" in m
+assert "post(()->dispatchSurfaceHit(revision,chosen,patch))" in m
+assert "if(revision!=sceneRevision||visible==null)return;" in m
+assert "final double ox=visible.ox,oy=visible.oy,oz=visible.oz;" in m
+assert "final double dx=visible.dx,dy=visible.dy,dz=visible.dz;" in m
 assert "surfaceRayListener.onSurfaceRay(triangle,x,y,z,ox,oy,oz,dx,dy,dz)" in m
 print("Tolerancia tactil por profundidad real del impacto: OK")
 PY
@@ -482,7 +484,9 @@ for marker in (
 ):
     assert marker in m,marker
 assert "meshView.updateMeshesPreservingCamera(" in render
-assert "meshView.setMeshes(java.util.Collections.singletonList(mesh));" in isolated
+assert "meshView.setMeshes(java.util.Collections.singletonList(display));" in isolated
+assert "MeshEngine.Mesh display=mesh;" in isolated
+assert "display=binding.rendered;" in isolated
 print("Regenerar CAD conserva pan y zoom; malla aislada recibe encuadre: OK")
 PY
 

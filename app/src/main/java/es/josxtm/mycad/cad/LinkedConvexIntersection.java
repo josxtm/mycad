@@ -9,7 +9,7 @@ import java.util.*;
  * Rebuild is read-only and can be committed transactionally.
  */
 public final class LinkedConvexIntersection {
- public enum Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL, UNION_MULTISHELL, DIFFERENCE_MULTISHELL, INTERSECTION_MULTISHELL, UNION_WITH_HOLES, DIFFERENCE_WITH_HOLES, INTERSECTION_WITH_HOLES, UNION_ANALYTIC, INTERSECTION_ANALYTIC, DIFFERENCE_ANALYTIC }
+ public enum Operation { INTERSECTION, UNION_ORTHOGONAL, DIFFERENCE_ORTHOGONAL, UNION_POLYGONAL, DIFFERENCE_POLYGONAL, INTERSECTION_POLYGONAL, UNION_MULTISHELL, DIFFERENCE_MULTISHELL, INTERSECTION_MULTISHELL, UNION_WITH_HOLES, DIFFERENCE_WITH_HOLES, INTERSECTION_WITH_HOLES, UNION_ANALYTIC, INTERSECTION_ANALYTIC, DIFFERENCE_ANALYTIC, UNION_STEPPED, DIFFERENCE_STEPPED }
  public final String id,firstId,secondId;
  public final Operation operation;
 
@@ -30,6 +30,26 @@ public final class LinkedConvexIntersection {
  }
  public boolean dependsOnFeature(String featureId){
   return firstId.equals(featureId)||secondId.equals(featureId);
+ }
+ public boolean isStepped(){
+  return operation==Operation.UNION_STEPPED||operation==Operation.DIFFERENCE_STEPPED;
+ }
+ /** Rebuild topology from the same persisted sources as the preview. */
+ public VariableHeightOrthogonalBRep regenerateStepped(
+    Map<String,LoopExtrusionFeature> features,
+    Map<String,ClosedSketchExtrusion.Segment> lines){
+  if(!isStepped()||features==null||lines==null)
+   throw new IllegalArgumentException("Faltan fuentes de la booleana escalonada");
+  LoopExtrusionFeature a=features.get(firstId),b=features.get(secondId);
+  if(a==null||b==null||!firstId.equals(a.id)||!secondId.equals(b.id))
+   throw new IllegalArgumentException("Se eliminó una extrusión de origen");
+  VariableHeightOrthogonalBRep shell=VariableHeightOrthogonalBRep.apply(
+   a.asBRep(lines),b.asBRep(lines),operation==Operation.UNION_STEPPED?
+    VariableHeightOrthogonalMesh.Operation.UNION:
+    VariableHeightOrthogonalMesh.Operation.DIFFERENCE);
+  if(shell.triangles().length>18000)
+   throw new IllegalArgumentException("Booleana escalonada demasiado grande");
+  return shell;
  }
  public ConvexPrismBRepIntersection.Result regenerate(
     Map<String,LoopExtrusionFeature> features,
@@ -55,6 +75,7 @@ public final class LinkedConvexIntersection {
  public float[] regenerateTriangles(
     Map<String,LoopExtrusionFeature> features,
     Map<String,ClosedSketchExtrusion.Segment> lines){
+  if(isStepped())return regenerateStepped(features,lines).triangles();
   if(operation==Operation.INTERSECTION)return regenerate(features,lines).triangles();
   if(features==null||lines==null)
    throw new IllegalArgumentException("Faltan operandos de unión B-Rep");
