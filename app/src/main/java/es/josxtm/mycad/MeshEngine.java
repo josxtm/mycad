@@ -415,7 +415,8 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
     12*getResources().getDisplayMetrics().density);
    dragging=false;
    if(es.josxtm.mycad.cad.SurfaceTapPolicy.shouldPick(
-      moved,surfaceRayListener!=null,surfaceTapListener!=null)){
+      moved,surfaceRayListener!=null,surfaceTapListener!=null,
+      steppedPatchTapListener!=null)){
     final float x=e.getX(),y=e.getY();
     queueEvent(()->pickSurfaceAt(x,y));
    }
