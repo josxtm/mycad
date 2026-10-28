@@ -260,7 +260,7 @@ public class SteppedRecipeAndroidTest {
   NamedGridHoleBody before=app.renderedGridBindings.get(0).identity;
   app.save();app.load();app.currentSceneMeshes();NamedGridHoleBody after=app.renderedGridBindings.get(0).identity;
   assertEquals(owner.id,after.bodyId);assertEquals(1,after.shell.holeCount);
-  for(var face:before.shell.faces())assertNotNull(after.findFace(before.faceId(face.id)));
+  for(OrthogonalGridHoleBRep.Face face:before.shell.faces())assertNotNull(after.findFace(before.faceId(face.id)));
   assertArrayEquals(before.shell.triangles(),after.shell.triangles(),0);
  }
  @Test public void gridInspectorAndSelectionRejectReplacedAndTamperedMeshes(){

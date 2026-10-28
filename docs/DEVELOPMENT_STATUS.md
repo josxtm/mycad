@@ -39,13 +39,18 @@ la identidad y no autoriza reutilizar impactos de rayos/triángulos anteriores.
 - Integridad y suite geométrica completa de android.yml: superadas localmente.
 - Motor: planos XY/XZ/YZ, ambos signos, agujero → apertura lateral, componentes
   independientes, edición dimensional, versiones obsoletas y compatibilidad v1.
-- Java SDK 35 y 40 pruebas Robolectric/IO: superadas localmente.
+- Java SDK 35 con nivel de lenguaje y bytecode Java 8 y 40 pruebas Robolectric/IO:
+  comprobación local alineada con Android.
 - Gradle local sigue restringido por sockets del daemon; compilación Android y
   Lint obligatorios se verifican en la PR de esta rama antes de fusionar.
 - El documento se publica con el código antes de CI. Consultar el SHA de la PR
   y el [estado vivo de main](https://github.com/josxtm/mycad/blob/ci-status/ESTADO_COMPILACION.md).
 - Validación física Android/EGL y rendimiento en dispositivos: pendientes.
   No bloquean las pruebas automáticas ni se consideran realizados.
+
+CI #591 pasó integridad/geometría y detectó un uso de `var` en una prueba Android.
+Se sustituyó por el tipo explícito; la compilación local ahora también usa
+`-source 8 -target 8`. La corrección requiere su nuevo CI, sin desactivar pruebas.
 
 ## Próximas tareas y límites
 
