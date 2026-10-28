@@ -43,8 +43,11 @@ public final class SteppedCoplanarPatchTopology {
 
  public static final class Topology {
   public final List<PatchFace> patches;
+  /** Identifies the exact regenerated shell for which triangle indices are valid. */
+  public final String shellId;
   private final Map<String,Integer> sourceFaceToPatch;
-  private Topology(List<PatchFace> patches,Map<String,Integer> mapping){
+  private Topology(String shellId,List<PatchFace> patches,Map<String,Integer> mapping){
+   this.shellId=shellId;
    this.patches=Collections.unmodifiableList(patches);
    sourceFaceToPatch=Collections.unmodifiableMap(new LinkedHashMap<>(mapping));
   }
@@ -144,6 +147,6 @@ public final class SteppedCoplanarPatchTopology {
         !twin.toVertexId.equals(use.fromVertexId))
       throw new IllegalArgumentException("Patch adjacency is not reciprocal");
     }
-  return new Topology(patches,owner);
+  return new Topology(shell.id(),patches,owner);
  }
 }
