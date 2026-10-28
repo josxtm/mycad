@@ -97,9 +97,9 @@ public final class PolygonPrismBRepTest {
  public static void main(String[] args){
   // The B-Rep loop must agree with the high-precision source section even
   // for a sub-millimetre profile translated far from the world origin.
-  double ox=9000,oy=9000,w=.2,h=.2;
-  double[][] small={{ox,oy},{ox+w,oy},{ox+w,oy+h},{ox,oy+h}};
-  double expectedArea=((ox+w)-ox)*((oy+h)-oy);
+  double ox=9000,oy=9000,w=.2,profileHeight=.2;
+  double[][] small={{ox,oy},{ox+w,oy},{ox+w,oy+profileHeight},{ox,oy+profileHeight}};
+  double expectedArea=((ox+w)-ox)*((oy+profileHeight)-oy);
   for(int plane=0;plane<3;plane++){
    PolygonPrismBRep precise=PolygonPrismBRep.from(feature(plane,2.5,4),
      polygon(plane,small,false,false));
