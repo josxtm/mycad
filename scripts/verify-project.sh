@@ -301,7 +301,9 @@ a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding
 m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
 assert "EdgeScreenTolerance.computeAtHit(" in a
 assert "solid,ox,oy,oz,x,y,z,meshView.getHeight()" in a
-assert "final double ox=p[0],oy=p[1],oz=p[2];" in m
+assert "ViewportMeshRayPicker.pick(" in m
+assert "final double ox=chosen.ox,oy=chosen.oy,oz=chosen.oz;" in m
+assert "final double dx=chosen.dx,dy=chosen.dy,dz=chosen.dz;" in m
 assert "surfaceRayListener.onSurfaceRay(triangle,x,y,z,ox,oy,oz,dx,dy,dz)" in m
 print("Tolerancia tactil por profundidad real del impacto: OK")
 PY
