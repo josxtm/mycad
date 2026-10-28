@@ -191,3 +191,9 @@ hardware físico ni se declara aceptado el hito completo.
 Validación local: suites geométricas completas e integridad correctas;
 16 pruebas Android con Robolectric, 0 fallos/0 omitidas; compilación y Lint
 correctos. Pendiente comprobar Actions sobre el commit publicado.
+
+Publicación: al comprobar GitHub se detectó que #117 ya estaba fusionada en
+`285a74b`. La continuación de perforaciones se publicará en una PR sucesora.
+Se incorporó `origin/main` a la rama de trabajo mediante una fusión normal,
+sin modificar `main`, rebase ni force push. La fusión no cambió el árbol de
+archivos de la implementación local validada.
