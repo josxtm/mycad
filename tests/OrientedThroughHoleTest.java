@@ -43,6 +43,24 @@ public final class OrientedThroughHoleTest {
   }
   DrilledBoxRecipe legacy=new DrilledBoxRecipe(9,15,-7,w,d,h,2,-3,dia);
   check(legacy.axis==OrientedThroughHole.Axis.Z,"Legacy Z-axis defaults");
+  String savedId=legacy.id;
+  check(savedId.equals(java.util.UUID.fromString(savedId).toString()),"Canonical drilling result UUID");
+  String sketchId=java.util.UUID.randomUUID().toString();
+  DrilledBoxRecipe linked=legacy.linkedTo(sketchId,20);
+  DrilledBoxRecipe changed=linked.withHole(0,0,6).withDepth(5).withAxis(OrientedThroughHole.Axis.Z);
+  check(savedId.equals(changed.id),"Editing a drilling recipe must retain result UUID");
+  check(sketchId.equals(changed.sourceSketchId)&&changed.sourceHeight==20,
+        "Editing a drilling recipe must retain sketch linkage");
+  DrilledBoxRecipe restored=new DrilledBoxRecipe(savedId,9,15,-7,w,d,h,2,-3,dia,
+      OrientedThroughHole.Axis.Z,0,0,0,0);
+  check(savedId.equals(restored.id),"Restored drilling result UUID");
+  check(!savedId.equals(new DrilledBoxRecipe(9,15,-7,w,d,h,2,-3,dia).id),
+        "Distinct drilling features must have distinct UUIDs");
+  boolean invalidId=false;
+  try{new DrilledBoxRecipe("invalid",9,15,-7,w,d,h,2,-3,dia,
+      OrientedThroughHole.Axis.Z,0,0,0,0);}
+  catch(IllegalArgumentException expected){invalidId=true;}
+  check(invalidId,"Invalid drilling result UUID accepted");
   near(signedVolume(legacy.regenerate()),legacy.nominalVolume(),12,"Legacy bore");
   boolean invalid=false;
   try{new DrilledBoxRecipe(0,0,0,40,30,20,18,0,8,OrientedThroughHole.Axis.Z,0,0,0);}
