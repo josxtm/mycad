@@ -3,11 +3,14 @@
 ## Base verificada
 
 - Repositorio exclusivo: `josxtm/mycad`.
-- Base de esta fase: `a776a090471b51957593371a05fe6eca1920cd56` (PR #126 integrada).
-- CI de base: [android.yml #582](https://github.com/josxtm/mycad/actions/runs/40706414114), correcto.
+- Base de esta continuación: `c3740cd67cf85b93734ca76c06b839f74b4fb22c` (PR #127 integrada).
+- Última etapa completada: vinculación de recetas escalonadas con selección de
+  parches Android (PR #127, commit `0e3afe7`).
+- CI de esa etapa: [android.yml #583](https://github.com/josxtm/mycad/actions/runs/40713496874), correcto,
+  incluidos compilación Android, pruebas y Lint. Integrada sin saltar protecciones.
 - PR #80 y #86: borradores conservados, sin fusionar.
 
-## Fase actual — A: recetas persistidas y selección B-Rep
+## Fase actual — A: edición de parámetros desde caras vinculadas
 
 La ruta de pantalla a rayo, selección visible y registro de parches ya existía.
 Faltaba asociarla con las recetas del editor. Este cambio incorpora:
@@ -33,6 +36,14 @@ Faltaba asociarla con las recetas del editor. Este cambio incorpora:
 4. Abrir **Resultados booleanos → resultado → Ver solo esta malla** para tocar
    las caras del resultado sin que los operandos originales las oculten.
 5. Guardar y abrir: se conservan receta, UUID y geometría; se reconstruye el registro.
+6. Tocar otra vez el mismo parche (o **Editar cara seleccionada**) abre los parámetros
+   de sus dos perfiles de origen. Elegir una altura y aplicar regenera todas las
+   dependencias antes de guardar. La edición vuelve a la escena completa.
+
+La continuación añade esta edición de parámetros sin atribuir una modificación
+libre al parche. El diálogo se invalida si cambia el resultado o su fuente. Si
+la nueva altura produce una topología no soportada, ninguna malla, altura ni
+entrada de undo se modifica. Undo/redo y JSON conservan los UUID.
 
 Los operandos se conservan en el proyecto. En la escena completa cualquier sólido
 delante del resultado sigue bloqueando su selección; no se selecciona a través de él.
@@ -44,10 +55,12 @@ delante del resultado sigue bloqueando su selección; no se selecciona a través
 - Geometría: suite completa de `android.yml` superada; nueva regresión en seis
   combinaciones de plano/signo, ambas operaciones y protección de lotes obsoletos.
 - Compilación Java de producción y pruebas contra SDK 35: superada.
-- Robolectric Android 35: 29 pruebas superadas (24 existentes y 5 nuevas); incluye el flujo del
+- Robolectric Android 35: 32 pruebas superadas (24 originales, 5 de selección y
+  3 de edición); incluye el flujo del
   menú, JSON, oclusión, selección de bolsillo y callbacks descartados.
 - Gradle local: bloqueado por `SocketException: Operation not permitted` al crear
-  el daemon. La compilación Android y Lint obligatorios se comprobarán en CI.
+  el daemon. Compilación Android y Lint superados en #583 para la etapa anterior;
+  la continuación requiere su propio CI.
 - Dispositivo Android / EGL real: pendiente; no se afirma aceptación física.
 - CI y PR de esta rama: pendientes de publicación y verificación.
 
@@ -58,8 +71,8 @@ las caras/aristas/vértices a través de cambios topológicos, operaciones gener
 y más rendimiento. El UUID de receta es estable; el ID interno de shell describe
 una geometría concreta y cambia al regenerar otra forma. No confundir ambos.
 
-Siguiente tarea: editar las alturas de los operandos desde una cara escalonada
-seleccionada, con regeneración transaccional, y validar el recorrido en teléfono
+Siguiente tarea: selección e inspección de los bordes topológicos de un parche
+escalonado, con rechazo de referencias obsoletas, y validar el recorrido en teléfono
 y tablet. La modificación libre de un parche y las aristas escalonadas quedan pendientes.
 
 Las fases B–F siguen siendo parciales. Se conservan dibujo, cotas, Push/Pull,
@@ -68,12 +81,12 @@ general de restricciones ni soporte completo de superficies curvas o formatos CA
 
 ## Recuperación
 
-Rama remota prevista: `feature/cad-persisted-brep-binding`.
+Rama remota de la continuación: `feature/cad-stepped-parameter-edit`.
 
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-persisted-brep-binding
+git switch feature/cad-stepped-parameter-edit
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
@@ -84,8 +97,8 @@ Requiere JDK 17, Gradle 8.9 y SDK Android 35. Comprobar las verificaciones del S
 remoto actual antes de fusionar. Nunca rebasar ni forzar ramas compartidas.
 
 En este entorno el acceso Git por terminal no funciona. Se ha preparado el código
-en `/workspace/mycad-brep-binding`, conservando el checkout anterior. Su commit
+en `/workspace/mycad-stepped-edit`, conservando los checkouts anteriores. El commit
 `48348a3` es una materialización local de la base remota, no debe publicarse como
 ancestro. La publicación se realiza por el conector GitHub con padre remoto
-`a776a09`, sin cambiar `main`. Para reanudar en un entorno normal, usar la rama
+`c3740cd`, sin cambiar directamente `main`. Para reanudar en un entorno normal, usar la rama
 remota, que contiene la historia correcta.

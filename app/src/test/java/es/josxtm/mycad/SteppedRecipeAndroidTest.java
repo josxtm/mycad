@@ -2,6 +2,9 @@ package es.josxtm.mycad;
 
 import android.app.AlertDialog;
 import android.os.Looper;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.EditText;
 import java.util.*;
 import es.josxtm.mycad.cad.*;
 import org.junit.*;
@@ -130,5 +133,59 @@ public class SteppedRecipeAndroidTest {
   assertFalse(app.selectSteppedPatch(hit));
   app.booleanMeshes.get(2).vertices[0]+=1;
   try{app.currentSceneMeshes();fail("Stale mesh accepted");}catch(IllegalArgumentException expected){}
+ }
+ private SteppedVisiblePatchBridge.Hit selectPocket(){
+  app.showMeshOnly(app.booleanMeshes.get(2));
+  List<MeshEngine.Mesh> single=Collections.singletonList(app.renderedSteppedBindings.get(0).rendered);
+  ViewportMeshRayPicker.Hit visible=visible(single,1.7,1.9,true);
+  SteppedVisiblePatchBridge.Hit hit=patch(single,visible);
+  app.meshView.dispatchSurfaceHit(app.meshView.sceneRevision(),visible,hit);return hit;
+ }
+ private EditText heightInput(View view){
+  if(view instanceof EditText)return (EditText)view;
+  if(view instanceof ViewGroup)for(int i=0;i<((ViewGroup)view).getChildCount();i++){
+   EditText found=heightInput(((ViewGroup)view).getChildAt(i));if(found!=null)return found;
+  }
+  return null;
+ }
+ private void applyHeight(double value){
+  AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();
+  heightInput(dialog.getWindow().getDecorView()).setText(String.valueOf(value));
+  dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();
+ }
+ @Test public void secondTapEditsSourceHeightAndRegeneratesWithUndoAndReload() throws Exception {
+  LinkedConvexIntersection owner=recipe(LinkedConvexIntersection.Operation.DIFFERENCE_STEPPED);
+  SteppedVisiblePatchBridge.Hit hit=selectPocket();
+  String shell=hit.shellId;float[] before=app.booleanMeshes.get(2).vertices.clone();
+  assertTrue(app.selectSteppedPatch(hit)); // repeated tap opens parameter menu
+  choose(0);applyHeight(7);
+  assertEquals(7,app.loopExtrusionFeatures.get(0).distance,0);
+  assertEquals(owner.id,app.intersectionRecipes.get(2).id);assertEquals(1,app.undo.size());
+  assertFalse(Arrays.equals(before,app.booleanMeshes.get(2).vertices));assertNull(app.activeSteppedPatch);
+  VariableHeightOrthogonalBRep rebuilt=app.currentSceneMeshes().get(2).steppedShell;
+  assertEquals(100,rebuilt.volume(),1e-6);assertNotEquals(shell,rebuilt.id());
+  MainActivity.ParsedDesign reopened=app.decode(app.encode());
+  assertEquals(owner.id,reopened.intersections.get(2).id);
+  assertArrayEquals(rebuilt.triangles(),reopened.meshes.get(2).vertices,0);
+  app.history(true);assertEquals(6,app.loopExtrusionFeatures.get(0).distance,0);
+  assertArrayEquals(before,app.booleanMeshes.get(2).vertices,0);
+  app.history(false);assertEquals(7,app.loopExtrusionFeatures.get(0).distance,0);
+ }
+ @Test public void staleResultRejectsAnAlreadyOpenHeightDialog(){
+  LinkedConvexIntersection owner=recipe(LinkedConvexIntersection.Operation.DIFFERENCE_STEPPED);
+  selectPocket();app.editSelectedCadFace();choose(0);
+  float[] before=app.booleanMeshes.get(2).vertices.clone();
+  app.intersectionRecipes.set(2,new LinkedConvexIntersection(owner.id,owner.firstId,owner.secondId,owner.operation));
+  applyHeight(8);
+  assertEquals(6,app.loopExtrusionFeatures.get(0).distance,0);assertTrue(app.undo.isEmpty());
+  assertArrayEquals(before,app.booleanMeshes.get(2).vertices,0);
+ }
+ @Test public void invalidDependentTopologyLeavesEveryMeshAndHeightUntouched(){
+  recipe(LinkedConvexIntersection.Operation.DIFFERENCE_STEPPED);
+  selectPocket();app.editSelectedSteppedFace();choose(0);
+  List<float[]> before=new ArrayList<>();for(MeshEngine.Mesh mesh:app.booleanMeshes)before.add(mesh.vertices.clone());
+  applyHeight(2); // a through-hole would need a different topological route
+  assertEquals(6,app.loopExtrusionFeatures.get(0).distance,0);assertTrue(app.undo.isEmpty());
+  for(int i=0;i<before.size();i++)assertArrayEquals(before.get(i),app.booleanMeshes.get(i).vertices,0);
  }
 }

@@ -561,18 +561,25 @@ public class MainActivity extends Activity {
  }
 
  void editLoopExtrusionDistance(int index){
+  editLoopExtrusionDistance(index,()->true);
+ }
+ void editLoopExtrusionDistance(int index,java.util.function.BooleanSupplier targetStillCurrent){
   if(index<0||index>=loopExtrusionFeatures.size()||
-     loopExtrusionFeatures.get(index)==null){toast("Malla sin vínculo paramétrico");return;}
+     loopExtrusionFeatures.get(index)==null||!targetStillCurrent.getAsBoolean()){
+   toast("Malla sin vínculo paramétrico vigente");return;
+  }
   final es.josxtm.mycad.cad.LoopExtrusionFeature original=loopExtrusionFeatures.get(index);
   EditText input=new EditText(this);input.setInputType(8194|4096);
   input.setText(String.valueOf(original.distance));
   new AlertDialog.Builder(this).setTitle("Distancia de extrusión · mm")
    .setMessage("Se regenerará desde las líneas originales con distancia firmada. "+
-    "El resultado sigue siendo una malla, no una B-Rep editable.")
+    "Se comprobarán todos los resultados vinculados antes de guardar.")
    .setView(input).setNegativeButton("Cancelar",null)
    .setPositiveButton("Aplicar",(dialog,which)->{
     if(fileBusy||index>=loopExtrusionFeatures.size()||
-       loopExtrusionFeatures.get(index)!=original){toast("La malla ha cambiado");return;}
+       loopExtrusionFeatures.get(index)!=original||!targetStillCurrent.getAsBoolean()){
+     toast("La malla ha cambiado");return;
+    }
     try{
      double distance=Double.parseDouble(input.getText().toString().replace(',','.'));
      es.josxtm.mycad.cad.LoopExtrusionFeature next=original.withDistance(distance);
@@ -2260,6 +2267,9 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
       booleanMeshes.get(index)!=binding.stored||intersectionRecipes.get(index)!=binding.recipe||
       !java.util.Arrays.equals(binding.rendered.vertices,binding.stored.vertices))
     return false;
+   boolean samePatch=activeSteppedPatch!=null&&selectedStoredMeshObject==binding.stored&&
+    binding.recipe.id.equals(activeSteppedRecipeId)&&
+    hit.shellId.equals(activeSteppedPatch.shellId)&&hit.patch.index==activeSteppedPatch.patch.index;
    selected=-1;selectedSketch=-1;
    activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
    activeExactFaceHit=null;activeExactEdgeHit=null;
@@ -2276,11 +2286,53 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    for(int i=0;i<highlighted.length;i++)highlighted[i]=triangles.get(i);
    if(meshView!=null){meshView.highlightEdge(null);meshView.highlightPatch(highlighted);}
    info.setText(String.format(java.util.Locale.US,
-    "Malla %d · cara B-Rep %d · área %.2f mm² · %d borde(s) interior(es)",
+    "Malla %d · cara B-Rep %d · área %.2f mm² · %d borde(s) interior(es) · toca otra vez para editar",
     index+1,hit.patch.index+1,hit.patch.area,hit.patch.holeCount));
-   scene.invalidate();return true;
+   scene.invalidate();
+   if(samePatch)editSelectedSteppedFace();
+   return true;
   }
   return false;
+ }
+
+ SteppedStoredBinding selectedSteppedBinding(){
+  if(activeSteppedPatch==null||activeSteppedRecipeId==null)return null;
+  for(SteppedStoredBinding binding:renderedSteppedBindings){
+   int i=binding.index;
+   if(binding.recipe.id.equals(activeSteppedRecipeId)&&
+      binding.rendered.steppedShell.id().equals(activeSteppedPatch.shellId)&&
+      i<booleanMeshes.size()&&i<intersectionRecipes.size()&&
+      booleanMeshes.get(i)==binding.stored&&intersectionRecipes.get(i)==binding.recipe&&
+      java.util.Arrays.equals(binding.stored.vertices,binding.rendered.vertices))return binding;
+  }
+  return null;
+ }
+ /** A Boolean patch opens its source parameters; it never pretends to be a free face offset. */
+ void editSelectedSteppedFace(){
+  final SteppedStoredBinding binding=selectedSteppedBinding();
+  if(binding==null){toast("La cara B-Rep ha cambiado; vuelve a seleccionarla");return;}
+  String[] ids={binding.recipe.firstId,binding.recipe.secondId};
+  final int[] indices={-1,-1};
+  final es.josxtm.mycad.cad.LoopExtrusionFeature[] sources=
+   new es.josxtm.mycad.cad.LoopExtrusionFeature[2];
+  for(int operand=0;operand<2;operand++){
+   for(int i=0;i<loopExtrusionFeatures.size();i++){
+    es.josxtm.mycad.cad.LoopExtrusionFeature source=loopExtrusionFeatures.get(i);
+    if(source!=null&&source.id.equals(ids[operand])){
+     if(indices[operand]>=0){toast("UUID de perfil duplicado");return;}
+     indices[operand]=i;sources[operand]=source;
+    }
+   }
+   if(indices[operand]<0){toast("Falta un perfil de origen");return;}
+  }
+  new AlertDialog.Builder(this).setTitle("Parámetros del resultado B-Rep")
+   .setMessage("Editar una altura de origen regenerará el resultado y sus dependencias.")
+   .setItems(new String[]{"Altura del primer perfil · "+sources[0].distance+" mm",
+    "Altura del segundo perfil · "+sources[1].distance+" mm"},(dialog,which)->{
+    final int index=indices[which];
+    editLoopExtrusionDistance(index,()->selectedSteppedBinding()==binding&&
+     index<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(index)==sources[which]);
+   }).setNegativeButton("Cancelar",null).show();
  }
 
  void showGpuSurfaceSelection(int triangle,double x,double y,double z,
@@ -3294,6 +3346,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   }catch(Exception problem){toast("No se pudo inspeccionar la topología del sólido");}
  }
  void editSelectedCadFace(){
+  if(activeSteppedPatch!=null){editSelectedSteppedFace();return;}
   if(activeCadFace==null||!cadGpuMesh||!(activeCadFace.isValidFor(parts.size())&&activeCadFace.isValidFor(parts.size(),parts.get(activeCadFace.partIndex).id))){
    toast("Toca primero una cara en el visor CAD experimental");return;
   }

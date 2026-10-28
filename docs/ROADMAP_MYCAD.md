@@ -329,3 +329,16 @@ internos de topología representan una regeneración concreta, sin prometer iden
 semántica de todas las subentidades tras cambios topológicos.
 
 Estado, verificaciones y recuperación actuales: [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md).
+
+### Etapa siguiente — editar alturas desde el resultado seleccionado
+
+La PR [#127](https://github.com/josxtm/mycad/pull/127) quedó integrada tras
+[Actions #583 correcto](https://github.com/josxtm/mycad/actions/runs/40713496874).
+La continuación `feature/cad-stepped-parameter-edit` permite tocar de nuevo un
+parche B-Rep para editar las alturas de sus perfiles de origen. Reutiliza la
+regeneración transaccional del motor; no desplaza libremente el parche. El diálogo
+se rechaza si la referencia ha cambiado o si falla la topología dependiente.
+Pruebas Android añadidas: altura → regeneración → JSON → undo/redo, diálogo obsoleto
+y error geométrico sin mutaciones. Total local: 32 pruebas Android/IO superadas.
+Pendiente CI de esta continuación y aceptación física. Próximo paso: bordes
+topológicos seleccionables y sus referencias a la regeneración actual.
