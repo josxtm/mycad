@@ -32,11 +32,19 @@ public final class EdgeScreenTolerance {
  }
  public static double compute(PrimitiveBRepBody body,double cameraDistance,
                               int viewportHeightPx,double displayDensity){
-  if(body==null||!Double.isFinite(cameraDistance)||cameraDistance<=0||
+  if(body==null)throw new IllegalArgumentException("Missing body");
+  return compute(Math.min(body.width,Math.min(body.depth,body.height)),
+   cameraDistance,viewportHeightPx,displayDensity);
+ }
+ /** Same touch policy for a regenerated non-primitive B-Rep shell. */
+ public static double compute(double minDimension,double cameraDistance,
+                              int viewportHeightPx,double displayDensity){
+  if(!Double.isFinite(minDimension)||minDimension<=0||
+     !Double.isFinite(cameraDistance)||cameraDistance<=0||
      cameraDistance>1e7||viewportHeightPx<=0||
      !Double.isFinite(displayDensity)||displayDensity<=0||displayDensity>10)
    throw new IllegalArgumentException("Invalid camera, body or screen");
-  double min=Math.min(body.width,Math.min(body.depth,body.height));
+  double min=minDimension;
   double worldPerPixel=2*cameraDistance*Math.tan(Math.toRadians(22.5))/
                        viewportHeightPx;
   // 12 dp gives a finger-friendly target; avoid arbitrarily huge targets.

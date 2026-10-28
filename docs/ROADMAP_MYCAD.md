@@ -342,3 +342,15 @@ Pruebas Android añadidas: altura → regeneración → JSON → undo/redo, diá
 y error geométrico sin mutaciones. Total local: 32 pruebas Android/IO superadas.
 Pendiente CI de esta continuación y aceptación física. Próximo paso: bordes
 topológicos seleccionables y sus referencias a la regeneración actual.
+
+### Selección de bordes del parche visible
+
+PR [#128](https://github.com/josxtm/mycad/pull/128) integrada tras
+[Actions #585 correcto](https://github.com/josxtm/mycad/actions/runs/40714473648).
+En `feature/cad-stepped-boundary-selection` se seleccionan exclusivamente los bordes
+de los bucles del parche B-Rep visible. El inspector muestra longitud, XYZ y adyacencia;
+las diagonales y seams coplanares quedan fuera. La tolerancia se adapta a profundidad
+y densidad. Regresiones geométricas para seis vistas plano/sentido y 34 pruebas
+Android/IO locales superadas. Aún sin edición geométrica libre de estas aristas,
+identidad semántica tras cambios topológicos ni aceptación en hardware. Fase A estimada
+en 65 %, sin considerar completo el modelador CAD general.
