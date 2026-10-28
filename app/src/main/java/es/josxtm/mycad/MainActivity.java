@@ -1992,7 +1992,7 @@ public class MainActivity extends Activity {
   java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.SketchData> profiles=new java.util.ArrayList<>();
   java.util.ArrayList<es.josxtm.mycad.cad.CadIntegrationProbe.PartData> solids=new java.util.ArrayList<>();
   for(Sketch q:sketches)profiles.add(new es.josxtm.mycad.cad.CadIntegrationProbe.SketchData(q.id,q.type,q.plane,q.x1,q.y1,q.x2,q.y2));
-  for(Part p:parts)solids.add(new es.josxtm.mycad.cad.CadIntegrationProbe.PartData(p.sourceSketchId,p.h,p.x,p.y,p.z,p.rotationX,p.rotationY,p.rotationZ));
+  for(Part p:parts)solids.add(new es.josxtm.mycad.cad.CadIntegrationProbe.PartData(p.id,p.sourceSketchId,p.h,p.x,p.y,p.z,p.rotationX,p.rotationY,p.rotationZ));
   es.josxtm.mycad.cad.CadIntegrationProbe.Report report=es.josxtm.mycad.cad.CadIntegrationProbe.inspect(profiles,solids);
   JSONArray bindings=new JSONArray();
   for(int i=0;i<report.compatiblePartIndices.size();i++){

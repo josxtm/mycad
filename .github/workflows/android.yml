@@ -229,6 +229,8 @@ jobs:
           java -cp build/geometry-tests ProfileDoubleCoordinatesTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/ui/CadAppearance.java tests/CadAppearanceTest.java
           java -cp build/geometry-tests CadAppearanceTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/StableParametricProbeTest.java
+          java -cp build/geometry-tests StableParametricProbeTest
           } 2>&1 | tee reports/geometria.log
       # CI habitual valida Java, tests Android y Lint, SIN generar un APK.
       - name: Compilar código y comprobar pruebas y Lint (sin APK)

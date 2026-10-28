@@ -1,6 +1,7 @@
 package es.josxtm.mycad.cad;
 
 import java.util.*;
+import java.nio.charset.StandardCharsets;
 
 /** Read-only compatibility probe between Android's legacy sketch data and the new CAD core. */
 public final class CadIntegrationProbe {
@@ -12,10 +13,13 @@ public final class CadIntegrationProbe {
   }
  }
  public static final class PartData {
-  public final String sourceSketchId;public final double height,tx,ty,tz,rx,ry,rz;
+  public final String sourceSketchId,bodyId;public final double height,tx,ty,tz,rx,ry,rz;
   public PartData(String sourceSketchId,double height){this(sourceSketchId,height,0,0,0,0,0,0);}
   public PartData(String sourceSketchId,double height,double tx,double ty,double tz,double rx,double ry,double rz){
-   this.sourceSketchId=sourceSketchId;this.height=height;this.tx=tx;this.ty=ty;this.tz=tz;this.rx=rx;this.ry=ry;this.rz=rz;
+   this(null,sourceSketchId,height,tx,ty,tz,rx,ry,rz);
+  }
+  public PartData(String bodyId,String sourceSketchId,double height,double tx,double ty,double tz,double rx,double ry,double rz){
+   this.bodyId=bodyId;this.sourceSketchId=sourceSketchId;this.height=height;this.tx=tx;this.ty=ty;this.tz=tz;this.rx=rx;this.ry=ry;this.rz=rz;
   }
  }
  public static final class Report {
@@ -27,6 +31,14 @@ public final class CadIntegrationProbe {
   Report(int s,int e,int u,int p,int i,String snapshot,List<Integer> indices,List<String> bodyIds,List<double[]> bounds){compatibleSketches=s;compatibleExtrusions=e;unsupportedSketches=u;unlinkedParts=p;invalidExtrusions=i;parametricSnapshot=snapshot;compatiblePartIndices=Collections.unmodifiableList(new ArrayList<>(indices));generatedBodyIds=Collections.unmodifiableList(new ArrayList<>(bodyIds));worldBounds=Collections.unmodifiableList(new ArrayList<>(bounds));}
   public boolean readyForMigration(){return unsupportedSketches==0&&unlinkedParts==0&&invalidExtrusions==0;}
  }
+ private static boolean canonical(String value){
+  if(value==null)return false;try{return UUID.fromString(value).toString().equals(value);}catch(IllegalArgumentException invalid){return false;}
+ }
+ private static String stable(String role,String... values){
+  StringBuilder seed=new StringBuilder("MYCAD_INTEGRATION_V1/").append(role);
+  for(String value:values)seed.append('/').append(value.length()).append(':').append(value);
+  return UUID.nameUUIDFromBytes(seed.toString().getBytes(StandardCharsets.UTF_8)).toString();
+ }
  public static Report inspect(List<SketchData> sketches,List<PartData> parts){
   if(sketches==null||parts==null)throw new IllegalArgumentException("Data required");
   ParametricSketchDocument model=new ParametricSketchDocument(new PrimitiveKernel());
@@ -35,8 +47,10 @@ public final class CadIntegrationProbe {
   List<Integer> partIndices=new ArrayList<>();List<String> bodyIds=new ArrayList<>();List<double[]> bounds=new ArrayList<>();
   for(SketchData sketch:sketches){
    if(sketch==null||sketch.id==null||sketch.type!=2||sketch.plane<0||sketch.plane>2){unsupported++;continue;}
+   if(linked.containsKey(sketch.id)){unsupported++;continue;}
    PlaneExtrusion.Plane plane=PlaneExtrusion.Plane.values()[sketch.plane];
-   String id=model.addRectangleOnPlane(plane,Math.min(sketch.x1,sketch.x2),Math.min(sketch.y1,sketch.y2),
+   String identity=canonical(sketch.id)?sketch.id:stable("sketch",sketch.id);
+   String id=model.addRectangleWithId(identity,plane,Math.min(sketch.x1,sketch.x2),Math.min(sketch.y1,sketch.y2),
     Math.abs(sketch.x2-sketch.x1),Math.abs(sketch.y2-sketch.y1));
    if(id==null||linked.putIfAbsent(sketch.id,id)!=null)unsupported++;
   }
@@ -48,7 +62,12 @@ public final class CadIntegrationProbe {
    try{
     RigidTransform transform=new RigidTransform(part.tx,part.ty,part.tz,part.rx,part.ry,part.rz);
     if(!Double.isFinite(part.height)){invalid++;continue;}
-    CadKernel.Result<CadKernel.Box> result=model.extrude(source,0,part.height);
+    // Actual Android owners stay stable across edits and reordering. Legacy
+    // callers without an owner get a deterministic row-scoped diagnostic ID.
+    if(part.bodyId!=null&&!canonical(part.bodyId)){invalid++;continue;}
+    String body=part.bodyId==null?stable("legacy-body",part.sourceSketchId,Integer.toString(index)):part.bodyId;
+    String feature=stable("extrusion",body);
+    CadKernel.Result<CadKernel.Box> result=model.extrudeWithIds(source,feature,body,0,part.height);
     if(!result.isSuccess()){invalid++;continue;}
     double[] world=new TransformedBody(result.value,transform).worldBounds();
     for(double number:world)if(!Double.isFinite(number))throw new IllegalStateException("Invalid transformed bound");
