@@ -3,15 +3,15 @@
 ## Base y alcance
 
 - Repositorio exclusivo: `josxtm/mycad`.
-- Base remota: `3c3c09b9189ffa69a4e6688f5dbb89c68fbe4e37`, PR #131 integrada.
-- Última etapa integrada: identidades con agujeros pasantes y varios componentes.
-- [android.yml #592](https://github.com/josxtm/mycad/actions/runs/40724016163): correcto.
+- Base remota: `0c57f8e7d8d44032ffb4754f4a38ce0c2354a72b`, PR #132 integrada.
+- Última etapa integrada: referencias tipadas y reconciliación de topología.
+- [android.yml #594](https://github.com/josxtm/mycad/actions/runs/40725744292): correcto.
 - El hito anterior #590 conserva su APK; esta continuación requiere su propio CI.
 - Las PR #80/#86 permanecen en borrador, sin fusionar.
 
-## Fase A actual: referencias tipadas y reconciliación de topología
+## Fase A actual: identidades de intersecciones convexas no ortogonales
 
-Rama: `feature/cad-topology-reference-reconciliation`.
+Rama: `feature/cad-named-convex-intersections`.
 
 `NamedGridHoleBody` asigna nombres persistentes a vértices, aristas y caras de
 booleanas ortogonales de igual altura, incluidos agujeros pasantes y varios
@@ -52,17 +52,40 @@ El visor publica todos sus índices tras validar la escena completa y conserva e
 último cambio para los inspectores. Elimina los registros de cuerpos borrados.
 Un fallo de geometría no publica índices parciales ni altera JSON/undo.
 
+`NamedConvexIntersection` cubre la receta histórica INTERSECTION entre prismas
+convexos, incluidos lados inclinados. Los vértices conservados se vinculan a sus
+esquinas exactas de origen y los nuevos cruces a las líneas de soporte activas.
+La incidencia admite el redondeo float de la vista previa; no compara posiciones
+con una geometría anterior. Los casos agudos lejos del origen y las cadenas
+colineales tienen regresiones específicas.
+
+Las tapas conservan su rol base/superior aunque cambie el número de esquinas del
+perfil. Cambiar qué operando limita la altura invalida los nombres superiores.
+Las caras laterales se identifican por sus soportes de origen. Propietarios,
+planos u orden de operandos diferentes no comparten el namespace.
+
+`PlanarBooleanView` permite que agujeros e intersecciones usen la misma selección
+e inspección. Resalta todos los triángulos de una cara (incluidas tapas de más de
+dos triángulos). La asociación también exige la revisión de la escena realmente
+instalada: una previsualización temporal o un visor oculto no pueden reutilizarla.
+El JSON, las recetas y la teselación se conservan.
+
 ## Verificación de esta revisión
 
 - Integridad y suite geométrica completa de android.yml: superadas localmente.
 - Motor: planos XY/XZ/YZ, ambos signos, agujero → apertura lateral, componentes
   independientes, edición dimensional, versiones obsoletas y compatibilidad v1.
-- Java SDK 35, lenguaje/bytecode Java 8 y 43 pruebas Robolectric/IO: superadas.
+- Java SDK 35, lenguaje/bytecode Java 8 y 47 pruebas Robolectric/IO: superadas.
 - Regresiones de reconciliación: agujero → apertura lateral mediante el diálogo
   real de editar perfil, undo, referencias creadas/eliminadas, tipo incorrecto,
   otro propietario, versión anterior, cilindros y prismas no ortogonales.
 - Cambios analíticos menores que la precisión float de la malla también cambian
   la versión del índice. Las colecciones y los descriptores son inmutables.
+- Intersección inclinada: seis combinaciones plano/signo, cambios dimensionales,
+  traslaciones, nacimiento/desaparición de vértices, cambio del límite de altura,
+  perfil colineal y triángulo agudo a coordenadas altas.
+- Android: tapa completa, persistencia, edición real del perfil origen,
+  previsualización temporal y eventos pendientes de un visor oculto.
 - Gradle local sigue restringido por sockets del daemon; compilación Android y
   Lint obligatorios se verifican en la PR de esta rama antes de fusionar.
 - El documento se publica con el código antes de CI. Consultar el SHA de la PR
@@ -75,15 +98,17 @@ El error Java 8 de #591 quedó corregido y verificado por #592 antes de integrar
 
 ## Próximas tareas y límites
 
-1. Ampliar el nombrado a las rutas restantes, especialmente resultados de perfiles
-   no ortogonales, antes de declarar completada la fase A por software.
-2. Usar incidencias de aristas fuente para nombrar vértices nuevos de intersecciones,
-   sin transferencias por proximidad a entidades distintas.
+1. Ampliar el nombrado a uniones/restas y a las rutas restantes (por ejemplo
+   UNION_ANALYTIC, INTERSECTION_ANALYTIC y resultados poligonales cóncavos), antes
+   de declarar completada la fase A por software. La nueva ruta convexa se activa
+   para INTERSECTION; no sustituye silenciosamente las demás.
+2. Definir la identidad de componentes al separarse/fusionarse y ampliar el
+   soporte de B-Rep curva reconstruible, manteniendo invalidez explícita.
 3. Después continuar operaciones CAD del motor con regeneración transaccional.
 
-Fase A estimada en 85 %: aún parcial. Las caras de esta nueva familia son quads
-del complejo celular, sin agrupación en parches coplanares ni selección interactiva
-de todos sus bordes. No se atribuye soporte general de NURBS o cambios topológicos
+Fase A estimada en 90 %: aún parcial. Las caras con agujeros siguen siendo quads
+del complejo celular; las intersecciones tienen tapas poligonales y caras laterales.
+No hay selección interactiva de todos sus bordes. No se atribuye soporte general de NURBS o cambios topológicos
 arbitrarios. Se conservan bocetos, cotas, extrusión, ViewCube, navegación, edición,
 undo/redo, guardar/abrir e intercambio existente.
 
@@ -92,7 +117,7 @@ undo/redo, guardar/abrir e intercambio existente.
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-topology-reference-reconciliation
+git switch feature/cad-named-convex-intersections
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
@@ -103,7 +128,7 @@ JDK 17, Gradle 8.9 y SDK Android 35. Si la PR ya fue integrada, crear una nueva
 rama desde origin/main y leer este estado antes de modificar código. No rebasar,
 forzar ramas compartidas ni modificar main directamente.
 
-En este entorno el checkout recuperable es `/workspace/mycad-topology-references`.
+En este entorno el checkout recuperable es `/workspace/mycad-convex-identities`.
 Git por terminal no tiene acceso de red; la publicación usa el conector GitHub,
-con padre remoto `3c3c09b`. Los ancestros de materialización local no se publican.
+con padre remoto `0c57f8e`. Los ancestros de materialización local no se publican.
 La historia remota de la rama es la referencia para reanudar en un entorno normal.

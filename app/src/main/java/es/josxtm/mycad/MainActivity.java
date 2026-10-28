@@ -31,20 +31,34 @@ public class MainActivity extends Activity {
  es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit pendingSteppedTap,activeSteppedPatch;
  String activeSteppedRecipeId=null;
  es.josxtm.mycad.cad.SteppedBoundaryEdgePicker.Hit activeSteppedEdge;
- static final class GridStoredBinding {
+ static final class PlanarStoredBinding {
   final int index,firstTriangle;
   final MeshEngine.Mesh stored;
   final es.josxtm.mycad.cad.LinkedConvexIntersection recipe;
   final es.josxtm.mycad.cad.NamedGridHoleBody identity;
-  GridStoredBinding(int index,int first,MeshEngine.Mesh stored,
+  final es.josxtm.mycad.cad.NamedConvexIntersection convexIdentity;
+  final es.josxtm.mycad.cad.PlanarBooleanView view;
+  PlanarStoredBinding(int index,int first,MeshEngine.Mesh stored,
       es.josxtm.mycad.cad.LinkedConvexIntersection recipe,
       es.josxtm.mycad.cad.NamedGridHoleBody identity){
    this.index=index;firstTriangle=first;this.stored=stored;this.recipe=recipe;this.identity=identity;
+   convexIdentity=null;view=es.josxtm.mycad.cad.PlanarBooleanView.from(identity);
+  }
+  PlanarStoredBinding(int index,int first,MeshEngine.Mesh stored,
+      es.josxtm.mycad.cad.LinkedConvexIntersection recipe,
+      es.josxtm.mycad.cad.NamedConvexIntersection identity){
+   this.index=index;firstTriangle=first;this.stored=stored;this.recipe=recipe;
+   this.identity=null;convexIdentity=identity;view=es.josxtm.mycad.cad.PlanarBooleanView.from(identity);
+  }
+  PlanarStoredBinding(PlanarStoredBinding original,int first){
+   index=original.index;firstTriangle=first;stored=original.stored;recipe=original.recipe;
+   identity=original.identity;convexIdentity=original.convexIdentity;view=original.view;
   }
  }
- java.util.List<GridStoredBinding> renderedGridBindings=java.util.Collections.emptyList();
- GridStoredBinding activeGridBinding;
- String activeGridFaceId;
+ java.util.List<PlanarStoredBinding> renderedPlanarBindings=java.util.Collections.emptyList();
+ PlanarStoredBinding activePlanarBinding;
+ String activePlanarFaceId;
+ long planarRenderRevision=-1;
  java.util.Map<String,es.josxtm.mycad.cad.TopologySnapshot> topologySnapshots=java.util.Collections.emptyMap();
  java.util.Map<String,es.josxtm.mycad.cad.TopologyReconciliation> topologyChanges=java.util.Collections.emptyMap();
  class Part { String id=java.util.UUID.randomUUID().toString();String sourceSketchId="";boolean circle; float w,d,h,x,y,z,rotationX=0,rotationY=0,rotationZ=0; Part(boolean c,float a,float b,float height,float p){circle=c;w=a;d=b;h=height;x=p;} }
@@ -899,6 +913,7 @@ public class MainActivity extends Activity {
   activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
   meshView.highlightFace(-1);meshView.highlightEdge(null);
   meshView.updateMeshesPreservingCamera(currentSceneMeshes());
+  planarRenderRevision=meshView.sceneRevision();
  }
  void showMeshOnly(MeshEngine.Mesh mesh){
   clearStoredMeshSelection();
@@ -907,29 +922,30 @@ public class MainActivity extends Activity {
   int storedIndex=booleanMeshes.indexOf(mesh);
   if(storedIndex>=0&&storedIndex<intersectionRecipes.size()&&
      intersectionRecipes.get(storedIndex)!=null&&
-     (intersectionRecipes.get(storedIndex).isStepped()||intersectionRecipes.get(storedIndex).isGridHole())){
+     (intersectionRecipes.get(storedIndex).isStepped()||intersectionRecipes.get(storedIndex).isGridHole()||
+      intersectionRecipes.get(storedIndex).isConvexIntersection())){
    currentSceneMeshes();
    for(SteppedStoredBinding binding:renderedSteppedBindings)if(binding.index==storedIndex){
     display=binding.rendered;
     renderedSteppedBindings=java.util.Collections.singletonList(new SteppedStoredBinding(
      storedIndex,0,binding.stored,binding.rendered,binding.recipe,binding.identity));break;
    }
-   if(intersectionRecipes.get(storedIndex).isGridHole()){
-    for(GridStoredBinding binding:renderedGridBindings)if(binding.index==storedIndex){
-     renderedGridBindings=java.util.Collections.singletonList(new GridStoredBinding(
-      storedIndex,0,binding.stored,binding.recipe,binding.identity));break;
+   if(!intersectionRecipes.get(storedIndex).isStepped()){
+    for(PlanarStoredBinding binding:renderedPlanarBindings)if(binding.index==storedIndex){
+     renderedPlanarBindings=java.util.Collections.singletonList(new PlanarStoredBinding(binding,0));break;
     }
     renderedSteppedBindings=java.util.Collections.emptyList();
-   }else renderedGridBindings=java.util.Collections.emptyList();
+   }else renderedPlanarBindings=java.util.Collections.emptyList();
   }else{
    renderedSteppedBindings=java.util.Collections.emptyList();
-   renderedGridBindings=java.util.Collections.emptyList();
+   renderedPlanarBindings=java.util.Collections.emptyList();
   }
   meshMode=true;meshView.setVisibility(View.VISIBLE);
   meshPanel.setVisibility(View.VISIBLE);
   isolatedMeshPreview=true;activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
   meshView.highlightFace(-1);
   meshView.setMeshes(java.util.Collections.singletonList(display));
+  planarRenderRevision=meshView.sceneRevision();
   info.setText("Resultado booleano · "+mesh.triangles()+" triángulos");
  }
 
@@ -1717,7 +1733,7 @@ public class MainActivity extends Activity {
    }).setNegativeButton("Cancelar",null).show();
  }
  void inspectSelectedFaces(){
-  if(activeGridBinding!=null){inspectSelectedGridFace();return;}
+  if(activePlanarBinding!=null){inspectSelectedPlanarFace();return;}
   if(activeSteppedPatch!=null){inspectSelectedSteppedFace();return;}
   if(selected<0||selected>=parts.size()){toast("Selecciona primero un cuerpo");return;}
   Part p=parts.get(selected);
@@ -2194,10 +2210,10 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   selectedStoredMeshIndex=-1;selectedStoredMeshObject=null;selectedPolygonFaceId=null;
   activeSteppedPatch=null;activeSteppedRecipeId=null;pendingSteppedTap=null;
   activeSteppedEdge=null;
-  activeGridBinding=null;activeGridFaceId=null;
+  activePlanarBinding=null;activePlanarFaceId=null;
  }
  boolean selectStoredMeshByTriangle(int triangle,double x,double y,double z){
-  activeGridBinding=null;activeGridFaceId=null;
+  activePlanarBinding=null;activePlanarFaceId=null;
   activeSteppedPatch=null;activeSteppedRecipeId=null;
   activeSteppedEdge=null;
   int[] sizes=new int[booleanMeshes.size()];
@@ -2222,8 +2238,8 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   }
   int index=hit.meshIndex;
   MeshEngine.Mesh actual=booleanMeshes.get(index);
-  for(GridStoredBinding binding:renderedGridBindings)if(binding.index==index)
-   return selectGridFace(binding,hit.localTriangle);
+  for(PlanarStoredBinding binding:renderedPlanarBindings)if(binding.index==index)
+   return selectPlanarFace(binding,hit.localTriangle);
   boolean linked=index<loopExtrusionFeatures.size()&&
                  loopExtrusionFeatures.get(index)!=null;
   String faceId=null;
@@ -2318,7 +2334,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     java.util.Objects.equals(activeSteppedEdge==null?null:activeSteppedEdge.edgeId,
      boundary==null?null:boundary.edgeId);
    selected=-1;selectedSketch=-1;
-   activeGridBinding=null;activeGridFaceId=null;
+   activePlanarBinding=null;activePlanarFaceId=null;
    activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;
    activeExactFaceHit=null;activeExactEdgeHit=null;
    selectedStoredMeshIndex=index;selectedStoredMeshObject=binding.stored;
@@ -2426,54 +2442,56 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   return .05;
  }
 
- boolean currentGridBinding(GridStoredBinding binding){
+ boolean currentPlanarBinding(PlanarStoredBinding binding){
   int i=binding.index;
-  return i<booleanMeshes.size()&&i<intersectionRecipes.size()&&
+  return meshView!=null&&planarRenderRevision==meshView.sceneRevision()&&
+   i>=0&&i<booleanMeshes.size()&&i<intersectionRecipes.size()&&
    booleanMeshes.get(i)==binding.stored&&intersectionRecipes.get(i)==binding.recipe&&
-   java.util.Arrays.equals(binding.stored.vertices,binding.identity.shell.triangles());
+   java.util.Arrays.equals(binding.stored.vertices,binding.view.triangles());
  }
- boolean selectGridFace(GridStoredBinding binding,int triangle){
-  if(!currentGridBinding(binding))return false;
-  es.josxtm.mycad.cad.OrthogonalGridHoleBRep.Face face=binding.identity.faceAtTriangle(triangle);
+ boolean selectPlanarFace(PlanarStoredBinding binding,int triangle){
+  if(!currentPlanarBinding(binding))return false;
+  es.josxtm.mycad.cad.PlanarBooleanView.Face face=binding.view.faceAtTriangle(triangle);
   if(face==null)return false;
-  String id=binding.identity.faceId(face.id);
+  String id=face.id;
   boolean repeated=selectedStoredMeshObject==binding.stored&&id.equals(selectedPolygonFaceId);
   clearStoredMeshSelection();
-  activeGridBinding=binding;activeGridFaceId=id;
+  activePlanarBinding=binding;activePlanarFaceId=id;
   selectedStoredMeshIndex=binding.index;selectedStoredMeshObject=binding.stored;selectedPolygonFaceId=id;
   selected=-1;selectedSketch=-1;activeCadFace=null;activeCylinderFaceId=null;
   activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;
-  if(meshView!=null){meshView.highlightEdge(null);meshView.highlightFace(binding.firstTriangle+triangle-triangle%2);}
+  if(meshView!=null){meshView.highlightEdge(null);meshView.highlightPatch(binding.view.trianglesForFace(id,binding.firstTriangle));}
   info.setText(String.format(java.util.Locale.US,
    "Malla %d · cara B-Rep · área %.2f mm² · %d sólido(s) · %d agujero(s)",
-   binding.index+1,face.area,binding.identity.shell.solidCount,binding.identity.shell.holeCount));
+   binding.index+1,face.area,binding.view.solidCount,binding.view.holeCount));
   scene.invalidate();
   if(repeated)showStoredMeshTouchActions(binding.index,binding.stored,null);
   return true;
  }
- void inspectSelectedGridFace(){
-  GridStoredBinding binding=activeGridBinding;
-  if(binding==null||!currentGridBinding(binding)||binding.identity.findFace(activeGridFaceId)==null){
+ void inspectSelectedPlanarFace(){
+  PlanarStoredBinding binding=activePlanarBinding;
+  if(binding==null||!currentPlanarBinding(binding)||binding.view.findFace(activePlanarFaceId)==null){
    toast("La cara B-Rep ha cambiado; vuelve a seleccionarla");return;
   }
-  es.josxtm.mycad.cad.OrthogonalGridHoleBRep.Face face=binding.identity.findFace(activeGridFaceId);
-  new AlertDialog.Builder(this).setTitle("Cara B-Rep · agujeros y componentes")
+  es.josxtm.mycad.cad.PlanarBooleanView.Face face=binding.view.findFace(activePlanarFaceId);
+  new AlertDialog.Builder(this).setTitle("Cara B-Rep · resultado planar")
    .setMessage(String.format(java.util.Locale.US,
     "Área: %.3f mm²\nCara persistente: %s\nReceta: %s\nVersión geométrica: %s\n"+
-    "Caras quad: %d · aristas: %d · vértices: %d",
-    face.area,activeGridFaceId,binding.identity.bodyId,binding.identity.shell.id,
-    binding.identity.shell.faces().size(),binding.identity.shell.edges().size(),binding.identity.shell.vertices().size())+topologyChangeSummary(binding.recipe.id))
+    "Caras: %d · aristas: %d · vértices: %d",
+    face.area,activePlanarFaceId,binding.view.bodyId,binding.view.geometryId,
+    binding.view.faceCount,binding.view.edgeCount,binding.view.vertexCount)+topologyChangeSummary(binding.recipe.id))
    .setPositiveButton("Cerrar",null).show();
  }
  void showGpuSurfaceSelection(int triangle,double x,double y,double z,
     double ox,double oy,double oz,double dx,double dy,double dz){
+  if(!meshMode){pendingSteppedTap=null;return;}
   es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit patch=pendingSteppedTap;
   pendingSteppedTap=null;
   activeExactFaceHit=null;activeExactEdgeHit=null;
   if(patch!=null&&patch.globalTriangle==triangle&&
      selectSteppedPatch(patch,steppedTouchTolerance(patch,ox,oy,oz)))return;
-  if(isolatedMeshPreview)for(GridStoredBinding binding:renderedGridBindings)
-   if(selectGridFace(binding,triangle-binding.firstTriangle))return;
+  if(isolatedMeshPreview)for(PlanarStoredBinding binding:renderedPlanarBindings)
+   if(selectPlanarFace(binding,triangle-binding.firstTriangle))return;
   if(isolatedMeshPreview){clearStoredMeshSelection();activeCadFace=null;activeCylinderFaceId=null;activeAnalyticEdgeId=null;activeExactFaceHit=null;activeExactEdgeHit=null;if(meshView!=null)meshView.highlightEdge(null);info.setText("Vista previa · sin selección de piezas");return;}
   if(selectStoredMeshByTriangle(triangle,x,y,z))return;
   boolean handled=false;
@@ -3587,7 +3605,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   MeshEngine.Mesh composed=currentMesh();
   java.util.ArrayList<MeshEngine.Mesh> meshes=new java.util.ArrayList<>();
   java.util.ArrayList<SteppedStoredBinding> bindings=new java.util.ArrayList<>();
-  java.util.ArrayList<GridStoredBinding> grids=new java.util.ArrayList<>();
+  java.util.ArrayList<PlanarStoredBinding> grids=new java.util.ArrayList<>();
   java.util.Map<String,es.josxtm.mycad.cad.TopologySnapshot> snapshots=new java.util.LinkedHashMap<>();
   int first=0;
   if(importedMesh!=null){meshes.add(importedMesh);first+=importedMesh.triangles();}
@@ -3619,8 +3637,18 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
     es.josxtm.mycad.cad.NamedGridHoleBody identity=recipe.regenerateNamedGridHole(sources,lines);
     if(!java.util.Arrays.equals(identity.shell.triangles(),stored.vertices))
      throw new IllegalArgumentException("La malla B-Rep con agujeros está obsoleta");
-    grids.add(new GridStoredBinding(i,first,stored,recipe,identity));
-    addTopologySnapshot(snapshots,es.josxtm.mycad.cad.TopologySnapshot.from(identity));
+    PlanarStoredBinding binding=new PlanarStoredBinding(i,first,stored,recipe,identity);
+    grids.add(binding);addTopologySnapshot(snapshots,binding.view.topology);
+   }else if(recipe!=null&&recipe.isConvexIntersection()){
+    java.util.Map<String,es.josxtm.mycad.cad.ClosedSketchExtrusion.Segment> lines=new java.util.LinkedHashMap<>();
+    es.josxtm.mycad.cad.LoopExtrusionFeature a=sources.get(recipe.firstId),b=sources.get(recipe.secondId);
+    if(a==null||b==null)throw new IllegalArgumentException("Faltan operandos de intersección");
+    lines.putAll(loopSketchSegments(a,null,0,0,0,0));lines.putAll(loopSketchSegments(b,null,0,0,0,0));
+    es.josxtm.mycad.cad.NamedConvexIntersection identity=recipe.regenerateNamedIntersection(sources,lines);
+    if(!java.util.Arrays.equals(identity.shell.triangles(),stored.vertices))
+     throw new IllegalArgumentException("La malla de intersección está obsoleta");
+    PlanarStoredBinding binding=new PlanarStoredBinding(i,first,stored,recipe,identity);
+    grids.add(binding);addTopologySnapshot(snapshots,binding.view.topology);
    }else if(i<loopExtrusionFeatures.size()&&loopExtrusionFeatures.get(i)!=null){
     es.josxtm.mycad.cad.LoopExtrusionFeature feature=loopExtrusionFeatures.get(i);
     es.josxtm.mycad.cad.PolygonPrismBRep polygon=feature.asBRep(loopSketchSegments(feature,null,0,0,0,0));
@@ -3636,7 +3664,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
    es.josxtm.mycad.cad.TopologySnapshot.from(analyticBody(part)));
   publishTopologySnapshots(snapshots);
   renderedSteppedBindings=java.util.Collections.unmodifiableList(bindings);
-  renderedGridBindings=java.util.Collections.unmodifiableList(grids);
+  renderedPlanarBindings=java.util.Collections.unmodifiableList(grids);
   return meshes;
  }
  void addTopologySnapshot(java.util.Map<String,es.josxtm.mycad.cad.TopologySnapshot> snapshots,
@@ -3663,7 +3691,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   es.josxtm.mycad.cad.TopologyReconciliation change=topologyChanges.get(bodyId);
   if(change==null)return "\nSin una regeneración anterior comparada.";
   es.josxtm.mycad.cad.TopologyReconciliation.Change faces=change.change(es.josxtm.mycad.cad.TopologySnapshot.Kind.FACE);
-  return "\nÚltima regeneración · caras quad conservadas: "+faces.retained.size()+
+  return "\nÚltima regeneración · caras conservadas: "+faces.retained.size()+
    ", creadas: "+faces.created.size()+", eliminadas: "+faces.removed.size();
  }
  /**

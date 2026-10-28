@@ -98,6 +98,16 @@ public final class TopologySnapshot {
   for(OrthogonalGridHoleBRep.Face f:body.shell.faces())b.add(Kind.FACE,body.faceId(f.id),f.id);
   return new TopologySnapshot(b);
  }
+ public static TopologySnapshot from(NamedConvexIntersection body){
+  if(body==null)throw new IllegalArgumentException("Missing named intersection");
+  Builder b=new Builder(body.bodyId,"CONVEX_INTERSECTION");b.field(body.shell.id());
+  for(PolygonPrismBRep.Vertex v:body.shell.vertices()){
+   b.add(Kind.VERTEX,body.vertexId(v.id),v.id);b.point(v.x,v.y,v.z);
+  }
+  for(PolygonPrismBRep.Edge e:body.shell.edges())b.add(Kind.EDGE,body.edgeId(e.id),e.id);
+  for(PolygonPrismBRep.Face f:body.shell.faces()){b.add(Kind.FACE,body.faceId(f.id),f.id);b.number(f.area);}
+  return new TopologySnapshot(b);
+ }
  public static TopologySnapshot from(PolygonPrismBRep body){
   if(body==null)throw new IllegalArgumentException("Missing polygon prism");
   Builder b=new Builder(body.id(),"POLYGON_PRISM");b.number(body.distance());b.number(body.plane());
