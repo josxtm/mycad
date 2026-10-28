@@ -1,162 +1,114 @@
 # Estado de desarrollo de MyCAD
 
-## Base y alcance
+## Estado vigente y base comprobada
 
-- Repositorio exclusivo: `josxtm/mycad`.
-- Base remota: `0a443419f1ca4d4e0ddf4934ee9ee07c65f47d11`, PR #133 integrada.
-- Última etapa integrada: intersecciones convexas nombradas y referencias tipadas.
-- [android.yml #597](https://github.com/josxtm/mycad/actions/runs/40730118057): correcto.
-- El hito anterior #597 conserva su APK; esta continuación requiere su propio CI.
-- Las PR #80/#86 permanecen en borrador, sin fusionar.
+- Repositorio exclusivo: `josxtm/mycad`; no se trabaja en CADCraft ni directamente en main.
+- PR #144 revisada e integrada desde `43fcf01ea9238e67aa3990fab60cda810e661ea7`.
+- Base main: `4756ece7e1cf3fd41b760e7d28831cfbfd022608`.
+- PR #144: [android.yml #618](https://github.com/josxtm/mycad/actions/runs/40758696428), correcto.
+- Main: [android.yml #619](https://github.com/josxtm/mycad/actions/runs/40760119620), correcto.
+- PR #80/#86 antiguas y PR #136 conservadas; no se fusionan por esta continuación.
 
-## Fase A actual: identidades de booleanas planares y componentes
+## Fase A del guion vigente: precisión e integración GPU
 
-Rama: `feature/cad-named-planar-booleans`.
+Rama de trabajo: `feature/cad-relative-gpu-origin`.
 
-`NamedGridHoleBody` asigna nombres persistentes a vértices, aristas y caras de
-booleanas ortogonales de igual altura, incluidos agujeros pasantes y varios
-componentes. Las recetas existentes UNION_WITH_HOLES, DIFFERENCE_WITH_HOLES e
-INTERSECTION_WITH_HOLES pueden regenerar su topología nombrada.
+`RelativeMeshCoordinates` (#144) resta un origen double antes de convertir a
+float. `RelativeSceneCoordinates` ahora mantiene una generación de escena con
+un único origen, calculado a partir de los límites double. Genera las posiciones
+locales de todos los meshes sin alterar la geometría mundial ni su orden.
 
-El visor Android conserva una asociación exacta entre receta, malla renderizada y
-topología. Selecciona la cara quad del resultado visible y muestra su área e
-identidad desde **Inspeccionar caras**. En **Resultados booleanos → Ver solo esta
-malla** se puede seleccionar sin los operandos originales delante. Las selecciones
-y el inspector rechazan sustituciones de receta/malla y geometría adulterada.
+MeshEngine utiliza esa generación tanto para los buffers GPU como para los
+índices de rayos. La cámara conserva su foco mundial double y resta el mismo
+origen antes de construir la matriz float. Contornos, tiradores y proyección de
+los tiradores usan la misma transformación. Los impactos y el origen del rayo
+vuelven a coordenadas mundiales antes de llegar a la selección B-Rep existente;
+la distancia, dirección e índices globales no cambian.
 
-`SourceTopologyNames` comparte el nombrado con los sólidos escalonados conservando
-exactamente el formato v1 publicado. La prueba de compatibilidad congela el digest
-SHA-256 de todos los nombres de doce fixtures de `b74c4e7`. No se cambia el JSON,
-los UUID persistidos, la teselación ni el orden global de triángulos.
+Las sustituciones y las previsualizaciones comparten la instalación de escena:
+invalidan los buffers y callbacks anteriores. Cambiar la geometría conservando
+la cámara no vuelve a centrar el foco, zoom u orientación. Las entradas inválidas
+se rechazan antes de incrementar la revisión pública. La caché GPU y el índice
+de rayos se reutilizan mientras no cambia la generación.
 
-Los nombres sobreviven a cambios dimensionales mientras se conservan los
-operandos ordenados, operación, plano y agrupaciones de coordenadas de origen.
-Los cambios topológicos pueden eliminar nombres y crear otros: no se transfieren
-por proximidad a entidades diferentes. La versión geométrica sigue separada de
-la identidad y no autoriza reutilizar impactos de rayos/triángulos anteriores.
+BoxBRep expone triángulos double independientes de la vista previa mundial float.
+Los prismas analíticos Android retienen esos datos al formar la escena y las
+previsualizaciones. El buffer float histórico se conserva para exportación y
+herramientas anteriores; se comprueba que coincide con el redondeo de la fuente
+double. La selección visible utiliza los mismos triángulos locales que la GPU.
 
-`TopologySnapshot` indexa vértices, aristas y caras con tipo, propietario e identidad,
-y calcula una versión geométrica SHA-256 que incluye los datos analíticos exactos.
-Cubre cuerpos escalonados, grids con agujeros, prismas poligonales de líneas y
-primitivas de caja/cilindro. El cilindro tiene dos bordes circulares y tres caras;
-no se agregan vértices artificiales de costura o de teselación.
+### Límites explícitos
 
-Las referencias pueden restaurarse como descriptores, pero se resuelven después:
-`resolveExact` exige la misma versión geométrica y `resolvePersistent` requiere
-una decisión explícita de vincular la misma identidad al estado actual. Ninguno
-permite reutilizar un rayo o índice GPU de una generación anterior.
+- El conversor y los rayos locales se prueban con detalle de 0,01 mm a ±1e9 mm.
+  Esto no amplía los límites de coordenadas de los editores Android.
+- BoxBRep mantiene su rechazo de una exportación/vista previa mundial float que
+  colapse una cara. La nueva ruta no oculta pérdidas existentes en archivos float.
+- Cilindros, recetas malladas y varios resultados persistidos aún llegan al visor
+  desde buffers float; trasladarlos después no recupera detalle ya perdido.
+- Próximo paso del motor: ampliar las fuentes double sin alterar teselaciones,
+  identidades, JSON ni selección; empezar por cilindros analíticos.
 
-`TopologyReconciliation` informa por tipo qué entidades se conservan, se crean o
-se eliminan. Solo vuelve a vincular referencias de su snapshot anterior exacto.
-El visor publica todos sus índices tras validar la escena completa y conserva el
-último cambio para los inspectores. Elimina los registros de cuerpos borrados.
-Un fallo de geometría no publica índices parciales ni altera JSON/undo.
+## Verificación
 
-`NamedConvexIntersection` cubre la receta histórica INTERSECTION entre prismas
-convexos, incluidos lados inclinados. Los vértices conservados se vinculan a sus
-esquinas exactas de origen y los nuevos cruces a las líneas de soporte activas.
-La incidencia admite el redondeo float de la vista previa; no compara posiciones
-con una geometría anterior. Los casos agudos lejos del origen y las cadenas
-colineales tienen regresiones específicas.
+- Integridad: se actualizan las comprobaciones del puente GPU para exigir la
+  conversión local, el uso de un origen compartido y la devolución del rayo mundial.
+- Suite geométrica completa de android.yml, incluida RelativeSceneCoordinatesTest.
+- Pruebas nuevas de precisión, no mutación, offsets/oclusión, caché y entradas inválidas.
+- 58 pruebas Android/IO superadas localmente: suite existente más instalación real de escena, matrices Android,
+  proyección, cámara conservada, callbacks mundiales, revisión obsoleta y puente
+  de selección de parches B-Rep escalonados.
+- Compilación local: JDK 17, lenguaje y bytecode Java 8, SDK 35.
+- Gradle local no puede crear sockets del daemon en este sandbox. Compilación
+  Gradle, tests y Lint completos son obligatorios en CI antes de fusionar.
+- Este documento acompaña al código antes de CI: el SHA y resultado final se
+  registran en la PR y en [ci-status](https://github.com/josxtm/mycad/blob/ci-status/ESTADO_COMPILACION.md).
+- EGL y validación física en Nothing Phone 2a/tablet Android de 12 pulgadas:
+  pendientes; también pendientes mediciones de rendimiento y memoria reales.
 
-Las tapas conservan su rol base/superior aunque cambie el número de esquinas del
-perfil. Cambiar qué operando limita la altura invalida los nombres superiores.
-Las caras laterales se identifican por sus soportes de origen. Propietarios,
-planos u orden de operandos diferentes no comparten el namespace.
+CI #620 detectó tres fallos de carga de clases en las pruebas que buscaban
+métodos del GLSurfaceView por reflexión. Se corrigió el acceso de prueba:
+proyección y picking tienen visibilidad de paquete y los tests invocan las
+mismas implementaciones directamente. No se omiten pruebas ni se añaden
+simulaciones de GL. La revisión corregida requiere un nuevo CI verde.
 
-`PlanarBooleanView` permite que agujeros e intersecciones usen la misma selección
-e inspección. Resalta todos los triángulos de una cara (incluidas tapas de más de
-dos triángulos). La asociación también exige la revisión de la escena realmente
-instalada: una previsualización temporal o un visor oculto no pueden reutilizarla.
-El JSON, las recetas y la teselación se conservan.
+La revisión correctiva `8130b15` pasó [CI #622](https://github.com/josxtm/mycad/actions/runs/40762489338).
+La revisión final añade una regresión de encuadre de mallas importadas grandes:
+se conserva la distancia histórica de ajuste, sin introducir el límite de zoom
+interactivo en el cálculo inicial de encuadre. Requiere CI sobre el commit final.
 
-`NamedPlanarBoolean` añade las once rutas restantes de recetas planares:
-UNION/INTERSECTION/DIFFERENCE_ANALYTIC, UNION/DIFFERENCE_ORTHOGONAL,
-UNION/INTERSECTION/DIFFERENCE_POLYGONAL y las tres MULTISHELL. Cada ruta llama
-exactamente a su kernel histórico y conserva las coordenadas, el orden de los
-cascarones y todos los triángulos persistidos. Incluye la unión inclinada convexa,
-la unión anidada que reutiliza un cascarón origen y las intersecciones cóncavas de
-altura desigual. La identidad del propietario sigue siendo el UUID de la receta.
+## Plan y pendientes
 
-Las caras laterales incluyen las identidades de sus extremos para distinguir
-segmentos cóncavos separados sobre el mismo plano. Las tapas de un solo cascarón
-mantienen su rol semántico. En MULTISHELL cada componente se identifica por su
-contorno de procedencia, sin índices ni coordenadas: una separación/fusión retira
-las tapas anteriores y crea referencias para las nuevas. Es una política
-conservadora: otros cambios del contorno también pueden invalidar sus tapas.
-No se adivina una transferencia por proximidad o volumen. Las entidades de
-frontera que conservan procedencia pueden permanecer entre componentes.
+1. A: completar fuentes double y auditar la precisión de todos los puentes GPU.
+2. B: continuar B-Rep, booleanas, regeneración, degeneración e identidades. Todas
+   las rutas LinkedConvexIntersection tienen adaptación nombrada; la cobertura
+   global B-Rep sigue parcial (perforaciones curvas aún basadas en mallas).
+3. C: integración táctil de selección y edición conservando navegación y archivo.
+4. D: ViewCube tridimensional, caras/aristas/esquinas, sincronización Canvas/GPU.
+5. E: APK de hito tras CI verde; aceptación física y rendimiento independientes.
 
-El adaptador común conecta estas rutas al visor, al inspector, a la selección de
-la cara completa y a la reconciliación transaccional. Rechaza mallas adulteradas,
-versiones obsoletas y cambios de propietario. Los namespaces publicados de
-`NamedSteppedBody`, `NamedGridHoleBody` y `NamedConvexIntersection` no se alteran.
-
-## Verificación de esta revisión
-
-- Integridad y suite geométrica completa de android.yml: superadas localmente.
-- Motor: planos XY/XZ/YZ, ambos signos, agujero → apertura lateral, componentes
-  independientes, edición dimensional, versiones obsoletas y compatibilidad v1.
-- Java SDK 35, lenguaje/bytecode Java 8 y 51 pruebas Robolectric/IO: superadas.
-- Regresiones de reconciliación: agujero → apertura lateral mediante el diálogo
-  real de editar perfil, undo, referencias creadas/eliminadas, tipo incorrecto,
-  otro propietario, versión anterior, cilindros y prismas no ortogonales.
-- Cambios analíticos menores que la precisión float de la malla también cambian
-  la versión del índice. Las colecciones y los descriptores son inmutables.
-- Intersección inclinada: seis combinaciones plano/signo, cambios dimensionales,
-  traslaciones, nacimiento/desaparición de vértices, cambio del límite de altura,
-  perfil colineal y triángulo agudo a coordenadas altas.
-- Once rutas: comparación exacta contra las mallas históricas, todos los planos
-  y signos, unión inclinada, U cóncava, separación/fusión y reordenado de componentes.
-- Android: selección/reapertura de las once rutas, separación mediante edición
-  real del lado de origen, undo y rechazo transaccional de mallas adulteradas.
-- Android: tapa completa, persistencia, edición real del perfil origen,
-  previsualización temporal y eventos pendientes de un visor oculto.
-- Gradle local sigue restringido por sockets del daemon; compilación Android y
-  Lint obligatorios se verifican en la PR de esta rama antes de fusionar.
-- El documento se publica con el código antes de CI. Consultar el SHA de la PR
-  y el [estado vivo de main](https://github.com/josxtm/mycad/blob/ci-status/ESTADO_COMPILACION.md).
-- Validación física Android/EGL y rendimiento en dispositivos: pendientes.
-  No bloquean las pruebas automáticas ni se consideran realizados.
-
-El error Java 8 de #591 quedó corregido y verificado por #592 antes de integrar
-#131. La comprobación local usa `-source 8 -target 8`; no se desactivaron pruebas.
-
-## Próximas tareas y límites
-
-1. Auditar las recetas de perforación circular y de extrusión de cara que aún
-   almacenan mallas sin propietario UUID persistido. Ampliar su representación
-   analítica/topológica sin presentar facetas de teselación como caras curvas.
-2. Revisar la cobertura de cadenas de operaciones y la persistencia explícita
-   de referencias de subentidades, con migración de proyectos anteriores.
-3. Completar la aceptación automática de la fase A antes de pasar a ampliar
-   las operaciones CAD de la fase B. La validación física sigue independiente.
-
-Fase A estimada en 93 %: aún parcial. Todas las operaciones de
-`LinkedConvexIntersection` tienen ya adaptación nombrada, pero esto no equivale
-al soporte de todas las familias CAD. Las perforaciones circulares existentes
-siguen produciendo mallas; no son todavía una B-Rep curva completa. No hay
-selección interactiva de todas las aristas ni soporte general de NURBS/cambios
-topológicos arbitrarios. Se conservan bocetos, cotas, extrusión, ViewCube,
-navegación, edición, undo/redo, guardar/abrir e intercambio existente.
+El 93 % anterior correspondía a la fase de identidades B-Rep del guion anterior,
+no a la finalización del nuevo plan de precisión ni a un CAD general completo.
+No se consideran terminadas familias sin pruebas.
 
 ## Recuperación
 
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-named-planar-booleans
+git switch feature/cad-relative-gpu-origin
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
-gradle :app:testDebugUnitTest :app:lintDebug --no-daemon
+gradle :app:compileDebugJavaWithJavac :app:testDebugUnitTest :app:lintDebug --no-daemon
 ```
 
-JDK 17, Gradle 8.9 y SDK Android 35. Si la PR ya fue integrada, crear una nueva
-rama desde origin/main y leer este estado antes de modificar código. No rebasar,
-forzar ramas compartidas ni modificar main directamente.
+Si la PR ya está integrada, partir de origin/main en una rama nueva. No rebasar
+ni forzar ramas compartidas. El checkout local de esta continuación está en
+`/workspace/mycad-relative-gpu`; su base materializada tiene el mismo árbol que
+main `4756ece`. La publicación mediante conector usa el padre remoto real y no
+publica los ancestros sintéticos locales.
 
-En este entorno el checkout recuperable es `/workspace/mycad-planar-identities`.
-Git por terminal no tiene acceso de red; la publicación usa el conector GitHub,
-con padre remoto `0a44341`. Los ancestros de materialización local no se publican.
-La historia remota de la rama es la referencia para reanudar en un entorno normal.
+Un experimento anterior de propietarios de recetas quedó conservado localmente
+en `feature/cad-persisted-recipe-owners`, commit `b41ec27`, como WIP sin pruebas.
+No forma parte de esta fase ni debe fusionarse: main contiene avances posteriores
+sobre la misma área y requiere comparación antes de recuperar ese experimento.

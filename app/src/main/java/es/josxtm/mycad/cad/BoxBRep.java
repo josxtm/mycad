@@ -161,6 +161,17 @@ public final class BoxBRep {
    throw new IllegalArgumentException("Invalid closed-shell volume");
   return new BoxBRep(b.id,v,ed,f,signedVolume,area);
  }
+ /** Exact world coordinates for a relative GPU preview; no float conversion. */
+ public double[] triangleCoordinates(){
+  double[] result=new double[108];int at=0;
+  for(Face face:faces){
+   int[] c=face.loop;
+   for(int index:new int[]{c[0],c[1],c[2],c[0],c[2],c[3]}){
+    Vertex v=vertices.get(index);result[at++]=v.x;result[at++]=v.y;result[at++]=v.z;
+   }
+  }
+  return result;
+ }
  /** Render mesh is generated separately from analytic topology.
   * Reject a float preview that would collapse a valid double-precision face.
   * The analytic B-Rep remains usable at large world coordinates. */

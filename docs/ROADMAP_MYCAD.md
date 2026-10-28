@@ -438,3 +438,13 @@ resultados cóncavos generales ni todas las familias curvas.
 - 51 pruebas Android/IO; integridad y suite geométrica de CI. Gradle/Lint requieren CI verde antes de integrar.
 - Fase A estimada 93 %, parcial: faltan otras familias y migración de propietarios/referencias. Perforaciones curvas aún basadas en mallas.
 - Validación física Android/EGL y rendimiento pendientes. Recuperación y límites en `docs/DEVELOPMENT_STATUS.md`.
+
+## Guion vigente — origen local compartido para GPU
+
+- PR #144 integrada tras verificar #618 verde; main `4756ece`, flujo [#619](https://github.com/josxtm/mycad/actions/runs/40760119620) correcto.
+- Rama `feature/cad-relative-gpu-origin`: generación local inmutable, cámara double, índices GPU/rayos en el mismo origen y callbacks en coordenadas mundiales.
+- Fuentes double de BoxBRep conectadas a la escena y sus previsualizaciones; se conservan exportación, orden global, selección y UUID.
+- Contornos/tiradores relativos al origen; caché y callbacks invalidados al sustituir la escena; conservación de cámara al editar.
+- Regresiones automáticas de precisión a ±1e9, Android matrices/rayos, cambios de origen y puente B-Rep escalonado.
+- Pendiente: ampliar fuentes double a cilindros y demás familias, sin atribuir al conversor recuperación de datos ya redondeados.
+- Pruebas físicas Nothing Phone 2a/tablet 12 pulgadas, EGL y rendimiento pendientes. Estado y recuperación actualizados en `docs/DEVELOPMENT_STATUS.md`.

@@ -426,4 +426,22 @@ public class SteppedRecipeAndroidTest {
   try{app.currentSceneMeshes();fail("Tampered Boolean accepted");}catch(IllegalArgumentException expected){}
   assertSame(snapshots,app.topologySnapshots);
  }
+
+ @Test public void rebasedViewportRayStillResolvesTheActualSteppedPatch()throws Exception{
+  recipe(LinkedConvexIntersection.Operation.DIFFERENCE_STEPPED);app.toggleMeshView();
+  List<MeshEngine.Mesh> meshes=app.currentSceneMeshes();List<double[]> world=new ArrayList<>();
+  for(MeshEngine.Mesh mesh:meshes)world.add(mesh.worldCoordinates());
+  app.meshView.layout(0,0,800,600);
+  app.meshView.installSceneMeshes(meshes,RelativeSceneCoordinates.from(world),true,app.meshView.sceneRevision());
+  app.meshView.setViewOrientation(35,25);
+  java.lang.reflect.Field projection=MeshEngine.class.getDeclaredField("projection");projection.setAccessible(true);
+  android.opengl.Matrix.perspectiveM((float[])projection.get(app.meshView),0,45,800f/600,.1f,1000000);
+  float[] pixel=app.meshView.projectPoint(2.0,2.0,3.0);assertNotNull(pixel);
+  // Isolate the Boolean so source operands cannot occlude the result.
+  app.showMeshOnly(app.booleanMeshes.get(2));meshes=Collections.singletonList(app.booleanMeshes.get(2));
+  MeshEngine.Mesh rendered=app.renderedSteppedBindings.get(0).rendered;
+  app.meshView.installSceneMeshes(Collections.singletonList(rendered),RelativeSceneCoordinates.from(Collections.singletonList(rendered.worldCoordinates())),true,app.meshView.sceneRevision());
+  app.meshView.pickSurfaceAt(pixel[0],pixel[1]);shadowOf(Looper.getMainLooper()).idle();
+  assertNotNull(app.activeSteppedPatch);assertEquals(app.intersectionRecipes.get(2).id,app.activeSteppedRecipeId);
+ }
 }
