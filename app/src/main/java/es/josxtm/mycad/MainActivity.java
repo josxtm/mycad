@@ -4064,7 +4064,7 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   if(flat)return;
   float size=cubeSize(),left=cubeLeft(),top=cubeTop(),cell=size/3f;
   paint.setStyle(Paint.Style.FILL);
-  paint.setColor(darkMode?Color.rgb(47,64,83):Color.rgb(207,220,234));
+  paint.setColor(darkMode?Color.rgb(47,64,83):Color.rgb(239,245,251));
   c.drawRoundRect(left,top,left+size,top+size,dp(8),dp(8),paint);
   paint.setColor(darkMode?Color.rgb(96,120,146):Color.rgb(132,153,174));
   paint.setStrokeWidth(dp(1));
@@ -4073,7 +4073,14 @@ return new ParsedDesign(list,parsedSketches,parsedMeshes,parsedRecipes,parsedCha
   paint.setTextAlign(Paint.Align.CENTER);paint.setTextSize(dp(9));
   paint.setColor(darkMode?Color.WHITE:Color.rgb(20,36,50));
   for(int row=0;row<3;row++)for(int col=0;col<3;col++)c.drawText(labels[row][col],left+(col+.5f)*cell,top+(row+.57f)*cell,paint);
-  paint.setTextAlign(Paint.Align.LEFT);
+  // Distinguish the currently facing camera direction without changing presets.
+  int activeCol=(int)Math.round(((yaw%(Math.PI*2)+Math.PI*2)%(Math.PI*2))/(Math.PI/2))%4;
+  int activeRow=pitch>0.95f?0:(pitch<-.35f?2:1);
+  int activeCellCol=activeRow==1?(activeCol==1?0:activeCol==3?2:1):1;
+  paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));
+  paint.setColor(darkMode?Color.rgb(110,207,255):Color.rgb(33,118,210));
+  c.drawRoundRect(left+activeCellCol*cell+dp(2),top+activeRow*cell+dp(2),left+(activeCellCol+1)*cell-dp(2),top+(activeRow+1)*cell-dp(2),dp(5),dp(5),paint);
+  paint.setStyle(Paint.Style.FILL);paint.setTextAlign(Paint.Align.LEFT);
  }
  Scene(){super(MainActivity.this);scale=new ScaleGestureDetector(MainActivity.this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){public boolean onScale(ScaleGestureDetector d){zoom=Math.max(.02f,Math.min(40,zoom*(float)Math.pow(d.getScaleFactor(),zoomSensitivity)));invalidate();return true;}});}
  void movieCenter(){if(!movieAll&&selected>=0&&selected<parts.size()){Part p=parts.get(selected);moviePivotX=p.x;moviePivotY=p.y;moviePivotZ=p.z+p.h/2;zoom=Math.min(zoom,Math.max(.1f,Math.min(getWidth(),getHeight())/(Math.max(p.w,Math.max(p.d,p.h))*2.5f)));return;}if(parts.isEmpty()){moviePivotX=moviePivotY=moviePivotZ=0;return;}float minX=Float.MAX_VALUE,maxX=-Float.MAX_VALUE,minY=Float.MAX_VALUE,maxY=-Float.MAX_VALUE,minZ=Float.MAX_VALUE,maxZ=-Float.MAX_VALUE;for(Part p:parts){minX=Math.min(minX,p.x-p.w/2);maxX=Math.max(maxX,p.x+p.w/2);minY=Math.min(minY,p.y-p.d/2);maxY=Math.max(maxY,p.y+p.d/2);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z+p.h);}moviePivotX=(minX+maxX)/2;moviePivotY=(minY+maxY)/2;moviePivotZ=(minZ+maxZ)/2;float span=Math.max(maxX-minX,Math.max(maxY-minY,maxZ-minZ));zoom=Math.min(zoom,Math.max(.1f,Math.min(getWidth(),getHeight())/(Math.max(1,span)*2.5f)));}
