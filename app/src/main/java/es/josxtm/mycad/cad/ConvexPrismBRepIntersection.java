@@ -172,8 +172,10 @@ public final class ConvexPrismBRepIntersection {
   if(idA.compareTo(idB)>0){String tmp=idA;idA=idB;idB=tmp;}
   StringBuilder seed=new StringBuilder(idA).append('|').append(idB)
    .append('|').append(a.plane()).append('|').append(distance);
-  for(double[] p:overlap)seed.append('|').append((float)p[0]).append(',')
-                                .append((float)p[1]);
+  // The topology seed must distinguish sub-mm edits at large coordinates.
+  // Float rounding can map different analytic intersections to the same UUID.
+  for(double[] p:overlap)seed.append('|').append(p[0]).append(',')
+                                .append(p[1]);
   byte[] bytes=seed.toString().getBytes(StandardCharsets.UTF_8);
   String resultId=UUID.nameUUIDFromBytes(bytes).toString();
   ArrayList<String> sources=new ArrayList<>();

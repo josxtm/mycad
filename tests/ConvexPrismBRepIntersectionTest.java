@@ -82,6 +82,20 @@ public final class ConvexPrismBRepIntersectionTest {
          "translated intersection remains watertight");
      ok(a.vertices().size()==8&&b.vertices().size()==8,
          "translated intersection does not mutate operands");
+     // A sub-float-ULP edit must produce a distinct analytic topology ID,
+     // even if the same source feature IDs are reused after sketch editing.
+     double[][] shifted={{origin+0.2001,origin},{origin+0.6001,origin},
+         {origin+0.6001,origin+0.4},{origin+0.2001,origin+0.4}};
+     PolygonPrismBRep edited=shape(BODY_B,plane,sign*2,shifted,false);
+     ConvexPrismBRepIntersection.Result changed=
+         ConvexPrismBRepIntersection.intersect(a,edited);
+     ok(!forward.solid.id().equals(changed.solid.id()),
+         "sub-mm edit must change intersection topology UUID");
+     ok(Math.abs(forward.area-changed.area)>1e-5,
+         "edited intersection must have distinct analytic area");
+     ok(changed.solid.id().equals(
+         ConvexPrismBRepIntersection.intersect(edited,a).solid.id()),
+         "edited intersection UUID remains commutative");
     }
  }
  public static void main(String[] args){
