@@ -1613,7 +1613,7 @@ public class MainActivity extends Activity {
  es.josxtm.mycad.cad.DrilledBoxRecipe proposedLinkedDrill(es.josxtm.mycad.cad.DrilledBoxRecipe drill,Sketch source,float x1,float y1,float x2,float y2){
   es.josxtm.mycad.cad.LinkedSketchSolidPlan.Body body=es.josxtm.mycad.cad.LinkedSketchSolidPlan.build(
    source.type,source.plane,x1,y1,x2,y2,drill.sourceHeight);
-  return new es.josxtm.mycad.cad.DrilledBoxRecipe(body.x,body.y,body.z,body.w,body.d,body.h,
+  return new es.josxtm.mycad.cad.DrilledBoxRecipe(drill.id,body.x,body.y,body.z,body.w,body.d,body.h,
    drill.holeX,drill.holeY,drill.diameter,drill.axis,body.rx,body.ry,body.rz,drill.drillDepth)
    .linkedTo(drill.sourceSketchId,drill.sourceHeight);
  }
@@ -1721,7 +1721,7 @@ public class MainActivity extends Activity {
       x=body.x;y=body.y;z=body.z;w=body.w;d=body.d;h=body.h;rx=body.rx;ry=body.ry;rz=body.rz;
      }
      es.josxtm.mycad.cad.DrilledBoxRecipe next=new es.josxtm.mycad.cad.DrilledBoxRecipe(
-      x,y,z,w,d,h,vals[0],vals[1],vals[2],drillAxisChoice(axisChoice.getSelectedItemPosition()),
+      previous.id,x,y,z,w,d,h,vals[0],vals[1],vals[2],drillAxisChoice(axisChoice.getSelectedItemPosition()),
       rx,ry,rz,vals[3]).linkedTo(previous.sourceSketchId,height);
      float[] mesh=next.regenerate();
      if(mesh.length==0||mesh.length>18000||
@@ -1937,7 +1937,7 @@ public class MainActivity extends Activity {
  JSONArray recipes=new JSONArray();
  for(es.josxtm.mycad.cad.FaceUnionRecipe recipe:unionRecipes){
   if(recipe==null){recipes.put(JSONObject.NULL);continue;}
-  recipes.put(new JSONObject().put("w",recipe.width).put("d",recipe.depth).put("h",recipe.height)
+  recipes.put(new JSONObject().put("id",recipe.id).put("w",recipe.width).put("d",recipe.depth).put("h",recipe.height)
    .put("x",recipe.x).put("y",recipe.y).put("z",recipe.z)
    .put("face",recipe.face.name()).put("distance",recipe.distance));
  }
@@ -1945,7 +1945,7 @@ public class MainActivity extends Activity {
  JSONArray drills=new JSONArray();
  for(es.josxtm.mycad.cad.DrilledBoxRecipe drill:holeRecipes){
   if(drill==null){drills.put(JSONObject.NULL);continue;}
-  drills.put(new JSONObject().put("x",drill.x).put("y",drill.y).put("z",drill.z)
+  drills.put(new JSONObject().put("id",drill.id).put("x",drill.x).put("y",drill.y).put("z",drill.z)
    .put("w",drill.width).put("d",drill.depth).put("h",drill.height)
    .put("offsetX",drill.holeX).put("offsetY",drill.holeY).put("diameter",drill.diameter)
    .put("axis",drill.axis.name()).put("rotationX",drill.rotationX)
@@ -2080,7 +2080,7 @@ public class MainActivity extends Activity {
    JSONObject v=drillArray.getJSONObject(hi);
    try{
     parsedDrills.add(new es.josxtm.mycad.cad.DrilledBoxRecipe(
-     v.getDouble("x"),v.getDouble("y"),v.getDouble("z"),
+     v.optString("id",java.util.UUID.randomUUID().toString()),v.getDouble("x"),v.getDouble("y"),v.getDouble("z"),
      v.getDouble("w"),v.getDouble("d"),v.getDouble("h"),
      v.getDouble("offsetX"),v.getDouble("offsetY"),v.getDouble("diameter"),
      es.josxtm.mycad.cad.OrientedThroughHole.Axis.valueOf(v.optString("axis","Z")),
@@ -2097,7 +2097,7 @@ public class MainActivity extends Activity {
    if(recipeArray.isNull(ri)){parsedRecipes.add(null);continue;}
    JSONObject v=recipeArray.getJSONObject(ri);
    try{
-    parsedRecipes.add(new es.josxtm.mycad.cad.FaceUnionRecipe(v.getDouble("w"),v.getDouble("d"),v.getDouble("h"),
+    parsedRecipes.add(new es.josxtm.mycad.cad.FaceUnionRecipe(v.optString("id",java.util.UUID.randomUUID().toString()),v.getDouble("w"),v.getDouble("d"),v.getDouble("h"),
      v.getDouble("x"),v.getDouble("y"),v.getDouble("z"),
      es.josxtm.mycad.cad.BoxFaceSelection.Face.valueOf(v.getString("face")),v.getDouble("distance")));
    }catch(IllegalArgumentException e){throw new IOException("Receta de unión inválida",e);}
