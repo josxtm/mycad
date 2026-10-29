@@ -250,9 +250,13 @@ public final class PolygonPrismBRep {
   }
   if(loop.size()!=n||seen.size()!=n)throw new IllegalArgumentException("Disconnected sketch circuit");
   double area2=0;
+  // Match the tessellator's local-origin area calculation. Analytic
+  // topology must not lose tiny section areas to world-coordinate cancellation.
+  Corner areaOrigin=corners.get(loop.get(0));
   for(int i=0;i<n;i++){
    Corner a=corners.get(loop.get(i)),b=corners.get(loop.get((i+1)%n));
-   area2+=a.u*b.v-b.u*a.v;
+   area2+=(a.u-areaOrigin.u)*(b.v-areaOrigin.v)-
+          (b.u-areaOrigin.u)*(a.v-areaOrigin.v);
   }
   if(area2<0){
    Collections.reverse(loop);
