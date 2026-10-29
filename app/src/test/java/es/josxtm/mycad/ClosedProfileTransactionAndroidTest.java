@@ -25,11 +25,14 @@ public class ClosedProfileTransactionAndroidTest {
  @Before public void setup(){controller=Robolectric.buildActivity(MainActivity.class);app=controller.get();app.getPreferences(0).edit().clear().commit();controller.setup();}
  @After public void teardown(){controller.pause().stop().destroy();}
  private void profile(int plane){
-  float[][] p={{0,0},{40,0},{40,30},{0,30}};
+  profile(plane,new float[][]{{0,0},{40,0},{40,30},{0,30}});
+ }
+ private void profile(int plane,float[][] p){
+  int first=app.sketches.size();
   for(int i=0;i<p.length;i++){
    MainActivity.Sketch s=app.new Sketch(1,p[i][0],p[i][1],p[(i+1)%p.length][0],p[(i+1)%p.length][1]);s.plane=plane;app.sketches.add(s);
   }
-  app.selectedSketch=0;
+  app.selectedSketch=first;
  }
  private void open(){
   app.sketchMenu();AlertDialog menu=ShadowAlertDialog.getLatestAlertDialog();menu.getListView().performItemClick(null,8,8);
@@ -44,6 +47,12 @@ public class ClosedProfileTransactionAndroidTest {
   d.getButton(AlertDialog.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();
  }
  private void choose(int item){AlertDialog d=ShadowAlertDialog.getLatestAlertDialog();d.getListView().performItemClick(null,item,item);}
+ private View tool(View root,String name){
+  if(name.contentEquals(root.getContentDescription()==null?"":root.getContentDescription()))return root;
+  if(root instanceof ViewGroup)for(int i=0;i<((ViewGroup)root).getChildCount();i++){View found=tool(((ViewGroup)root).getChildAt(i),name);if(found!=null)return found;}
+  return null;
+ }
+ private void press(String name){View v=tool(app.rootLayout,name);assertNotNull("Missing visible tool: "+name,v);assertTrue(v.performClick());}
  private void rejected()throws Exception{
   String json=app.encode(),saved=app.getPreferences(0).getString("design",null);int undo=app.undo.size(),redo=app.redo.size();
   apply("10");assertTrue(app.booleanMeshes.isEmpty());assertTrue(app.loopExtrusionFeatures.isEmpty());
@@ -92,5 +101,46 @@ public class ClosedProfileTransactionAndroidTest {
    LoopExtrusionFeature restored=app.loopExtrusionFeatures.get(0);
    assertArrayEquals(restored.asBRep(app.loopSketchSegments(restored,null,0,0,0,0)).triangleCoordinates(),app.currentSceneMeshes().get(0).worldCoordinates(),0);
   }
+ }
+ @Test public void extrusionToolbarUsesTheRealClosedProfileKernelForEveryPlane(){
+  for(int plane=0;plane<3;plane++){
+   clear();profile(plane);press("Extruir boceto");
+   AlertDialog d=ShadowAlertDialog.getLatestAlertDialog();assertEquals("Extruir contorno de líneas",shadowOf(d).getTitle().toString());
+   assertNull("Unsupported contour Push/Pull must not be offered here",d.getListView());apply("10.123456789");
+   assertEquals(1,app.booleanMeshes.size());assertEquals(plane,app.loopExtrusionFeatures.get(0).plane);assertEquals(10.123456789,app.loopExtrusionFeatures.get(0).distance,0);
+  }
+ }
+ @Test public void standardSketchExtrudeEntryAlsoAcceptsAClosedLineProfile(){
+  profile(2);app.sketchMenu();choose(5);apply("-10");assertEquals(1,app.booleanMeshes.size());assertEquals(-10,app.loopExtrusionFeatures.get(0).distance,0);
+ }
+ @Test public void rectangleAndCircleKeepTheirExistingDragAndSliderChoices(){
+  for(int type:new int[]{2,3}){
+   clear();MainActivity.Sketch q=app.new Sketch(type,0,0,type==2?40:10,type==2?30:0);app.sketches.add(q);app.selectedSketch=0;
+   press("Extruir boceto");AlertDialog d=ShadowAlertDialog.getLatestAlertDialog();assertEquals(2,d.getListView().getAdapter().getCount());
+   choose(1);assertEquals("Extrusión · vista previa 3D",shadowOf(ShadowAlertDialog.getLatestAlertDialog()).getTitle().toString());
+   ShadowAlertDialog.getLatestAlertDialog().getButton(AlertDialog.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle();assertTrue(app.parts.isEmpty());assertTrue(app.undo.isEmpty());
+  }
+ }
+ @Test public void toolbarSolidsSubtractRegenerateAfterFaceEditAndReopenWithoutLosingTopology()throws Exception{
+  profile(0);press("Extruir boceto");apply("10");
+  profile(0,new float[][]{{10,10},{20,10},{20,20},{10,20}});press("Extruir boceto");apply("10");
+  assertEquals(2,app.booleanMeshes.size());String firstId=app.loopExtrusionFeatures.get(0).id,secondId=app.loopExtrusionFeatures.get(1).id;
+  press("Resultados booleanos");choose(0);choose(13);choose(1);choose(0);
+  assertEquals(3,app.booleanMeshes.size());LinkedConvexIntersection cut=app.intersectionRecipes.get(2);assertTrue(cut.isGridHole());
+  app.currentSceneMeshes();NamedGridHoleBody before=app.renderedPlanarBindings.get(0).identity;
+  assertEquals(1,before.shell.holeCount);assertEquals(11000,before.shell.volume,0);
+  LoopExtrusionFeature feature=app.loopExtrusionFeatures.get(0);PolygonPrismBRep solid=feature.asBRep(app.loopSketchSegments(feature,null,0,0,0,0));
+  String face=null;for(PolygonPrismBRep.Face f:solid.faces())if(app.sketches.get(1).id.equals(f.sourceLineId))face=f.id;assertNotNull(face);
+  app.showStoredMeshTouchActions(0,app.booleanMeshes.get(0),face);choose(0);choose(0);apply("5");
+  assertEquals(firstId,app.loopExtrusionFeatures.get(0).id);assertEquals(secondId,app.loopExtrusionFeatures.get(1).id);assertEquals(cut.id,app.intersectionRecipes.get(2).id);
+  app.currentSceneMeshes();NamedGridHoleBody edited=app.renderedPlanarBindings.get(0).identity;assertEquals(12500,edited.shell.volume,0);assertEquals(1,edited.shell.holeCount);
+  assertEquals(TopologySnapshot.from(before).ids(TopologySnapshot.Kind.FACE),TopologySnapshot.from(edited).ids(TopologySnapshot.Kind.FACE));
+  app.history(true);app.currentSceneMeshes();assertEquals(11000,app.renderedPlanarBindings.get(0).identity.shell.volume,0);
+  app.history(false);app.currentSceneMeshes();assertEquals(12500,app.renderedPlanarBindings.get(0).identity.shell.volume,0);
+  // Same-height through-hole kernels must reject a one-sided height change atomically.
+  String current=app.encode();int undo=app.undo.size();press("Resultados booleanos");choose(0);choose(5);apply("12");
+  assertEquals(current,app.encode());assertEquals(undo,app.undo.size());
+  app.save();app.load();assertEquals(current,app.encode());app.currentSceneMeshes();
+  assertEquals(cut.id,app.intersectionRecipes.get(2).id);assertEquals(12500,app.renderedPlanarBindings.get(0).identity.shell.volume,0);
  }
 }

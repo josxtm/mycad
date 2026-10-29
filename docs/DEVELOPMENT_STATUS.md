@@ -1,5 +1,38 @@
 # Estado de desarrollo de MyCAD
 
+## Hito actual — MyCAD 0.6.2, extrusión desde herramientas visibles
+
+Base `da1c3948ee045cda3f8b7edca5191c93e7bdd161`: PR #160 integrada con
+[CI #657](https://github.com/josxtm/mycad/actions/runs/40895445172) y
+[main #658](https://github.com/josxtm/mycad/actions/runs/40896325233) satisfactorios.
+Rama independiente `feature/cad-closed-profile-toolbar`, versión 0.6.2 (62).
+
+El botón lateral «Extruir boceto» y «Extruir seleccionado» del menú ahora reconocen
+una línea seleccionada como ancla de un contorno cerrado y abren su extrusión B-Rep.
+La geometría se valida antes de publicar. Rectángulos y círculos conservan sus
+opciones de arrastre y deslizador. No se ofrece Push/Pull de contornos de líneas
+desde el botón contextual: todavía no está implementado ese gesto para esta familia.
+
+91 pruebas Android/IO locales satisfactorias. El recorrido de integración usa
+los botones/menús reales para crear dos extrusiones, restarlas, editar una cara,
+regenerar la resta, Deshacer/Rehacer y guardar/reabrir. Caso numérico: prisma
+40×30×10 mm menos prisma 10×10×10 mm = 11000 mm³; desplazar 5 mm su cara lateral
+produce 12500 mm³. Se mantienen UUID de fuentes/operación/caras existentes.
+Una edición incompatible de altura del agujero pasante se rechaza sin cambiar
+ninguna geometría, historial ni JSON: esta familia exige alturas firmadas iguales.
+
+Geometría completa e integridad se verifican junto con el incremento; CI del SHA
+publicado obligatorio antes de integrar. La fusión de hito «release: MyCAD 0.6.2»
+solicita una única APK, después de tests, compilación y Lint. Su resultado final,
+SHA y artefacto se adjuntan a la PR y ci-status; no se atribuye un APK antes de CI.
+
+Estimación del hito de contornos rectos: ~90%, con casos previstos por software
+verificados y aceptación física pendiente. No es el porcentaje del modelador
+CAD completo. Nothing Phone 2a y tablet 12 pulgadas: instalar APK, probar dibujo,
+selección/diálogo, vistas, edición, cancelación y reapertura; EGL y rendimiento
+siguen sin comprobarse en este entorno. Persisten límites float de Sketch/Part
+antiguos, tolerancia de unión de extremos de 0,15 mm y geometría curva general.
+
 ## Auditoría y continuación — 2026-10-29
 
 Base real: `ea07cc67dac304f4a626949cb2e4a026ffd77f10`, con
@@ -27,7 +60,7 @@ Auditoría de código y pruebas, distinguiendo implementación real y diagnósti
 - El ViewCube y la navegación existentes se conservan; no se declara aquí un
   ViewCube tridimensional completo ni validación táctil en dispositivo físico.
 
-### Incremento actual: extrusión de contorno transaccional
+### Incremento integrado #160: extrusión de contorno transaccional
 
 Rama `feature/cad-closed-profile-transaction`. Una regresión Android falló sobre
 la base estable: cambiar una línea mientras estaba abierto el diálogo de altura
@@ -50,7 +83,7 @@ double incluso bajo un ULP float, selección por UUID, perfiles rectangulares/c�
 alturas firmadas, tres planos, mapas reordenados, fallo sin mutación y conservación
 de identidades al editar altura. Android ejercita menús y diálogos reales,
 persistencia, Deshacer/Rehacer y rechazo sin cambiar JSON. El test que antes
-reproducía el fallo ahora pasa. CI del SHA publicado obligatorio antes de integrar;
+reproducía el fallo ahora pasa. CI #657 del SHA publicado y main #658 correctos;
 resultados finales adjuntos a la PR y ci-status, evitando commits documentales vacíos.
 
 Limitaciones: el sandbox local impide abrir sockets del daemon Gradle; Java 8/SDK35
@@ -59,9 +92,9 @@ No se inspeccionaron vídeos nuevos. Se reutiliza docs/SHAPR3D_ANALISIS.md y sus
 fuentes oficiales; actualizar la consulta web falló al conectar al proxy en esta sesión.
 EGL, ergonomía, memoria y rendimiento en Nothing Phone 2a/tablet 12 pulgadas pendientes.
 
-Siguiente incremento funcional: conectar el botón general Extruir con este flujo
-de contornos, que ahora solo está accesible desde su opción específica. Después,
-generar una APK de hito si ambas PR y sus verificaciones son satisfactorias.
+El siguiente incremento conecta el botón general con este flujo y prepara el
+hito 0.6.2, descrito al inicio del documento. Después: precisión de datos de origen
+y modelos dependientes, sin sustituir el motor ni los controles que ya funcionan.
 
 ## Registro histórico de temas y precisión — 2026-10-28
 
@@ -206,7 +239,7 @@ El motor global sigue parcial.
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-closed-profile-transaction
+git switch feature/cad-closed-profile-toolbar
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
@@ -218,14 +251,13 @@ compartidas ni rebasar trabajo de terceros. Las pruebas nativas generan
 `app/build/theme-preview/six-themes.png` y `six-interfaces.png`; su revisión es
 software, no una instalación física de la APK.
 
-Checkout local: `/workspace/mycad-profile-transaction`. Su base materializada comparte el
-árbol de main `ea07cc6`; la publicación por conector usa el padre remoto real,
+Checkout local: `/workspace/mycad-profile-toolbar`. Su base materializada comparte el
+árbol de main `da1c394`; la publicación por conector usa el padre remoto real,
 sin publicar los ancestros sintéticos locales. El experimento antiguo de
 propietarios permanece en la rama local WIP `feature/cad-persisted-recipe-owners`
 (`b41ec27`), sin pruebas y ajeno a esta fase; no debe fusionarse sin revisión.
 
-Siguiente tarea: conectar la extrusión de contornos al botón general y verificar
-un hito de perfil → sólido → editar → guardar/abrir. Después, continuar precisión
+Siguiente tarea: verificar CI y APK 0.6.2, después continuar precisión
 de sketches/Part y naming de grids/escalonados. La APK de temas del hito #632 es anterior
 a las mejoras B-Rep de esta continuación; sus fuentes corresponden a `5c815ff`.
 No se genera otra APK por cada ajuste interno del puente geométrico.
