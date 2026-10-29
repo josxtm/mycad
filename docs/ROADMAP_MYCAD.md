@@ -1,6 +1,6 @@
 # MyCAD: hoja de ruta y evidencia
 
-Actualizado: 2026-10-27. Repositorio exclusivo: `josxtm/mycad`.
+Actualizado: 2026-10-29. Repositorio exclusivo: `josxtm/mycad`.
 No se declara equivalencia funcional con Shapr3D ni validación física sin pruebas.
 
 ## Prioridad inmediata: PR #116 / ejecución #550
@@ -504,3 +504,12 @@ resultados cóncavos generales ni todas las familias curvas.
 - Los límites anteriores de validación float y naming por coordenadas siguen vigentes; no se afirma resolver aquí geometría sub-ULP ni el kernel escalonado.
 - Próximo trabajo: naming preciso compatible y coordenadas analíticas de escalonados. Validación física Nothing Phone 2a/tablet 12 pulgadas pendiente.
 - Otro agente actualizó #149 a `a1aac91`; CI #635 pendiente al guardar este punto. No se modifica esa rama.
+
+## Continuación de extrusión paramétrica — 2026-10-29
+
+- Base real `ea07cc6`, CI #656 verde, con #153–#159, #149 y #136 integradas. #80/#86 siguen en borrador y se conservan.
+- Auditoría distingue B-Rep analítica real de CadIntegrationProbe orientativo. Booleanas implementadas por familias, no geometría curva universal. Datos antiguos de Sketch/Part aún float.
+- `feature/cad-closed-profile-transaction`: corrige una publicación obsoleta reproducida con Android/Robolectric. Un cambio de líneas durante el diálogo ya no puede crear un sólido antiguo ni modificar historial/JSON parcialmente.
+- Se reutilizan ClosedSketchExtrusion, PolygonPrismBRep y LoopExtrusionFeature. Nuevo preflight inmutable por UUID/coordenadas, fuente double para GPU, rechazo antes de checkpoint y mensajes acordes a la vinculación real.
+- 87 pruebas Android/IO, geometría completa e integridad locales correctas. Alturas positivas/negativas, tres planos, edición por menú, IDs, Deshacer/Rehacer y guardar/abrir verificados por software. CI Gradle/Lint obligatorio sobre el SHA publicado.
+- Siguiente incremento: conectar el botón Extruir a contornos cerrados de líneas y preparar APK de hito. Nada de validación física/EGL atribuida a compilación o Robolectric.

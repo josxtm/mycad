@@ -623,9 +623,10 @@ a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding
 s=Path("app/src/main/java/es/josxtm/mycad/cad/ClosedSketchExtrusion.java").read_text(encoding="utf-8")
 w=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
 for marker in (
- '"Extruir contorno cerrado de líneas (malla)"',
+ '"Extruir contorno cerrado de líneas (B-Rep)"',
  "if(choice==8){extrudeSelectedLineLoop();return;}",
- "ClosedSketchExtrusion.extrude(lines,selectedLine,h)",
+ "ClosedProfileExtrusionPlan.capture(closedProfileSources(anchor.plane),anchor.id)",
+ "plan.prepare(java.util.UUID.randomUUID().toString(),h,closedProfileSources(anchor.plane))",
  "booleanMeshes.add(mesh);unionRecipes.add(null);holeRecipes.add(null);",
  "if(!meshMode)toggleMeshView();",
 ):
@@ -746,13 +747,17 @@ w=Path(".github/workflows/android.yml").read_text(encoding="utf-8")
 s=Path("app/src/main/java/es/josxtm/mycad/cad/PolygonPrismBRep.java").read_text(encoding="utf-8")
 f=Path("app/src/main/java/es/josxtm/mycad/cad/LoopExtrusionFeature.java").read_text(encoding="utf-8")
 for marker in (
- "feature.asBRep(sourceMap)",
+ "plan.prepare(java.util.UUID.randomUUID().toString(),h,closedProfileSources(anchor.plane))",
  "void inspectLoopBRep(int index)",
  "editLoopSourceSketch(index)",
  'Inspeccionar topología B-Rep',
  "if(option==3){inspectLoopBRep(index);return;}",
 ):
  assert marker in a,marker
+plan=Path("app/src/main/java/es/josxtm/mycad/cad/ClosedProfileExtrusionPlan.java").read_text(encoding="utf-8")
+assert "PolygonPrismBRep solid=feature.asBRep(profile);" in plan
+assert "if(!isCurrent(current))" in plan
+assert a.index("plan.prepare(") < a.index("checkpoint();",a.index("void extrudeSelectedLineLoop()"))
 for marker in ("public static final class HalfEdge","nextId,previousId,twinId",
                "Nonmanifold or inverted B-Rep edge","ClosedSketchExtrusion.extrude("):
  assert marker in s,marker
