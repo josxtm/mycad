@@ -71,7 +71,11 @@ public final class ConvexPrismBRepIntersection {
    double[] a=p.get(i),b=p.get((i+1)%n),c=p.get((i+2)%n);
    if(sqdist(a,b)<=.15*.15)
     throw new IllegalArgumentException("Arista B-Rep demasiado corta");
-   if(cross(a,b,c)<-epsArea)
+   // Convexity is a local turn invariant. Scaling its tolerance by the
+   // entire section area can hide a small reflex corner in a large sketch.
+   double ab=Math.hypot(b[0]-a[0],b[1]-a[1]);
+   double bc=Math.hypot(c[0]-b[0],c[1]-b[1]);
+   if(cross(a,b,c)<-EPS*Math.max(1,ab*bc))
     throw new IllegalArgumentException("Booleanas B-Rep: solo perfiles convexos");
   }
   if(twiceArea(p)<=epsArea)
