@@ -78,6 +78,10 @@ public final class ConvexPrismBRepIntersectionTest {
       ConvexPrismBRepIntersection.intersect(b,a);
    near(swapped.area,result.area,"commutative area");
    near(swapped.volume,result.volume,"commutative volume");
+   ok(result.solid.id().equals(swapped.solid.id()),
+      "commutative B-Rep UUID across operand order");
+   ok(Arrays.equals(result.triangles(),swapped.triangles()),
+      "commutative B-Rep tessellation across operand order");
    PolygonPrismBRep contained=shape(BODY_C,fixedPlane,signed,triangle,false);
    ConvexPrismBRepIntersection.Result inner=
       ConvexPrismBRepIntersection.intersect(a,contained);

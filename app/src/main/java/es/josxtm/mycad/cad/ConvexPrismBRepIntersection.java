@@ -156,9 +156,21 @@ public final class ConvexPrismBRepIntersection {
   if(overlap.size()<3||Math.abs(twiceArea(overlap))<=EPS)
    throw new IllegalArgumentException("Los sólidos no comparten volumen");
   if(twiceArea(overlap)<0)Collections.reverse(overlap);
+  // Clipping can start at a different vertex when operands are swapped.
+  // Normalize the CCW loop before deriving topology IDs and tessellation.
+  int firstCorner=0;
+  for(int i=1;i<overlap.size();i++){
+   double[] p=overlap.get(i),q=overlap.get(firstCorner);
+   int cmp=Double.compare(p[0],q[0]);
+   if(cmp<0||(cmp==0&&Double.compare(p[1],q[1])<0))firstCorner=i;
+  }
+  Collections.rotate(overlap,-firstCorner);
   double distance=Math.copySign(Math.min(Math.abs(a.distance()),Math.abs(b.distance())),
                                a.distance());
-  StringBuilder seed=new StringBuilder(a.id()).append('|').append(b.id())
+  // A intersection B and B intersection A describe the same feature.
+  String idA=a.id(),idB=b.id();
+  if(idA.compareTo(idB)>0){String tmp=idA;idA=idB;idB=tmp;}
+  StringBuilder seed=new StringBuilder(idA).append('|').append(idB)
    .append('|').append(a.plane()).append('|').append(distance);
   for(double[] p:overlap)seed.append('|').append((float)p[0]).append(',')
                                 .append((float)p[1]);
