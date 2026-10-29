@@ -513,3 +513,12 @@ resultados cóncavos generales ni todas las familias curvas.
 - Se reutilizan ClosedSketchExtrusion, PolygonPrismBRep y LoopExtrusionFeature. Nuevo preflight inmutable por UUID/coordenadas, fuente double para GPU, rechazo antes de checkpoint y mensajes acordes a la vinculación real.
 - 87 pruebas Android/IO, geometría completa e integridad locales correctas. Alturas positivas/negativas, tres planos, edición por menú, IDs, Deshacer/Rehacer y guardar/abrir verificados por software. CI Gradle/Lint obligatorio sobre el SHA publicado.
 - Siguiente incremento: conectar el botón Extruir a contornos cerrados de líneas y preparar APK de hito. Nada de validación física/EGL atribuida a compilación o Robolectric.
+
+## Hito 0.6.2: contorno B-Rep desde Extruir
+
+- PR #160 integrada, fuente `c00349e`, main `da1c394`: CI #657 y #658 verdes. Fuente y preflight vigentes antes de publicar cuerpos.
+- `feature/cad-closed-profile-toolbar`: botón general y opción estándar de extrusión conectados al motor de contornos existente. Rectángulos/círculos mantienen Push/Pull y deslizador.
+- 91 pruebas Android/IO locales correctas. Nuevo recorrido por botones/menús: dos perfiles → extruir → restar → editar cara → regenerar → Deshacer/Rehacer → guardar/abrir, con UUID conservados y alturas double.
+- Caso 40×30×10 menos 10×10×10: 11000 mm³; cara lateral +5 mm: 12500 mm³. Altura incompatible del agujero se rechaza atómicamente.
+- Versión de hito 0.6.2 (62). Se genera una APK solo tras integración con checks satisfactorios; resultado/artefacto en la PR y ci-status.
+- Hito de contornos rectos ~90%, pendiente dispositivo físico/EGL y rendimiento. Motor global parcial; Sketch/Part antiguos aún float, tolerancia de cierre 0,15 mm y booleanas curvas generales pendientes.

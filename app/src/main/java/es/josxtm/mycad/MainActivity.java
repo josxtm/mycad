@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
  setTheme(darkMode?android.R.style.Theme_Material_NoActionBar:android.R.style.Theme_Material_Light_NoActionBar);
  super.onCreate(b);
  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(10,28,10,10);rootLayout=root;root.setBackgroundColor(Color.rgb(18,25,36));
- TextView title=new TextView(this);title.setText("MyCAD · 0.6.1");titleView=title;title.setTextSize(17);title.setTextColor(Color.WHITE);
+ TextView title=new TextView(this);title.setText("MyCAD · 0.6.2");titleView=title;title.setTextSize(17);title.setTextColor(Color.WHITE);
  LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);root.addView(top);topBar=top;
  top.addView(title,new LinearLayout.LayoutParams(0,-2,1));
  icon(top,"↶","Deshacer",()->history(true));icon(top,"↷","Rehacer",()->history(false));icon(top,"▣","Guardar archivo",()->exportFile());icon(top,"⚙","Ajustes",()->settings());icon(top,"▶","Modo película",()->movieMenu());icon(top,"⋮","Menú de proyecto",()->projectMenu());
@@ -758,6 +758,9 @@ public class MainActivity extends Activity {
   return body;
  }
  void chooseSketchExtrusion(){
+  if(selectedSketch>=0&&selectedSketch<sketches.size()&&sketches.get(selectedSketch).type==1){
+   extrudeSelectedLineLoop();return;
+  }
   new AppearanceDialogBuilder(this).setTitle("Extruir boceto seleccionado")
    .setItems(new String[]{"Arrastrar con el dedo", "Introducir altura / deslizador"},
     (dialog,choice)->{if(choice==0)startSketchPushPull();else extrudeSketch();})
@@ -783,7 +786,7 @@ public class MainActivity extends Activity {
  void extrudeSketch(){
   if(selectedSketch<0||selectedSketch>=sketches.size()){toast("Selecciona un perfil de boceto");return;}
   Sketch q=sketches.get(selectedSketch);
-  if(q.type==1){toast("Una línea abierta no se puede extruir");return;}
+  if(q.type==1){extrudeSelectedLineLoop();return;}
   float w=q.type==3?(float)Math.hypot(q.x2-q.x1,q.y2-q.y1)*2:Math.abs(q.x2-q.x1);
   float d=q.type==3?w:Math.abs(q.y2-q.y1);
   if(w<.1f||d<.1f||parts.size()>=500){toast("Perfil inválido o límite de piezas alcanzado");return;}
