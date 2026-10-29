@@ -59,6 +59,10 @@ public final class ConvexPrismBRepIntersectionTest {
   double[][] far={{7,7},{9,7},{9,9},{7,9}};
   double[][] touch={{4,0},{6,0},{6,4},{4,4}};
   double[][] concave={{0,0},{3,0},{3,1},{1,1},{1,3},{0,3}};
+  // A large section with a shallow reflex corner was previously accepted:
+  // the global area-scaled turn tolerance hid its 0.9 mm2 notch.
+  double[][] shallowConcave={{-9000,-9000},{9000,-9000},
+      {9000,9000},{0,8999.9999},{-9000,9000}};
   for(int plane=0;plane<3;plane++)for(double signed:new double[]{1,-1}){
    final int fixedPlane=plane;
    PolygonPrismBRep a=shape(BODY_A,plane,signed*3,square,false);
@@ -99,6 +103,12 @@ public final class ConvexPrismBRepIntersectionTest {
    invalid(()->ConvexPrismBRepIntersection.intersect(
        a,shape(BODY_C,fixedPlane,signed*2,concave,false)),
        "concave operand outside supported topology");
+   PolygonPrismBRep shallow=shape(BODY_C,fixedPlane,signed*2,
+       shallowConcave,false);
+   invalid(()->ConvexPrismBRepIntersection.intersect(a,shallow),
+       "large near-convex section must not silently fill a shallow notch");
+   invalid(()->ConvexPrismBRepIntersection.intersect(shallow,a),
+       "shallow concavity rejected in both operand orders");
    ok(a.faces().size()==6&&b.faces().size()==6,
       "operands unchanged after Boolean");
   }
