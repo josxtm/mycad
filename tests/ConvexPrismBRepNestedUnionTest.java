@@ -53,11 +53,15 @@ public final class ConvexPrismBRepNestedUnionTest {
   double[][] outer={{0,0},{6,0},{6,6},{0,6}};
   double[][] inner={{1,1},{3,1},{1,3}};
   double[][] overlap={{4,0},{8,0},{8,4},{4,4}};
+  double[][] concave={{0,0},{6,0},{6,6},{3,3},{0,6}};
   double[][] tinyProtrusion={{1,1},{6.00001,1},{6.00001,5},{1,5}};
   for(int plane=0;plane<3;plane++)for(int sign:new int[]{-1,1}){
    final int p=plane,s=sign;
    PolygonPrismBRep a=prism("outer"+p+s,p,s*3,outer);
    PolygonPrismBRep b=prism("inner"+p+s,p,s*3,inner);
+   PolygonPrismBRep concaveBody=prism("concave"+p+s,p,s*3,concave);
+   reject(()->ConvexPrismBRepNestedUnion.union(concaveBody,b));
+   reject(()->ConvexPrismBRepNestedUnion.union(a,concaveBody));
    PolygonPrismBRep result=ConvexPrismBRepNestedUnion.union(a,b);
    near(result.volume(),108);
    near(ConvexPrismBRepNestedUnion.union(b,a).volume(),108);

@@ -9,7 +9,6 @@ package es.josxtm.mycad.cad;
  * Overlaps requiring boundary reconstruction are rejected.
  */
 public final class ConvexPrismBRepNestedUnion {
- private static final double EPS=1e-5;
  private ConvexPrismBRepNestedUnion(){}
  private static double[] uv(PolygonPrismBRep.Vertex v,int plane){
   return plane==0?new double[]{v.x,v.y}:plane==1?new double[]{v.x,v.z}:new double[]{v.y,v.z};
@@ -58,12 +57,13 @@ public final class ConvexPrismBRepNestedUnion {
   double da=a.distance(),db=b.distance();
   if(da*db<=0)
    throw new IllegalArgumentException("Unión B-Rep: las direcciones deben coincidir");
-  // Also validates convexity and nondegenerate section topology.
-  ConvexPrismBRepIntersection.Result common=ConvexPrismBRepIntersection.intersect(a,b);
-  double areaA=a.sectionArea(),areaB=b.sectionArea();
-  double tolerance=EPS*Math.max(1,Math.max(areaA,areaB));
-  boolean aInsideB=Math.abs(common.area-areaA)<=tolerance&&containsSection(b,a);
-  boolean bInsideA=Math.abs(common.area-areaB)<=tolerance&&containsSection(a,b);
+  // Keep the intersection kernel's convexity and edge checks, but avoid
+  // rebuilding a shell merely to test full containment. Re-tessellating
+  // tiny sections far from origin can lose volume precision unnecessarily.
+  ConvexPrismBRepIntersection.validateConvexSection(a);
+  ConvexPrismBRepIntersection.validateConvexSection(b);
+  boolean aInsideB=containsSection(b,a);
+  boolean bInsideA=containsSection(a,b);
   if(!aInsideB&&!bInsideA)
    throw new IllegalArgumentException("Unión B-Rep: solo contención completa; solape parcial no soportado");
   // Do not treat a protruding top cap as contained just because area tolerance is loose.
