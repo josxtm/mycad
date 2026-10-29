@@ -28,6 +28,24 @@ public final class ConvexPrismBRepNestedUnionTest {
    near(ConvexPrismBRepNestedUnion.union(b,a).volume(),108);
    if(!TriangleMeshHealth.inspect(result.triangles()).isWatertight())
     throw new AssertionError("Nested union must be watertight");
+   // Identical sections are nested both ways: operand order must not
+   // select a different persisted shell or change its UUID.
+   PolygonPrismBRep equal=prism("equal"+p+s,p,s*3,outer);
+   PolygonPrismBRep same=ConvexPrismBRepNestedUnion.union(a,equal);
+   PolygonPrismBRep swapped=ConvexPrismBRepNestedUnion.union(equal,a);
+   if(same!=swapped||!same.id().equals(swapped.id())||
+      !Arrays.equals(same.triangles(),swapped.triangles()))
+    throw new AssertionError("Equal nested union depends on operand order");
+   // A tolerance-level height difference still requires the actual taller
+   // source shell; choosing the shorter one would truncate the top cap.
+   PolygonPrismBRep slightlyTaller=prism("nearHeight"+p+s,p,
+       s*(3+1e-10),outer);
+   if(ConvexPrismBRepNestedUnion.union(a,slightlyTaller)!=slightlyTaller||
+      ConvexPrismBRepNestedUnion.union(slightlyTaller,a)!=slightlyTaller)
+    throw new AssertionError("Nested union lost the taller source shell");
+   if(!TriangleMeshHealth.inspect(same.triangles()).isWatertight()||
+      !TriangleMeshHealth.inspect(slightlyTaller.triangles()).isWatertight())
+    throw new AssertionError("Nested union source shells must remain watertight");
    reject(()->ConvexPrismBRepNestedUnion.union(a,prism("partial"+p+s,p,s*3,overlap)));
    reject(()->ConvexPrismBRepNestedUnion.union(a,prism("tinyProtrusion"+p+s,p,s*3,tinyProtrusion)));
    near(ConvexPrismBRepNestedUnion.union(a,prism("shorter"+p+s,p,s*2,inner)).volume(),108);
