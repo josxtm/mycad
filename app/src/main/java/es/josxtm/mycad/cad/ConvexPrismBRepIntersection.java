@@ -183,8 +183,10 @@ public final class ConvexPrismBRepIntersection {
    String line=UUID.nameUUIDFromBytes((resultId+"/line/"+i)
        .getBytes(StandardCharsets.UTF_8)).toString();
    sources.add(line);
+   // Preserve analytic double coordinates when rebuilding the B-Rep.
+   // Float conversion can change sub-mm overlap areas far from the origin.
    lines.put(line,new ClosedSketchExtrusion.Segment(a.plane(),
-       (float)p[0],(float)p[1],(float)q[0],(float)q[1]));
+       p[0],p[1],q[0],q[1]));
   }
   LoopExtrusionFeature linked=new LoopExtrusionFeature(resultId,sources.get(0),
        a.plane(),distance,sources);
