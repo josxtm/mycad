@@ -161,19 +161,44 @@ public final class BoxBRep {
    throw new IllegalArgumentException("Invalid closed-shell volume");
   return new BoxBRep(b.id,v,ed,f,signedVolume,area);
  }
- /** Render mesh is generated separately from analytic topology. */
+ /** Exact world coordinates for a relative GPU preview; no float conversion. */
+ public double[] triangleCoordinates(){
+  double[] result=new double[108];int at=0;
+  for(Face face:faces){
+   int[] c=face.loop;
+   for(int index:new int[]{c[0],c[1],c[2],c[0],c[2],c[3]}){
+    Vertex v=vertices.get(index);result[at++]=v.x;result[at++]=v.y;result[at++]=v.z;
+   }
+  }
+  return result;
+ }
+ /** Render mesh is generated separately from analytic topology.
+  * Reject a float preview that would collapse a valid double-precision face.
+  * The analytic B-Rep remains usable at large world coordinates. */
  public float[] triangles(){
+  float[][] p=new float[vertices.size()][3];
+  for(int i=0;i<vertices.size();i++){
+   Vertex v=vertices.get(i);
+   double[] xyz={v.x,v.y,v.z};
+   for(int axis=0;axis<3;axis++){
+    if(!Double.isFinite(xyz[axis])||Math.abs(xyz[axis])>Float.MAX_VALUE)
+     throw new IllegalArgumentException("Coordinate outside preview range");
+    p[i][axis]=(float)xyz[axis];
+   }
+  }
   float[] out=new float[108];int offset=0;
   for(Face face:faces){
    int[] c=face.loop;
-   for(int i:new int[]{c[0],c[1],c[2],c[0],c[2],c[3]}){
-    Vertex p=vertices.get(i);
-    for(double axis:new double[]{p.x,p.y,p.z}){
-     if(!Double.isFinite(axis)||Math.abs(axis)>Float.MAX_VALUE)
-      throw new IllegalArgumentException("Coordinate outside preview range");
-     out[offset++]=(float)axis;
-    }
+   int[] indices={c[0],c[1],c[2],c[0],c[2],c[3]};
+   for(int t=0;t<indices.length;t+=3){
+    float[] a=p[indices[t]],b=p[indices[t+1]],d=p[indices[t+2]];
+    double ux=(double)b[0]-a[0],uy=(double)b[1]-a[1],uz=(double)b[2]-a[2];
+    double vx=(double)d[0]-a[0],vy=(double)d[1]-a[1],vz=(double)d[2]-a[2];
+    double nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;
+    if(nx==0&&ny==0&&nz==0)
+     throw new IllegalArgumentException("Preview precision collapses B-Rep face");
    }
+   for(int index:indices)for(float axis:p[index])out[offset++]=axis;
   }
   return out;
  }

@@ -426,4 +426,49 @@ public class SteppedRecipeAndroidTest {
   try{app.currentSceneMeshes();fail("Tampered Boolean accepted");}catch(IllegalArgumentException expected){}
   assertSame(snapshots,app.topologySnapshots);
  }
+
+ @Test public void rebasedViewportRayStillResolvesTheActualSteppedPatch()throws Exception{
+  recipe(LinkedConvexIntersection.Operation.DIFFERENCE_STEPPED);app.toggleMeshView();
+  List<MeshEngine.Mesh> meshes=app.currentSceneMeshes();List<double[]> world=new ArrayList<>();
+  for(MeshEngine.Mesh mesh:meshes)world.add(mesh.worldCoordinates());
+  app.meshView.layout(0,0,800,600);
+  app.meshView.installSceneMeshes(meshes,RelativeSceneCoordinates.from(world),true,app.meshView.sceneRevision());
+  app.meshView.setViewOrientation(35,25);
+  java.lang.reflect.Field projection=MeshEngine.class.getDeclaredField("projection");projection.setAccessible(true);
+  android.opengl.Matrix.perspectiveM((float[])projection.get(app.meshView),0,45,800f/600,.1f,1000000);
+  float[] pixel=app.meshView.projectPoint(2.0,2.0,3.0);assertNotNull(pixel);
+  // Isolate the Boolean so source operands cannot occlude the result.
+  app.showMeshOnly(app.booleanMeshes.get(2));meshes=Collections.singletonList(app.booleanMeshes.get(2));
+  MeshEngine.Mesh rendered=app.renderedSteppedBindings.get(0).rendered;
+  app.meshView.installSceneMeshes(Collections.singletonList(rendered),RelativeSceneCoordinates.from(Collections.singletonList(rendered.worldCoordinates())),true,app.meshView.sceneRevision());
+  app.meshView.pickSurfaceAt(pixel[0],pixel[1]);shadowOf(Looper.getMainLooper()).idle();
+  assertNotNull(app.activeSteppedPatch);assertEquals(app.intersectionRecipes.get(2).id,app.activeSteppedRecipeId);
+ }
+
+ @Test public void cylinderSceneAndTransientPreviewRetainTheSameAnalyticDoubleCoordinates(){
+  MainActivity.Part part=app.new Part(true,.015f,.015f,2,9000);part.y=8000;part.z=7000;part.rotationX=20;part.rotationY=30;part.rotationZ=40;app.parts.add(part);
+  PrimitiveBRepBody body=app.analyticBody(part);double[] expected=body.triangleCoordinates(48);
+  MeshEngine.Mesh preview=app.experimentalCadMeshPreview(0,body);
+  assertArrayEquals(expected,preview.worldCoordinates(),0);
+  List<MeshEngine.Mesh> scene=app.currentSceneMeshes();assertEquals(2,scene.size());
+  assertArrayEquals(expected,scene.get(0).worldCoordinates(),0);
+  assertArrayEquals(body.triangles(48),scene.get(0).vertices,0);
+ }
+
+ @Test public void linkedProfileSceneRetainsExactHeightAfterSaveAndReload()throws Exception{
+  LoopExtrusionFeature feature=polygonOperand(new float[][]{{0,0},{5,0},{4,3},{1,4}},4.123456789);
+  double[] exact=feature.asBRep(app.loopSketchSegments(feature,null,0,0,0,0)).triangleCoordinates();
+  float[] legacy=app.booleanMeshes.get(0).vertices.clone();
+  assertArrayEquals(exact,app.currentSceneMeshes().get(0).worldCoordinates(),0);
+  app.save();app.load();
+  assertEquals(feature.distance,app.loopExtrusionFeatures.get(0).distance,0);
+  assertArrayEquals(exact,app.currentSceneMeshes().get(0).worldCoordinates(),0);
+  assertArrayEquals(legacy,app.booleanMeshes.get(0).vertices,0);
+ }
+ @Test public void namedPlanarBooleanSceneCarriesItsExactSourceInHistoricalTriangleOrder(){
+  planarRecipe(LinkedConvexIntersection.Operation.DIFFERENCE_ANALYTIC,false);
+  List<MeshEngine.Mesh> meshes=app.currentSceneMeshes();MainActivity.PlanarStoredBinding binding=app.renderedPlanarBindings.get(0);
+  assertArrayEquals(binding.view.worldCoordinates(),meshes.get(2).worldCoordinates(),0);
+  assertArrayEquals(app.booleanMeshes.get(2).vertices,meshes.get(2).vertices,0);
+ }
 }

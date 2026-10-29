@@ -438,3 +438,69 @@ resultados cóncavos generales ni todas las familias curvas.
 - 51 pruebas Android/IO; integridad y suite geométrica de CI. Gradle/Lint requieren CI verde antes de integrar.
 - Fase A estimada 93 %, parcial: faltan otras familias y migración de propietarios/referencias. Perforaciones curvas aún basadas en mallas.
 - Validación física Android/EGL y rendimiento pendientes. Recuperación y límites en `docs/DEVELOPMENT_STATUS.md`.
+
+## Guion vigente — origen local compartido para GPU
+
+- PR #144 integrada tras verificar #618 verde; main `4756ece`, flujo [#619](https://github.com/josxtm/mycad/actions/runs/40760119620) correcto.
+- Rama `feature/cad-relative-gpu-origin`: generación local inmutable, cámara double, índices GPU/rayos en el mismo origen y callbacks en coordenadas mundiales.
+- Fuentes double de BoxBRep conectadas a la escena y sus previsualizaciones; se conservan exportación, orden global, selección y UUID.
+- Contornos/tiradores relativos al origen; caché y callbacks invalidados al sustituir la escena; conservación de cámara al editar.
+- Regresiones automáticas de precisión a ±1e9, Android matrices/rayos, cambios de origen y puente B-Rep escalonado.
+- Pendiente: ampliar fuentes double a cilindros y demás familias, sin atribuir al conversor recuperación de datos ya redondeados.
+- Pruebas físicas Nothing Phone 2a/tablet 12 pulgadas, EGL y rendimiento pendientes. Estado y recuperación actualizados en `docs/DEVELOPMENT_STATUS.md`.
+
+## Fuentes double de cilindros analíticos
+
+- Rama `feature/cad-double-cylinder-preview`, desde main `62cc5de` tras PR #145 integrada con [CI #623](https://github.com/josxtm/mycad/actions/runs/40763061992) verde.
+- CylinderSurface/CylinderBRep/PrimitiveBRepBody mantienen coordenadas double hasta aplicar el origen GPU.
+- Escena y previsualización Android usan la misma fuente para cajas y cilindros, incluidos cuerpos rotados.
+- Digest de compatibilidad de seis fixtures: teselación float publicada idéntica.
+- Regresiones de precisión lejana, superficie local cerrada, no mutación y puente real de Android. 60 pruebas Android/IO, geometría completa e integridad superadas localmente; nuevo CI obligatorio antes de integrar.
+- Se mantienen los límites del editor y el formato JSON; la exportación float histórica no obtiene precisión double por este cambio.
+- Próximo motor B-Rep: fuentes de perfiles/booleanas y degeneración; validación física/EGL y memoria pendientes.
+
+## Motor B-Rep: fuentes double de extrusiones y resultados planares
+
+- Base main `74f7a6b`, PR #147 integrada tras #625 verde. Hito [#626](https://github.com/josxtm/mycad/actions/runs/40764258161) con APK compilada y verificada.
+- Rama `feature/cad-double-profile-preview`. ClosedSketchExtrusion retiene coordenadas exactas; PolygonPrismBRep las expone sin alterar la teselación publicada.
+- Digest de doce fixtures históricos de perfiles; se conserva winding en XY/XZ/YZ y extrusión positiva/negativa.
+- PlanarBooleanView y escena Android conectan fuentes de perfiles vinculados y booleanas nombradas; vista aislada coherente, buffers exportados y JSON sin cambios.
+- Regresiones de altura double, no mutación, guardado/reapertura, cascarones múltiples y correspondencia de los índices globales.
+- Grids/escalonados, algunas previsualizaciones y kernels con casts internos requieren auditoría posterior. No se atribuye recuperación de detalle ya perdido.
+- Validación física Android/EGL en Nothing Phone 2a y tablet 12 pulgadas, memoria y rendimiento pendientes.
+
+## Temas completos — sucesora de #146
+
+- Base main `06c34bc`; inicio verificado con flujo #628 verde y sin commits nuevos.
+- Rama `feature/ui-complete-persistent-themes`, MyCAD 0.6.1 (61).
+- Seis temas: Claro predeterminado, Oscuro de alto contraste, Azul Técnico, Verde Oliva, Sepia/Papel Técnico y Personalizado.
+- Selector con seis vistas previas y editor de doce colores #RRGGBB; Aplicar/Cancelar transaccionales.
+- Preferencias persistentes y compatibles con `dark` y los cinco índices de #146.
+- Paleta única en barras, botones, iconos, Canvas, cuadrícula/ejes, ViewCube, selección, GPU y diálogos/dropdowns.
+- El cambio de estilo no altera archivo CAD, geometría, cámara, origen, picking ni historial.
+- 73 pruebas Android/IO, geometría e integridad locales. Capturas Android/Skia de las seis interfaces revisadas y publicadas con informes de CI.
+- Aproximación de temas: 95 %, pendiente validación física/EGL, memoria y ergonomía en los dos dispositivos de referencia.
+- Siguiente motor B-Rep: UUID repetibles en el puente paramétrico orientativo; problema detectado durante las pruebas y reservado a otra PR.
+- No se fusionan #80/#86/#136 ni se modifica la rama de #146. Fusión de la sucesora solo con CI final verde y sin bloqueos.
+
+## Puente paramétrico: identidades estables tras integrar temas
+
+- PR #150 integrada con CI #631 verde; main `5c815ff`, hito #632 correcto con APK myCad0.6.1. #146 cerrada como sustituida, rama original conservada.
+- Rama `feature/cad-stable-parametric-preview`: IDs explícitos, canónicos y transaccionales para rectángulos/extrusiones del documento paramétrico.
+- La sonda usa UUID de propietarios Android y deriva operaciones de ellos. Serialización completa repetible, incluso tras reinicio; edición y reordenado conservan identidades.
+- Se mantienen APIs antiguas con fallback determinista por fila para callers sin propietario; no se promete estabilidad de reordenado sin IDs.
+- Duplicados/UUID inválidos/geometría inválida no reemplazan entidades ni crean revisiones parciales. Geometría, poses y formato de snapshot sin cambios.
+- La prueba de aislamiento de temas vuelve a comparar el JSON entero, sin excluir datos diagnósticos. 75 Android/IO, integridad y geometría completas locales; CI obligatorio.
+- PR #149 de otro agente permanece sin fusionar por CI rojo; no se modifica esa rama.
+- Motor global aún parcial; aceptación física/EGL y rendimiento pendientes. No se genera otra APK por esta corrección de metadatos.
+
+## Precisión del puente de booleanas ortogonales con agujeros
+
+- PR #151 integrada, commit `a60f5e1`, tras CI #633 verde. Rama siguiente: `feature/brep-grid-double-coordinate-bridge`.
+- Fuente double de cada triángulo extraída directamente de los vértices analíticos y transmitida a PlanarBooleanView/origen relativo GPU.
+- Se conservan mallas float, caras, aristas, identificadores, orden, formato de archivo y exportaciones. Hash de regresión obtenido antes de editar el kernel.
+- Cobertura: 24 resultados XY/XZ/YZ con alturas firmadas, unión/intersección/diferencia, agujero y múltiples sólidos. Android verifica cámara/visor, selección y guardar/reabrir.
+- 77 pruebas Android/IO, geometría completa e integridad locales satisfactorias. CI #634 de main verde; la nueva PR requiere verificar su propio SHA antes de integrar.
+- Los límites anteriores de validación float y naming por coordenadas siguen vigentes; no se afirma resolver aquí geometría sub-ULP ni el kernel escalonado.
+- Próximo trabajo: naming preciso compatible y coordenadas analíticas de escalonados. Validación física Nothing Phone 2a/tablet 12 pulgadas pendiente.
+- Otro agente actualizó #149 a `a1aac91`; CI #635 pendiente al guardar este punto. No se modifica esa rama.

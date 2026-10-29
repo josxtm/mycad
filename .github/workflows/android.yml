@@ -77,6 +77,8 @@ jobs:
           java -cp build/geometry-tests OrientedThroughHoleTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/TriangleMeshHealth.java tests/TriangleMeshHealthTest.java
           java -cp build/geometry-tests TriangleMeshHealthTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/RelativeMeshCoordinates.java tests/RelativeMeshCoordinatesTest.java
+          java -cp build/geometry-tests RelativeMeshCoordinatesTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ClosedSketchExtrusion.java tests/ClosedSketchExtrusionTest.java
           java -cp build/geometry-tests ClosedSketchExtrusionTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/StoredMeshTriangleMap.java tests/StoredMeshTriangleMapTest.java
@@ -209,6 +211,8 @@ jobs:
           java -cp build/geometry-tests CadIntegrationProbeTest
           javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/DragPrecision.java app/src/main/java/es/josxtm/mycad/cad/BoxBRep.java app/src/main/java/es/josxtm/mycad/cad/SketchPushPullSession.java tests/SketchPushPullSessionTest.java
           java -cp build/geometry-tests SketchPushPullSessionTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/BoxBRepTest.java
+          java -cp build/geometry-tests BoxBRepTest
           javac -cp build/geometry-tests -sourcepath app/src/main/java -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/SteppedBoundaryEdgePicker.java tests/SteppedBoundaryEdgePickerTest.java
           java -cp build/geometry-tests SteppedBoundaryEdgePickerTest
           javac -cp build/geometry-tests -sourcepath app/src/main/java -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/TopologySnapshot.java app/src/main/java/es/josxtm/mycad/cad/TopologyReconciliation.java tests/TopologyReferenceTest.java
@@ -217,6 +221,18 @@ jobs:
           java -cp build/geometry-tests NamedConvexIntersectionTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/NamedPlanarBooleanTest.java
           java -cp build/geometry-tests NamedPlanarBooleanTest
+          javac -cp build/geometry-tests -sourcepath app/src/main/java -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/RelativeSceneCoordinates.java tests/RelativeSceneCoordinatesTest.java
+          java -cp build/geometry-tests RelativeSceneCoordinatesTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/CylinderDoubleCoordinatesTest.java
+          java -cp build/geometry-tests CylinderDoubleCoordinatesTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/ProfileDoubleCoordinatesTest.java
+          java -cp build/geometry-tests ProfileDoubleCoordinatesTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/ui/CadAppearance.java tests/CadAppearanceTest.java
+          java -cp build/geometry-tests CadAppearanceTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/StableParametricProbeTest.java
+          java -cp build/geometry-tests StableParametricProbeTest
+          javac -cp build/geometry-tests -d build/geometry-tests tests/GridDoubleCoordinatesTest.java
+          java -cp build/geometry-tests GridDoubleCoordinatesTest
           } 2>&1 | tee reports/geometria.log
       # CI habitual valida Java, tests Android y Lint, SIN generar un APK.
       - name: Compilar código y comprobar pruebas y Lint (sin APK)
@@ -309,6 +325,7 @@ jobs:
             app/build/reports/tests/testDebugUnitTest/
             app/build/test-results/testDebugUnitTest/
             app/build/reports/lint-results-debug.*
+            app/build/theme-preview/*.png
           if-no-files-found: ignore
           retention-days: 30
       - name: Publicar APK solo tras superar verificaciones

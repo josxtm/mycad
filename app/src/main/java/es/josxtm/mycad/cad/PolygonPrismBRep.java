@@ -107,6 +107,7 @@ public final class PolygonPrismBRep {
  public List<Face> faces(){return faces;}
  public List<HalfEdge> halfEdges(){return halfEdges;}
  public float[] triangles(){return preview.triangles.clone();}
+ public double[] triangleCoordinates(){return preview.triangleCoordinates();}
  public Face findFace(String key){for(Face f:faces)if(f.id.equals(key))return f;return null;}
  public Edge findEdge(String key){for(Edge e:edges)if(e.id.equals(key))return e;return null;}
  public Vertex findVertex(String key){for(Vertex v:vertices)if(v.id.equals(key))return v;return null;}
@@ -249,9 +250,13 @@ public final class PolygonPrismBRep {
   }
   if(loop.size()!=n||seen.size()!=n)throw new IllegalArgumentException("Disconnected sketch circuit");
   double area2=0;
+  // Match the tessellator's local-origin area calculation. Analytic
+  // topology must not lose tiny section areas to world-coordinate cancellation.
+  Corner areaOrigin=corners.get(loop.get(0));
   for(int i=0;i<n;i++){
    Corner a=corners.get(loop.get(i)),b=corners.get(loop.get((i+1)%n));
-   area2+=a.u*b.v-b.u*a.v;
+   area2+=(a.u-areaOrigin.u)*(b.v-areaOrigin.v)-
+          (b.u-areaOrigin.u)*(a.v-areaOrigin.v);
   }
   if(area2<0){
    Collections.reverse(loop);

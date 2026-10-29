@@ -26,16 +26,18 @@ public final class ClosedSketchExtrusion {
  }
  public static final class Result {
   public final float[] triangles;
+  private final double[] coordinates;
   public final int plane,usedLines;
   public final double area,volume;
   /** Exact input segment indices forming the selected connected contour. */
   public final List<Integer> sourceIndices;
-  private Result(float[] t,int plane,int used,double area,double volume,
+  private Result(float[] t,double[] coordinates,int plane,int used,double area,double volume,
                  List<Integer> sourceIndices){
-   this.triangles=t.clone();this.plane=plane;usedLines=used;
+   this.triangles=t.clone();this.coordinates=coordinates.clone();this.plane=plane;usedLines=used;
    this.area=area;this.volume=volume;
    this.sourceIndices=Collections.unmodifiableList(new ArrayList<>(sourceIndices));
   }
+  public double[] triangleCoordinates(){return coordinates.clone();}
  }
  private static final class Vertex {
   final double u,v;
@@ -112,7 +114,7 @@ public final class ClosedSketchExtrusion {
   if(plane==1)return new double[]{p.u,height,p.v};
   return new double[]{height,p.u,p.v};
  }
- private static void triangle(ArrayList<Float> result,int plane,
+ private static void triangle(ArrayList<Double> result,int plane,
                               Vertex a,double ah,Vertex b,double bh,Vertex c,double ch){
   double[][] v={world(plane,a,ah),world(plane,b,bh),world(plane,c,ch)};
   // (u,v,h)->(x,h,v) reverses handedness for plane XZ.
@@ -120,7 +122,7 @@ public final class ClosedSketchExtrusion {
   for(int n:order)for(double coord:v[n]){
    if(!ok(coord)||Math.abs(coord)>10000)
     throw new IllegalArgumentException("Extrusión fuera del área de trabajo");
-   result.add((float)coord);
+   result.add(coord);
   }
  }
  /**
@@ -174,11 +176,15 @@ public final class ClosedSketchExtrusion {
   if(vertex!=start||visited.size()!=component.size()||contour.size()<3)
    throw new IllegalArgumentException("Contorno no cerrado");
   double area2=0;
+  // Use a local contour origin: absolute shoelace products lose small
+  // section areas when a sub-millimetre sketch is far from world zero.
+  Vertex areaOrigin=points.get(contour.get(0));
   double minU=Double.POSITIVE_INFINITY,minV=Double.POSITIVE_INFINITY;
   double maxU=Double.NEGATIVE_INFINITY,maxV=Double.NEGATIVE_INFINITY;
   for(int i=0;i<contour.size();i++){
    Vertex a=points.get(contour.get(i)),b=points.get(contour.get((i+1)%contour.size()));
-   area2+=a.u*b.v-b.u*a.v;
+   area2+=(a.u-areaOrigin.u)*(b.v-areaOrigin.v)-
+          (b.u-areaOrigin.u)*(a.v-areaOrigin.v);
    minU=Math.min(minU,a.u);minV=Math.min(minV,a.v);
    maxU=Math.max(maxU,a.u);maxV=Math.max(maxV,a.v);
   }
@@ -238,7 +244,7 @@ public final class ClosedSketchExtrusion {
            points.get(remaining.get(2)))<=eps)
    throw new IllegalArgumentException("Última cara degenerada");
   cap.add(new int[]{remaining.get(0),remaining.get(1),remaining.get(2)});
-  ArrayList<Float> geometry=new ArrayList<>((4*n-4)*9);
+  ArrayList<Double> geometry=new ArrayList<>((4*n-4)*9);
   for(int[] t:cap){
    Vertex a=points.get(t[0]),b=points.get(t[1]),c=points.get(t[2]);
    triangle(geometry,plane,a,height,b,height,c,height);
@@ -250,7 +256,8 @@ public final class ClosedSketchExtrusion {
    triangle(geometry,plane,a,0,b,height,a,height);
   }
   float[] mesh=new float[geometry.size()];
-  for(int i=0;i<mesh.length;i++)mesh[i]=geometry.get(i);
+  double[] coordinates=new double[geometry.size()];
+  for(int i=0;i<mesh.length;i++){coordinates[i]=geometry.get(i);mesh[i]=(float)coordinates[i];}
   // The same caps and walls can be used in both normal directions, but
   // the outward winding must reverse when the extrusion goes backwards.
   if(height<0)for(int i=0;i<mesh.length;i+=9){
@@ -258,6 +265,7 @@ public final class ClosedSketchExtrusion {
     float tmp=mesh[i+3+k];
     mesh[i+3+k]=mesh[i+6+k];
     mesh[i+6+k]=tmp;
+    double exact=coordinates[i+3+k];coordinates[i+3+k]=coordinates[i+6+k];coordinates[i+6+k]=exact;
    }
   }
   TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(mesh);
@@ -265,7 +273,7 @@ public final class ClosedSketchExtrusion {
    throw new IllegalArgumentException("La extrusión no produce una malla cerrada válida");
   ArrayList<Integer> sources=new ArrayList<>();
   for(int i=0;i<lines.size();i++)if(component.contains(i))sources.add(i);
-  return new Result(mesh,plane,component.size(),area2/2,
+  return new Result(mesh,coordinates,plane,component.size(),area2/2,
                     area2*Math.abs(height)/2,sources);
  }
 }

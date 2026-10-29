@@ -59,6 +59,16 @@ public final class ConvexPrismBRepNestedUnion {
   if(!aContained&&!bContained)
    throw new IllegalArgumentException("Unión B-Rep: contención espacial incompleta; requiere reconstrucción 3D");
   // Return the existing containing solid: its shell is the exact union.
-  return aContained&&!bContained?b:a;
+  // When both containment checks pass (coincident sections), choosing the
+  // first operand made the result's UUID depend on operand order. Prefer the
+  // genuinely taller shell, even when heights differ only within tolerance;
+  // for exactly equal heights use a stable ID tie-break without rebuilding.
+  if(aContained&&bContained){
+   int heightOrder=Double.compare(Math.abs(da),Math.abs(db));
+   if(heightOrder>0)return a;
+   if(heightOrder<0)return b;
+   return a.id().compareTo(b.id())<=0?a:b;
+  }
+  return aContained?b:a;
  }
 }

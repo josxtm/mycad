@@ -85,17 +85,29 @@ public final class ParametricSketchDocument {
  }
  public String addRectangle(double x,double y,double width,double depth){return addRectangleOnPlane(PlaneExtrusion.Plane.XY,x,y,width,depth);}
  public String addRectangleOnPlane(PlaneExtrusion.Plane plane,double x,double y,double width,double depth){
-  if(plane==null||!validRectangle(x,y,width,depth))return null;
-  String id=UUID.randomUUID().toString();
+  return addRectangleWithId(UUID.randomUUID().toString(),plane,x,y,width,depth);
+ }
+ private static boolean canonicalId(String id){
+  if(id==null)return false;try{return UUID.fromString(id).toString().equals(id);}catch(IllegalArgumentException invalid){return false;}
+ }
+ /** Import a source's persistent identity without replacing an existing entity. */
+ public String addRectangleWithId(String id,PlaneExtrusion.Plane plane,double x,double y,double width,double depth){
+  if(!canonicalId(id)||plane==null||!validRectangle(x,y,width,depth)||sketches().containsKey(id)||extrusions().containsKey(id)||bodies().containsKey(id))return null;
   Map<String,Rectangle> next=new LinkedHashMap<>(sketches());
   next.put(id,new Rectangle(id,x,y,width,depth,plane));
   commit(new State(next,extrusions(),bodies()));return id;
  }
  public CadKernel.Result<CadKernel.Box> extrude(String sketchId,double baseZ,double height){
-  Rectangle sketch=sketches().get(sketchId);
-  if(sketch==null)return CadKernel.Result.invalid("Boceto inexistente");
-  String bodyId=UUID.randomUUID().toString();
-  String featureId=UUID.randomUUID().toString();
+  return extrudeWithIds(sketchId,UUID.randomUUID().toString(),UUID.randomUUID().toString(),baseZ,height);
+ }
+ /** Stable reconstruction entry point. Invalid IDs or geometry never commit history. */
+ public CadKernel.Result<CadKernel.Box> extrudeWithIds(String sketchId,String featureId,String bodyId,double baseZ,double height){
+  if(!sketches().containsKey(sketchId))return CadKernel.Result.invalid("Boceto inexistente");
+  if(!canonicalId(featureId)||!canonicalId(bodyId)||featureId.equals(bodyId)||
+     sketches().containsKey(featureId)||sketches().containsKey(bodyId)||
+     extrusions().containsKey(featureId)||extrusions().containsKey(bodyId)||
+     bodies().containsKey(featureId)||bodies().containsKey(bodyId))
+   return CadKernel.Result.invalid("Identidades de extrusión duplicadas o inválidas");
   Map<String,Extrusion> next=new LinkedHashMap<>(extrusions());
   next.put(featureId,new Extrusion(featureId,sketchId,bodyId,baseZ,height));
   return rebuild(sketches(),next,bodyId);

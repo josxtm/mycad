@@ -89,6 +89,7 @@ public final class OrthogonalGridHoleBRep {
  private final List<Edge> edges;
  private final List<HalfEdge> halfEdges;
  private final float[] triangles;
+ private final double[] triangleCoordinates;
 
  private OrthogonalGridHoleBRep(String id,int plane,double height,Data data){
   this.id=id;this.plane=plane;distance=height;
@@ -128,7 +129,7 @@ public final class OrthogonalGridHoleBRep {
    throw new IllegalArgumentException("B-Rep con agujeros supera el límite de caras");
   Map<String,List<Use>> edgeUses=new LinkedHashMap<>();
   ArrayList<Face> faceList=new ArrayList<>();
-  ArrayList<Float> soup=new ArrayList<>();
+  ArrayList<Double> soup=new ArrayList<>();
   for(Quad q:quads){
    String faceId=q.id;
    List<String> ids=new ArrayList<>();
@@ -152,7 +153,7 @@ public final class OrthogonalGridHoleBRep {
    for(int[] tri:new int[][]{{0,1,2},{0,2,3}})
     for(int index:tri){
      Vertex corner=v.get(q.nodes[index]);
-     soup.add((float)corner.x);soup.add((float)corner.y);soup.add((float)corner.z);
+     soup.add(corner.x);soup.add(corner.y);soup.add(corner.z);
     }
   }
   ArrayList<Edge> es=new ArrayList<>();
@@ -169,7 +170,8 @@ public final class OrthogonalGridHoleBRep {
    hs.add(new HalfEdge(a,eid,b.id));hs.add(new HalfEdge(b,eid,a.id));
   }
   float[] mesh=new float[soup.size()];
-  for(int i=0;i<mesh.length;i++)mesh[i]=soup.get(i);
+  double[] world=new double[soup.size()];
+  for(int i=0;i<mesh.length;i++){world[i]=soup.get(i);mesh[i]=(float)world[i];}
   if(mesh.length==0||mesh.length>18000)
    throw new IllegalArgumentException("B-Rep con agujeros: malla demasiado grande");
   TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(mesh);
@@ -183,6 +185,7 @@ public final class OrthogonalGridHoleBRep {
   faces=Collections.unmodifiableList(faceList);
   halfEdges=Collections.unmodifiableList(hs);
   triangles=mesh;
+  triangleCoordinates=world;
  }
  private static String stable(String x){
   return UUID.nameUUIDFromBytes(x.getBytes(StandardCharsets.UTF_8)).toString();
@@ -288,4 +291,7 @@ public final class OrthogonalGridHoleBRep {
  public List<Edge> edges(){return edges;}
  public List<HalfEdge> halfEdges(){return halfEdges;}
  public float[] triangles(){return triangles.clone();}
+ /** Analytic source in the exact same face/triangle order as the legacy preview.
+  * The existing float mesh validation and supported geometry limits still apply. */
+ public double[] triangleCoordinates(){return triangleCoordinates.clone();}
 }

@@ -49,6 +49,27 @@ public final class PrimitiveEdgeCurveTest {
   rejects(()->PrimitiveEdgeCurve.points(null,top,48),"Null body");
   rejects(()->PrimitiveEdgeCurve.points(cylinder,top,8),"Too few segments");
   rejects(()->PrimitiveEdgeCurve.points(cylinder,top,257),"Too many segments");
+
+  // A 0.001 mm analytic edge at 9000 mm is rounded to one float ULP
+  // (0.0009765625 mm) if world coordinates are quantised before rebasing.
+  PrimitiveBRepBody tiny=PrimitiveBRepBody.box("tiny-edge",.001,2,2,
+      new RigidTransform(9000,8000,7000,0,0,0));
+  String tinyId="tiny-edge/edge/X_0";
+  double[] precise=PrimitiveEdgeCurve.pointsDouble(tiny,tinyId,48);
+  ok(precise.length==6,"Precise segment endpoints");
+  ok(Math.abs((precise[3]-precise[0])-.001)<1e-10,
+     "Preserved analytic 1 micron edge at 9000 mm");
+  float[] quantized=PrimitiveEdgeCurve.points(tiny,tinyId,48);
+  ok(Math.abs((quantized[3]-quantized[0])-.001)>1e-5,
+     "Fixture must expose historical float world rounding");
+  precise[0]=0;
+  ok(PrimitiveEdgeCurve.pointsDouble(tiny,tinyId,48)[0]!=0,
+     "Precise outline must be a fresh array");
+  double[] rim=PrimitiveEdgeCurve.pointsDouble(cylinder,top,48);
+  ok(rim.length==49*3,"Precise circular edge tessellation");
+  for(int j=0;j<3;j++)ok(rim[j]==rim[48*3+j],"Precise rim closure");
+  rejects(()->PrimitiveEdgeCurve.pointsDouble(box,"rim/edge/CYLINDER_TOP",48),
+          "Precise cross-body edge");
   System.out.println("PrimitiveEdgeCurveTest: OK");
  }
 }

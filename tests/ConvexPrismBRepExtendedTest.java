@@ -32,6 +32,10 @@ public final class ConvexPrismBRepExtendedTest {
    near(ab.volume,16,"different-height intersection volume");
    near(ab.distance,sign*2,"signed overlap height");
    near(ba.volume,ab.volume,"commutative volume");
+   if(!ab.solid.id().equals(ba.solid.id()))
+    throw new AssertionError("Swapped non-orthogonal intersection changed B-Rep UUID");
+   if(!Arrays.equals(ab.triangles(),ba.triangles()))
+    throw new AssertionError("Swapped non-orthogonal intersection changed preview");
    TriangleMeshHealth.Report report=TriangleMeshHealth.inspect(ab.triangles());
    if(!report.isWatertight()||report.shells!=1)
     throw new AssertionError("Non-orthogonal B-Rep must be watertight");

@@ -156,6 +156,12 @@ public final class PrimitiveBRepBody {
  }
 
  /** Preview tessellation is secondary to the analytic model and always a new array. */
+ /** Exact source positions in the identical triangle order as the legacy view. */
+ public double[] triangleCoordinates(int cylinderSegments){
+  if(kind==Kind.CYLINDER)return CylinderBRep.from(bodyId,width,height,pose()).triangleCoordinates(cylinderSegments);
+  CadKernel.Box b=new CadKernel.Box(bodyId,-width/2,-depth/2,0,width,depth,height);
+  return BoxBRep.from(new TransformedBody(b,pose())).triangleCoordinates();
+ }
  public float[] triangles(int cylinderSegments){
   if(kind==Kind.CYLINDER)
    return CylinderBRep.from(bodyId,width,height,pose()).triangles(cylinderSegments);

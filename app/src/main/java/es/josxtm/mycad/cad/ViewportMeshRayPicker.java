@@ -31,6 +31,17 @@ public final class ViewportMeshRayPicker {
    ox=origin[0];oy=origin[1];oz=origin[2];
    dx=direction[0];dy=direction[1];dz=direction[2];
   }
+  private Hit(Hit source,double tx,double ty,double tz){
+   triangle=source.triangle;distance=source.distance;
+   x=source.x+tx;y=source.y+ty;z=source.z+tz;
+   ox=source.ox+tx;oy=source.oy+ty;oz=source.oz+tz;
+   dx=source.dx;dy=source.dy;dz=source.dz;
+   for(double value:new double[]{x,y,z,ox,oy,oz})if(!Double.isFinite(value))
+    throw new IllegalArgumentException("Invalid translated viewport hit");
+  }
+  /** Rigid translation preserves direction, distance and global triangle ID. */
+  public Hit translated(double tx,double ty,double tz){return new Hit(this,tx,ty,tz);}
+
  }
 
  /**

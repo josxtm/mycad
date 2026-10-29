@@ -1,162 +1,167 @@
 # Estado de desarrollo de MyCAD
 
-## Base y alcance
+## Base verificada
 
-- Repositorio exclusivo: `josxtm/mycad`.
-- Base remota: `0a443419f1ca4d4e0ddf4934ee9ee07c65f47d11`, PR #133 integrada.
-- Última etapa integrada: intersecciones convexas nombradas y referencias tipadas.
-- [android.yml #597](https://github.com/josxtm/mycad/actions/runs/40730118057): correcto.
-- El hito anterior #597 conserva su APK; esta continuación requiere su propio CI.
-- Las PR #80/#86 permanecen en borrador, sin fusionar.
+- Repositorio exclusivo: `josxtm/mycad`. Main protegido, sin escrituras directas.
+- Base de esta fase: `a60f5e1e2c972b271e1d36fb679bdb242f01bd5b` (PR #151 integrada).
+- Temas integrados tras [CI #631](https://github.com/josxtm/mycad/actions/runs/40770661900) verde.
+- Main pasó [hito #632](https://github.com/josxtm/mycad/actions/runs/40771113314), incluida APK 0.6.1 compilada y verificada.
+- Tras integrar #151, main pasó [CI #634](https://github.com/josxtm/mycad/actions/runs/40773115344).
+- Se revisaron main, los cinco últimos flujos y las PR abiertas. No había avances
+  remotos nuevos después de #628 ni cambios locales de código sin guardar.
+- PR #146: `db6aec2`, sustituida por #150 tras revisión; rama conservada.
+- PR #149 de otro agente: #629 falló; el autor publicó `a1aac91`, con
+  [CI #635](https://github.com/josxtm/mycad/actions/runs/40773461656) en ejecución al registrar este punto. Rama intacta, sin fusionar aquí.
+- PR #80/#86/#136 conservadas, sin fusionar automáticamente.
 
-## Fase A actual: identidades de booleanas planares y componentes
+## Temas completos y persistentes: integrados
 
-Rama: `feature/cad-named-planar-booleans`.
+PR #150, fuente `560e9d5`. Versión de prueba: 0.6.1 (código 61).
+#146 se cerró como sustituida sin fusionarla ni modificar su rama original.
 
-`NamedGridHoleBody` asigna nombres persistentes a vértices, aristas y caras de
-booleanas ortogonales de igual altura, incluidos agujeros pasantes y varios
-componentes. Las recetas existentes UNION_WITH_HOLES, DIFFERENCE_WITH_HOLES e
-INTERSECTION_WITH_HOLES pueden regenerar su topología nombrada.
+Se conservan de #146 los nombres, orden de los cinco presets y la preferencia
+`themeIndex`. El sexto valor es Personalizado. Claro es el predeterminado; se
+respetan preferencias antiguas `dark` cuando aún no existe `themeIndex`.
 
-El visor Android conserva una asociación exacta entre receta, malla renderizada y
-topología. Selecciona la cara quad del resultado visible y muestra su área e
-identidad desde **Inspeccionar caras**. En **Resultados booleanos → Ver solo esta
-malla** se puede seleccionar sin los operandos originales delante. Las selecciones
-y el inspector rechazan sustituciones de receta/malla y geometría adulterada.
+CadAppearance centraliza doce roles de color, independientes del documento CAD:
+fondo general, paneles, dibujo, texto, acento, selección, cuadrícula, ejes X/Y/Z,
+cuerpos y ViewCube. La paleta es inmutable y ofrece contraste de texto seguro
+para superficies personalizadas, incluso si se mezclan colores claros y oscuros.
 
-`SourceTopologyNames` comparte el nombrado con los sólidos escalonados conservando
-exactamente el formato v1 publicado. La prueba de compatibilidad congela el digest
-SHA-256 de todos los nombres de doce fixtures de `b74c4e7`. No se cambia el JSON,
-los UUID persistidos, la teselación ni el orden global de triángulos.
+Ajustes → Apariencia muestra seis tarjetas con una previsualización dibujada por
+Android. Personalizado permite editar los doce colores mediante #RRGGBB, con
+muestra en vivo y validación. Los cambios de tarjetas o colores permanecen en
+un borrador; Cancelar no cambia la aplicación ni guarda preferencias. Aplicar
+persiste la selección y los colores, conservados al recrear/reiniciar la actividad.
 
-Los nombres sobreviven a cambios dimensionales mientras se conservan los
-operandos ordenados, operación, plano y agrupaciones de coordenadas de origen.
-Los cambios topológicos pueden eliminar nombres y crear otros: no se transfieren
-por proximidad a entidades diferentes. La versión geométrica sigue separada de
-la identidad y no autoriza reutilizar impactos de rayos/triángulos anteriores.
+La misma paleta alcanza barras, paneles, botones, iconos dibujados, Canvas, su
+cuadrícula/ejes, cuerpos y selección, tiradores, ViewCube Canvas/GPU y controles
+nativos de diálogos/menús/dropdowns. En Android 15, las barras de sistema
+transparentes eligen contraste sobre el fondo real del modo edge-to-edge; en
+versiones anteriores se utiliza el color de panel solicitado. Los desplegables mantienen datos, ID y opción
+seleccionada. El estilo de los diálogos conserva los listeners originales.
+GPU usa una referencia inmutable para fondo, cuerpos, selección y tiradores:
+no modifica cámaras, origen relativo, revisión de escena, triángulos ni picking.
 
-`TopologySnapshot` indexa vértices, aristas y caras con tipo, propietario e identidad,
-y calcula una versión geométrica SHA-256 que incluye los datos analíticos exactos.
-Cubre cuerpos escalonados, grids con agujeros, prismas poligonales de líneas y
-primitivas de caja/cilindro. El cilindro tiene dos bordes circulares y tres caras;
-no se agregan vértices artificiales de costura o de teselación.
+## Verificación de temas
 
-Las referencias pueden restaurarse como descriptores, pero se resuelven después:
-`resolveExact` exige la misma versión geométrica y `resolvePersistent` requiere
-una decisión explícita de vincular la misma identidad al estado actual. Ninguno
-permite reutilizar un rayo o índice GPU de una generación anterior.
+- 73 pruebas Android/IO locales, incluidas once nuevas de apariencia y renderizado.
+- Java 8 sobre SDK 35/JDK 17; geometría completa de android.yml e integridad.
+- Migración de preferencias, seis temas tras recreación, personalizado, hex
+  inválido, cancelar/aplicar, colores corruptos, menús y desplegables.
+- Aislamiento: archivo CAD guardado idéntico byte a byte, mismos objetos de
+  boceto/cuerpo, geometría, IDs, cámara, revisión de picking y pilas undo/redo.
+- Dos láminas de comprobación visual renderizadas por Android/Skia (Robolectric
+  Native): seis tarjetas y seis interfaces completas, inspeccionadas en este
+  entorno. CI publica sus PNG junto con los informes Android.
+- Gradle local no puede abrir sockets de daemon en este sandbox. Compilación
+  Gradle, tests y Lint completos se exigen en GitHub Actions antes de fusionar.
+- Esta documentación se publica junto al código antes de CI; el resultado del
+  SHA final se registra en la PR y en [ci-status](https://github.com/josxtm/mycad/blob/ci-status/ESTADO_COMPILACION.md).
+- EGL/GPU física, ergonomía, memoria y rendimiento en Nothing Phone 2a y tablet
+  Android de 12 pulgadas: pendientes. Renderizar con Skia no sustituye esas pruebas.
 
-`TopologyReconciliation` informa por tipo qué entidades se conservan, se crean o
-se eliminan. Solo vuelve a vincular referencias de su snapshot anterior exacto.
-El visor publica todos sus índices tras validar la escena completa y conserva el
-último cambio para los inspectores. Elimina los registros de cuerpos borrados.
-Un fallo de geometría no publica índices parciales ni altera JSON/undo.
+Temas: ~95 % estimado, software implementado y probado; falta aceptación física.
+No se presenta como un 95 % del modelador CAD completo.
 
-`NamedConvexIntersection` cubre la receta histórica INTERSECTION entre prismas
-convexos, incluidos lados inclinados. Los vértices conservados se vinculan a sus
-esquinas exactas de origen y los nuevos cruces a las líneas de soporte activas.
-La incidencia admite el redondeo float de la vista previa; no compara posiciones
-con una geometría anterior. Los casos agudos lejos del origen y las cadenas
-colineales tienen regresiones específicas.
+## B-Rep: identidades repetibles en el puente paramétrico, integradas
 
-Las tapas conservan su rol base/superior aunque cambie el número de esquinas del
-perfil. Cambiar qué operando limita la altura invalida los nombres superiores.
-Las caras laterales se identifican por sus soportes de origen. Propietarios,
-planos u orden de operandos diferentes no comparten el namespace.
+La prueba de aislamiento detectó un comportamiento anterior ajeno a los temas:
+CadIntegrationProbe crea UUID nuevos en cada llamada para su previsualización
+paramétrica orientativa. El archivo guardado no cambia al elegir un tema; las
+identidades B-Rep reales tampoco. En la PR de temas, la comparación del archivo guardado fue completa y exacta;
+la comparación de una nueva serialización excluía solo esos campos orientativos.
+La presente corrección retira esa exclusión y vuelve a exigir igualdad del JSON
+completo en la misma prueba de aislamiento.
 
-`PlanarBooleanView` permite que agujeros e intersecciones usen la misma selección
-e inspección. Resalta todos los triángulos de una cara (incluidas tapas de más de
-dos triángulos). La asociación también exige la revisión de la escena realmente
-instalada: una previsualización temporal o un visor oculto no pueden reutilizarla.
-El JSON, las recetas y la teselación se conservan.
+PR #151, fuente `6aeb64e`, rama `feature/cad-stable-parametric-preview`,
+integrada tras [CI #633](https://github.com/josxtm/mycad/actions/runs/40772532731) verde.
+ParametricSketchDocument admite IDs explícitos y canónicos al añadir rectángulos
+y extrusiones. Rechaza identidades duplicadas, malformadas o geometría inválida
+antes de publicar una revisión; conserva los métodos anteriores, undo y redo.
 
-`NamedPlanarBoolean` añade las once rutas restantes de recetas planares:
-UNION/INTERSECTION/DIFFERENCE_ANALYTIC, UNION/DIFFERENCE_ORTHOGONAL,
-UNION/INTERSECTION/DIFFERENCE_POLYGONAL y las tres MULTISHELL. Cada ruta llama
-exactamente a su kernel histórico y conserva las coordenadas, el orden de los
-cascarones y todos los triángulos persistidos. Incluye la unión inclinada convexa,
-la unión anidada que reutiliza un cascarón origen y las intersecciones cóncavas de
-altura desigual. La identidad del propietario sigue siendo el UUID de la receta.
+CadIntegrationProbe reutiliza UUID reales de bocetos/cuerpos del puente Android.
+Los ID de operaciones se derivan del propietario mediante un namespace estable.
+Edición dimensional y reordenado no reasignan identidades. Los callers antiguos
+sin propietario reciben nombres de diagnóstico deterministas por fila: no se
+les atribuye estabilidad ante reordenado cuando no existe UUID de origen.
+Los propietarios duplicados fallan explícitamente, sin reemplazar otro cuerpo.
 
-Las caras laterales incluyen las identidades de sus extremos para distinguir
-segmentos cóncavos separados sobre el mismo plano. Las tapas de un solo cascarón
-mantienen su rol semántico. En MULTISHELL cada componente se identifica por su
-contorno de procedencia, sin índices ni coordenadas: una separación/fusión retira
-las tapas anteriores y crea referencias para las nuevas. Es una política
-conservadora: otros cambios del contorno también pueden invalidar sus tapas.
-No se adivina una transferencia por proximidad o volumen. Las entidades de
-frontera que conservan procedencia pueden permanecer entre componentes.
+La sonda sigue siendo orientativa, restringida a rectángulos. No se modifica su
+cálculo geométrico, las poses existentes ni la política de cobertura parcial.
+No se declara por esto terminada la migración al motor paramétrico.
 
-El adaptador común conecta estas rutas al visor, al inspector, a la selección de
-la cara completa y a la reconciliación transaccional. Rechaza mallas adulteradas,
-versiones obsoletas y cambios de propietario. Los namespaces publicados de
-`NamedSteppedBody`, `NamedGridHoleBody` y `NamedConvexIntersection` no se alteran.
+Verificación de la continuación:
+- 75 Android/IO locales, incluidas serializaciones completas repetidas, archivo
+  guardado/reabierto y propietarios de operaciones tras editar dimensiones.
+- Prueba pura para XY/XZ/YZ, alturas firmadas, reordenado, ID duplicado/inválido,
+  fallback antiguo, fallo sin commit, snapshot y undo/redo.
+- Geometría completa e integridad de android.yml; CI Gradle/Lint obligatorio.
+- Mejora delimitada de IDs: 100 % de los casos de software previstos verificados
+  localmente y CI sobre el SHA publicado satisfactorio. Motor CAD global parcial.
 
-## Verificación de esta revisión
+El motor conserva el origen relativo compartido GPU/cámara/rayos y fuentes double
+de cajas, cilindros, perfiles vinculados y booleanas planares nombradas (#145,
+#147, #148). Siguen pendientes límites de precisión de grids/escalonados, algunas vistas
+previas transitorias, geometría degenerada, B-Rep curva general y ViewCube 3D.
+No se atribuye recuperación de detalle perdido por casts históricos. El 93 %
+antiguo correspondía a otra fase de identidades, no al CAD completo.
 
-- Integridad y suite geométrica completa de android.yml: superadas localmente.
-- Motor: planos XY/XZ/YZ, ambos signos, agujero → apertura lateral, componentes
-  independientes, edición dimensional, versiones obsoletas y compatibilidad v1.
-- Java SDK 35, lenguaje/bytecode Java 8 y 51 pruebas Robolectric/IO: superadas.
-- Regresiones de reconciliación: agujero → apertura lateral mediante el diálogo
-  real de editar perfil, undo, referencias creadas/eliminadas, tipo incorrecto,
-  otro propietario, versión anterior, cilindros y prismas no ortogonales.
-- Cambios analíticos menores que la precisión float de la malla también cambian
-  la versión del índice. Las colecciones y los descriptores son inmutables.
-- Intersección inclinada: seis combinaciones plano/signo, cambios dimensionales,
-  traslaciones, nacimiento/desaparición de vértices, cambio del límite de altura,
-  perfil colineal y triángulo agudo a coordenadas altas.
-- Once rutas: comparación exacta contra las mallas históricas, todos los planos
-  y signos, unión inclinada, U cóncava, separación/fusión y reordenado de componentes.
-- Android: selección/reapertura de las once rutas, separación mediante edición
-  real del lado de origen, undo y rechazo transaccional de mallas adulteradas.
-- Android: tapa completa, persistencia, edición real del perfil origen,
-  previsualización temporal y eventos pendientes de un visor oculto.
-- Gradle local sigue restringido por sockets del daemon; compilación Android y
-  Lint obligatorios se verifican en la PR de esta rama antes de fusionar.
-- El documento se publica con el código antes de CI. Consultar el SHA de la PR
-  y el [estado vivo de main](https://github.com/josxtm/mycad/blob/ci-status/ESTADO_COMPILACION.md).
-- Validación física Android/EGL y rendimiento en dispositivos: pendientes.
-  No bloquean las pruebas automáticas ni se consideran realizados.
+## Fase actual: coordenadas analíticas de grids con agujeros hasta GPU
 
-El error Java 8 de #591 quedó corregido y verificado por #592 antes de integrar
-#131. La comprobación local usa `-source 8 -target 8`; no se desactivaron pruebas.
+Rama independiente `feature/brep-grid-double-coordinate-bridge`, basada en #151.
+OrthogonalGridHoleBRep ya conserva vértices double, pero su conexión anterior
+a PlanarBooleanView partía únicamente de la sopa float. Ahora expone una copia
+inmutable de las coordenadas analíticas en el mismo orden de cara/triángulo.
+PlanarBooleanView entrega esa fuente al origen relativo GPU ya existente,
+tanto para escena completa como para el resultado aislado y su reapertura.
 
-## Próximas tareas y límites
+No se cambia la discretización, el orden, el winding, el naming ni el formato
+guardado/exportado. Un hash tomado antes del cambio protege los bytes float
+de 24 resultados: XY/XZ/YZ, alturas firmadas, unión, intersección, agujero y
+diferencia con dos sólidos. La prueba exige correspondencia exacta entre cada
+esquina renderizada y su cara analítica, volumen local cerrado y selección.
 
-1. Auditar las recetas de perforación circular y de extrusión de cara que aún
-   almacenan mallas sin propietario UUID persistido. Ampliar su representación
-   analítica/topológica sin presentar facetas de teselación como caras curvas.
-2. Revisar la cobertura de cadenas de operaciones y la persistencia explícita
-   de referencias de subentidades, con migración de proyectos anteriores.
-3. Completar la aceptación automática de la fase A antes de pasar a ampliar
-   las operaciones CAD de la fase B. La validación física sigue independiente.
+Este cambio conserva detalle double que ya existe; no amplía artificialmente
+el dominio aceptado por la validación float del kernel. Sus límites anteriores
+siguen vigentes. El naming por coordenadas de grids/escalonados aún agrupa
+fuentes mediante float: precisión sub-ULP en esos nombres y su migración
+compatible requieren una fase independiente. La PR #149 sigue ajena a esta rama.
 
-Fase A estimada en 93 %: aún parcial. Todas las operaciones de
-`LinkedConvexIntersection` tienen ya adaptación nombrada, pero esto no equivale
-al soporte de todas las familias CAD. Las perforaciones circulares existentes
-siguen produciendo mallas; no son todavía una B-Rep curva completa. No hay
-selección interactiva de todas las aristas ni soporte general de NURBS/cambios
-topológicos arbitrarios. Se conservan bocetos, cotas, extrusión, ViewCube,
-navegación, edición, undo/redo, guardar/abrir e intercambio existente.
+Verificación local: 77 pruebas Android/IO satisfactorias, compilación Java 8/SDK 35,
+geometría completa de android.yml e integridad. Las pruebas Android nuevas cubren
+escena/aislamiento, seis orientaciones/alturas, selección persistente, rayos del
+visor y guardar/reabrir. Esperan explícitamente a los comandos de escena del hilo
+del visor antes de comprobar su estado; no sustituyen renderizado EGL físico.
+CI Gradle/Lint obligatorio sobre el SHA publicado; resultado final en la PR de
+esta rama y ci-status. Puente delimitado: 100 % de los casos previstos comprobados
+localmente, pendiente CI. El motor global sigue parcial.
 
 ## Recuperación
 
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/cad-named-planar-booleans
+git switch feature/brep-grid-double-coordinate-bridge
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
-gradle :app:testDebugUnitTest :app:lintDebug --no-daemon
+gradle :app:compileDebugJavaWithJavac :app:testDebugUnitTest :app:lintDebug --no-daemon
 ```
 
-JDK 17, Gradle 8.9 y SDK Android 35. Si la PR ya fue integrada, crear una nueva
-rama desde origin/main y leer este estado antes de modificar código. No rebasar,
-forzar ramas compartidas ni modificar main directamente.
+Si la PR está integrada, crear una rama nueva desde origin/main. No forzar ramas
+compartidas ni rebasar trabajo de terceros. Las pruebas nativas generan
+`app/build/theme-preview/six-themes.png` y `six-interfaces.png`; su revisión es
+software, no una instalación física de la APK.
 
-En este entorno el checkout recuperable es `/workspace/mycad-planar-identities`.
-Git por terminal no tiene acceso de red; la publicación usa el conector GitHub,
-con padre remoto `0a44341`. Los ancestros de materialización local no se publican.
-La historia remota de la rama es la referencia para reanudar en un entorno normal.
+Checkout local: `/workspace/mycad-grid-double`. Su base materializada comparte el
+árbol de main `a60f5e1`; la publicación por conector usa el padre remoto real,
+sin publicar los ancestros sintéticos locales. El experimento antiguo de
+propietarios permanece en la rama local WIP `feature/cad-persisted-recipe-owners`
+(`b41ec27`), sin pruebas y ajeno a esta fase; no debe fusionarse sin revisión.
+
+Siguiente tarea: coordinar la revisión de la PR #149 cuando su autor resuelva
+CI, y continuar precisión/degeneración de perfiles, naming de grids y sólidos
+escalonados sin tocar sus ramas activas. La APK de temas del hito #632 es anterior
+a las mejoras B-Rep de esta continuación; sus fuentes corresponden a `5c815ff`.
+No se genera otra APK por cada ajuste interno del puente geométrico.

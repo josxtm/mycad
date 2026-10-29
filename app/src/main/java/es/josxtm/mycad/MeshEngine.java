@@ -7,12 +7,21 @@ import android.content.Context;
 import java.nio.*;
 import java.util.*;
 import java.io.*;
+import es.josxtm.mycad.ui.CadAppearance;
+import static es.josxtm.mycad.ui.CadAppearance.Role.*;
 
 /** GPU mesh viewer foundation for MyCAD 0.4.4. Coordinates in millimetres. */
 public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Renderer {
+ private volatile CadAppearance appearance=CadAppearance.preset(0);
+ /** Palette replacement cannot alter camera, scene revision, triangles or picking. */
+ public void setAppearance(CadAppearance palette){if(palette==null)throw new IllegalArgumentException("Missing appearance");appearance=palette;requestRender();}
+ CadAppearance appearance(){return appearance;}
+ private void shaderColor(int color){GLES30.glUniform4f(colorUniform,((color>>>16)&255)/255f,((color>>>8)&255)/255f,(color&255)/255f,1);}
+
  public static final class Mesh {
   public final float[] vertices; // xyz triangles
   private es.josxtm.mycad.cad.MeshRayIndex pickIndex;
+  private double[] preciseWorld;
   /** Optional analytic shell, present only for exact regenerated preview meshes. */
   public final es.josxtm.mycad.cad.VariableHeightOrthogonalBRep steppedShell;
   public Mesh(float[] v){this(v,null);}
@@ -24,6 +33,29 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    if(shell!=null&&!Arrays.equals(v,shell.triangles()))
     throw new IllegalArgumentException("Stepped shell does not match mesh");
    vertices=v;steppedShell=shell;
+  }
+  /** The existing world-float buffer remains the export/legacy contract.
+   * Accurate double geometry is retained separately for the GPU conversion. */
+  public static Mesh analyticBox(es.josxtm.mycad.cad.BoxBRep box){
+   if(box==null)throw new IllegalArgumentException("Missing analytic box");
+   return withWorldCoordinates(box.triangles(),box.triangleCoordinates());
+  }
+  public static Mesh analyticPrimitive(es.josxtm.mycad.cad.PrimitiveBRepBody body,int segments){
+   if(body==null)throw new IllegalArgumentException("Missing analytic primitive");
+   return withWorldCoordinates(body.triangles(segments),body.triangleCoordinates(segments));
+  }
+  static Mesh withWorldCoordinates(float[] legacy,double[] world){
+   if(world==null||legacy==null||world.length!=legacy.length)throw new IllegalArgumentException("Invalid precise preview");
+   for(int i=0;i<world.length;i++)if(!Double.isFinite(world[i])||(float)world[i]!=legacy[i])
+    throw new IllegalArgumentException("Precise preview disagrees with legacy mesh");
+   Mesh mesh=new Mesh(legacy);mesh.preciseWorld=world.clone();return mesh;
+  }
+  double[] worldCoordinates(){
+   if(preciseWorld!=null)return preciseWorld.clone();
+   double[] world=new double[vertices.length];for(int i=0;i<world.length;i++)world[i]=vertices[i];return world;
+  }
+  private Mesh previewCopy(){
+   Mesh copy=new Mesh(vertices.clone());copy.preciseWorld=preciseWorld==null?null:preciseWorld.clone();return copy;
   }
   public int triangles(){return vertices.length/9;}
   /** Lazy GL-thread ray broad phase: built once per immutable mesh instance. */
@@ -55,7 +87,22 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   new es.josxtm.mycad.cad.FloatVertexBufferCache();
  private int program,position,modelViewProjection,colorUniform;
  private final float[] projection=new float[16],view=new float[16],mvp=new float[16];
- private float yaw=35,pitch=25,centerX,centerY,centerZ;
+ private float yaw=35,pitch=25;
+ private volatile double centerX,centerY,centerZ;
+ private volatile es.josxtm.mycad.cad.RelativeSceneCoordinates coordinates=
+  es.josxtm.mycad.cad.RelativeSceneCoordinates.from(Collections.<double[]>emptyList());
+ private es.josxtm.mycad.cad.RelativeSceneCoordinates prepareCoordinates(List<Mesh> incoming){
+  List<double[]> world=new ArrayList<>();for(Mesh mesh:incoming)world.add(mesh.worldCoordinates());
+  return es.josxtm.mycad.cad.RelativeSceneCoordinates.from(world);
+ }
+ /** Shared by GL drawing, ray construction and UI handle projection. */
+ private void cameraView(float[] target,es.josxtm.mycad.cad.RelativeSceneCoordinates frame){
+  float[] focus=frame.localPoint(centerX,centerY,centerZ);
+  double a=Math.toRadians(yaw),b=Math.toRadians(pitch);
+  Matrix.setLookAtM(target,0,focus[0]+(float)(distance*Math.cos(b)*Math.cos(a)),
+   focus[1]+(float)(distance*Math.cos(b)*Math.sin(a)),focus[2]+(float)(distance*Math.sin(b)),
+   focus[0],focus[1],focus[2],0,0,1);
+ }
  private boolean cameraHasFit=false; // GL-thread only; rearm if scene becomes empty
  private volatile float distance=300;
  /** Camera distance used for zoom-aware CAD hit tolerance in the UI thread. */
@@ -76,7 +123,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private volatile long sceneRevision;
  private long renderedSceneRevision; // GL-thread snapshot, distinct from queued UI replacements
  long sceneRevision(){return sceneRevision;}
- private float[] highlightedEdgeVertices=null;
+ private double[] highlightedEdgeVertices=null;
  private float[] faceHandleGpu=null;
  private volatile float[] faceHandleUi=null;
  private FaceDragListener faceDragListener=null;
@@ -116,17 +163,16 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   return Math.max(2f,Math.min(25f,distance*.08f));
  }
  /** UI-thread projection, using the same perspective/camera as GL renderer. */
- private float[] projectPoint(float x,float y,float z){
+ float[] projectPoint(double x,double y,double z){
   if(getWidth()<=0||getHeight()<=0)return null;
-  double a=Math.toRadians(yaw),b=Math.toRadians(pitch);
+  es.josxtm.mycad.cad.RelativeSceneCoordinates frame=coordinates;
   float[] camera=new float[16],proj=new float[16],mvpLocal=new float[16];
-  Matrix.setLookAtM(camera,0,centerX+(float)(distance*Math.cos(b)*Math.cos(a)),
-    centerY+(float)(distance*Math.cos(b)*Math.sin(a)),
-    centerZ+(float)(distance*Math.sin(b)),centerX,centerY,centerZ,0,0,1);
+  cameraView(camera,frame);
   Matrix.perspectiveM(proj,0,45f,(float)getWidth()/getHeight(),.1f,1000000f);
   Matrix.multiplyMM(mvpLocal,0,proj,0,camera,0);
   float[] out=new float[4];
-  Matrix.multiplyMV(out,0,mvpLocal,0,new float[]{x,y,z,1f},0);
+  float[] local=frame.localPoint(x,y,z);
+  Matrix.multiplyMV(out,0,mvpLocal,0,new float[]{local[0],local[1],local[2],1f},0);
   if(out[3]<=1e-6f||!Float.isFinite(out[3]))return null;
   return new float[]{getWidth()*(out[0]/out[3]+1)/2f,
                      getHeight()*(1-out[1]/out[3])/2f};
@@ -134,7 +180,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private float[] projectedHandle(){
   float[] f=faceHandleUi;if(f==null)return null;
   float arm=handleLength();
-  float px=f[0]+f[3]*arm,py=f[1]+f[4]*arm,pz=f[2]+f[5]*arm;
+  double px=(double)f[0]+f[3]*arm,py=(double)f[1]+f[4]*arm,pz=(double)f[2]+f[5]*arm;
   float[] tip=projectPoint(px,py,pz);
   float[] next=projectPoint(px+f[3],py+f[4],pz+f[5]);
   if(tip==null||next==null)return null;
@@ -160,9 +206,18 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  }
  /** A genuine analytic edge outline, not arbitrary tessellation triangle edges. */
  public void highlightEdge(float[] xyz){
+  if(xyz==null){highlightEdgePrecise(null);return;}
+  double[] precise=new double[xyz.length];
+  for(int i=0;i<xyz.length;i++)precise[i]=xyz[i];
+  highlightEdgePrecise(precise);
+ }
+ /** Analytic B-Rep edge: rebase doubles before sending floats to GPU. */
+ public void highlightEdgePrecise(double[] xyz){
   if(xyz!=null&&(xyz.length<6||xyz.length%3!=0))
    throw new IllegalArgumentException("Invalid selected edge outline");
-  final float[] copy=xyz==null?null:xyz.clone();
+  if(xyz!=null)for(double value:xyz)
+   if(!Double.isFinite(value))throw new IllegalArgumentException("Nonfinite edge outline");
+  final double[] copy=xyz==null?null:xyz.clone();
   queueEvent(()->{highlightedEdgeVertices=copy;requestRender();});
  }
 
@@ -206,18 +261,8 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  /** Transient preview: swap geometry on the GL thread without refitting camera. */
  public void previewMesh(Mesh candidate){
   if(candidate==null)throw new IllegalArgumentException("Missing preview mesh");
-  final long nextRevision=++sceneRevision;
-  highlightedPatchTriangles=new int[0];
-  final Mesh snapshot=new Mesh(candidate.vertices.clone());
-  queueEvent(()->{
-   renderedSceneRevision=nextRevision;
-   gpuTriangles.clear();
-   meshes.clear();meshes.add(snapshot);
-   rebuildSteppedPatches();
-   highlightedEdgeVertices=null;
-   highlightedFirstTriangle=-1;
-   requestRender();
-  });
+  replaceSceneMeshes(Collections.singletonList(candidate.previewCopy()),false);
+
  }
  /** New/open/isolated model: explicitly frame the whole scene. */
  public void setMeshes(List<Mesh> incoming){replaceSceneMeshes(incoming,true);}
@@ -230,22 +275,20 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   final ArrayList<Mesh> copy=new ArrayList<>(incoming);
   for(Mesh item:copy)if(item==null)
    throw new IllegalArgumentException("Null scene mesh");
+  final es.josxtm.mycad.cad.RelativeSceneCoordinates frame=prepareCoordinates(copy);
   final long nextRevision=++sceneRevision;
-  highlightedPatchTriangles=new int[0];
-  highlightedFirstTriangle=-1;
-  queueEvent(()->{
-   renderedSceneRevision=nextRevision;
-   gpuTriangles.clear();
-   meshes.clear();meshes.addAll(copy);
-   rebuildSteppedPatches();
-   highlightedEdgeVertices=null;
-   boolean hasTriangles=false;
-   for(Mesh item:meshes)if(item.vertices.length>0){hasTriangles=true;break;}
-   if(es.josxtm.mycad.cad.CameraRefitPolicy.shouldFit(
-       cameraHasFit,forceFit,hasTriangles))fitCamera();
-   cameraHasFit=es.josxtm.mycad.cad.CameraRefitPolicy.rememberFitted(hasTriangles);
-   requestRender();
-  });
+  highlightedPatchTriangles=new int[0];highlightedFirstTriangle=-1;
+  queueEvent(()->installSceneMeshes(copy,frame,forceFit,nextRevision));
+ }
+ /** GL-thread installation. The same entry point is exercised without EGL in Android tests. */
+ void installSceneMeshes(List<Mesh> incoming,es.josxtm.mycad.cad.RelativeSceneCoordinates frame,boolean forceFit,long revision){
+  renderedSceneRevision=revision;gpuTriangles.clear();
+  meshes.clear();meshes.addAll(incoming);coordinates=frame;
+  rebuildSteppedPatches();highlightedEdgeVertices=null;
+  boolean hasTriangles=false;for(Mesh item:meshes)if(item.vertices.length>0){hasTriangles=true;break;}
+  if(es.josxtm.mycad.cad.CameraRefitPolicy.shouldFit(cameraHasFit,forceFit,hasTriangles))fitCamera();
+  cameraHasFit=es.josxtm.mycad.cad.CameraRefitPolicy.rememberFitted(hasTriangles);
+  requestRender();
  }
  /**
   * ViewCube orientation command; preserve model focus and camera distance.
@@ -401,7 +444,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
      double[] focus=es.josxtm.mycad.cad.CameraGestureMath.pan(
        centerX,centerY,centerZ,yaw,pitch,distance,getHeight(),
        mx-lastPinchMidX,my-lastPinchMidY);
-     centerX=(float)focus[0];centerY=(float)focus[1];centerZ=(float)focus[2];
+     centerX=focus[0];centerY=focus[1];centerZ=focus[2];
      requestRender();
      lastPinchSpan=span;
     }
@@ -442,34 +485,32 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   }
   return true;
  }
- private void pickSurfaceAt(float sx,float sy){
+ void pickSurfaceAt(float sx,float sy){
   int width=getWidth(),height=getHeight();
   if(width<=0||height<=0||meshes.isEmpty())return;
   // Use the same near/far-clipped world ray as the analytic stepped B-Rep
   // picker. Keep triangle indices and callbacks unchanged for older tools.
-  double a=Math.toRadians(yaw),b=Math.toRadians(pitch);
-  float[] camera=new float[16],combined=new float[16];
-  Matrix.setLookAtM(camera,0,centerX+(float)(distance*Math.cos(b)*Math.cos(a)),
-   centerY+(float)(distance*Math.cos(b)*Math.sin(a)),centerZ+(float)(distance*Math.sin(b)),
-   centerX,centerY,centerZ,0,0,1);
+  es.josxtm.mycad.cad.RelativeSceneCoordinates frame=coordinates;
+  float[] camera=new float[16],combined=new float[16];cameraView(camera,frame);
   Matrix.multiplyMM(combined,0,projection,0,camera,0);
   double[] viewProjection=new double[16];
   for(int i=0;i<16;i++)viewProjection[i]=combined[i];
   ArrayList<es.josxtm.mycad.cad.ViewportMeshRayPicker.Candidate> candidates=
    new ArrayList<>();
-  for(Mesh mesh:meshes)candidates.add(
-   new es.josxtm.mycad.cad.ViewportMeshRayPicker.Candidate(
-    mesh.rayIndex(),mesh.triangles()));
+  for(int i=0;i<meshes.size();i++)candidates.add(
+   new es.josxtm.mycad.cad.ViewportMeshRayPicker.Candidate(frame.rayIndex(i),meshes.get(i).triangles()));
   es.josxtm.mycad.cad.ViewportMeshRayPicker.Hit chosen;
   try{
    chosen=es.josxtm.mycad.cad.ViewportMeshRayPicker.pick(
     candidates,viewProjection,width,height,sx,sy);
+   chosen=frame.worldHit(chosen);
   }catch(IllegalArgumentException invalidViewport){return;}
   if(chosen==null)return;
   final es.josxtm.mycad.cad.SteppedVisiblePatchBridge.Hit patch=
    steppedPatchTapListener==null?null:steppedPatches.resolve(chosen);
   final long revision=renderedSceneRevision;
-  post(()->dispatchSurfaceHit(revision,chosen,patch));
+  final es.josxtm.mycad.cad.ViewportMeshRayPicker.Hit worldHit=chosen;
+  post(()->dispatchSurfaceHit(revision,worldHit,patch));
  }
  /** UI-thread delivery; a replaced/previewed scene cannot select an old face. */
  void dispatchSurfaceHit(long revision,
@@ -488,11 +529,11 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    else if(surfaceTapListener!=null)
     surfaceTapListener.onSurfaceTap(triangle,x,y,z);
  }
- private void fitCamera(){float[] bounds={Float.MAX_VALUE,Float.MAX_VALUE,Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE};
-  for(Mesh m:meshes)for(int i=0;i<m.vertices.length;i+=3)for(int k=0;k<3;k++){float v=m.vertices[i+k];bounds[k]=Math.min(bounds[k],v);bounds[k+3]=Math.max(bounds[k+3],v);}
-  if(bounds[0]==Float.MAX_VALUE)return;
-  centerX=(bounds[0]+bounds[3])/2;centerY=(bounds[1]+bounds[4])/2;centerZ=(bounds[2]+bounds[5])/2;
-  float span=Math.max(bounds[3]-bounds[0],Math.max(bounds[4]-bounds[1],bounds[5]-bounds[2]));distance=Math.max(10,span*2.5f);
+ private void fitCamera(){
+  double[] bounds=coordinates.worldBounds();
+  centerX=coordinates.originX;centerY=coordinates.originY;centerZ=coordinates.originZ;
+  double span=Math.max(bounds[3]-bounds[0],Math.max(bounds[4]-bounds[1],bounds[5]-bounds[2]));
+  distance=(float)Math.max(10,Math.min(Float.MAX_VALUE,span*2.5));
  }
  @Override public void onSurfaceCreated(javax.microedition.khronos.opengles.GL10 gl,javax.microedition.khronos.egl.EGLConfig cfg){
   gpuTriangles.clear(); // EGL context recreation invalidates renderer-owned resources.
@@ -506,23 +547,25 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
  private int shader(int type,String source){int id=GLES30.glCreateShader(type);GLES30.glShaderSource(id,source);GLES30.glCompileShader(id);int[] ok=new int[1];GLES30.glGetShaderiv(id,GLES30.GL_COMPILE_STATUS,ok,0);if(ok[0]==0)throw new IllegalStateException(GLES30.glGetShaderInfoLog(id));return id;}
  @Override public void onSurfaceChanged(javax.microedition.khronos.opengles.GL10 gl,int w,int h){GLES30.glViewport(0,0,w,h);Matrix.perspectiveM(projection,0,45f,(float)w/Math.max(1,h),.1f,1000000f);}
  @Override public void onDrawFrame(javax.microedition.khronos.opengles.GL10 gl){
-  GLES30.glClearColor(.07f,.1f,.15f,1);GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT|GLES30.GL_DEPTH_BUFFER_BIT);
-  double a=Math.toRadians(yaw),b=Math.toRadians(pitch);
-  Matrix.setLookAtM(view,0,centerX+(float)(distance*Math.cos(b)*Math.cos(a)),centerY+(float)(distance*Math.cos(b)*Math.sin(a)),centerZ+(float)(distance*Math.sin(b)),centerX,centerY,centerZ,0,0,1);
-  Matrix.multiplyMM(mvp,0,projection,0,view,0);GLES30.glUseProgram(program);GLES30.glUniformMatrix4fv(modelViewProjection,1,false,mvp,0);GLES30.glUniform4f(colorUniform,.3f,.78f,.84f,1);
+  CadAppearance colors=appearance;int canvas=colors.color(CANVAS);
+  GLES30.glClearColor(((canvas>>>16)&255)/255f,((canvas>>>8)&255)/255f,(canvas&255)/255f,1);GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT|GLES30.GL_DEPTH_BUFFER_BIT);
+  es.josxtm.mycad.cad.RelativeSceneCoordinates frame=coordinates;
+  cameraView(view,frame);
+  Matrix.multiplyMM(mvp,0,projection,0,view,0);GLES30.glUseProgram(program);GLES30.glUniformMatrix4fv(modelViewProjection,1,false,mvp,0);shaderColor(colors.color(MODEL));
   GLES30.glEnableVertexAttribArray(0);
   int triangleOffset=0;
-  for(Mesh mesh:meshes){
+  for(int meshIndex=0;meshIndex<meshes.size();meshIndex++){
+   Mesh mesh=meshes.get(meshIndex);
    // No native allocations per frame: keep a direct buffer per immutable mesh.
-   FloatBuffer buf=gpuTriangles.triangles(mesh,mesh.vertices);
+   FloatBuffer buf=frame.buffer(meshIndex,gpuTriangles,mesh);
    GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buf);
-   GLES30.glUniform4f(colorUniform,.3f,.78f,.84f,1);
+   shaderColor(colors.color(MODEL));
    GLES30.glDrawArrays(GLES30.GL_TRIANGLES,0,mesh.vertices.length/3);
    int local=highlightedFirstTriangle-triangleOffset;
    if(local>=0&&local+1<mesh.triangles()){
     GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL);
     GLES30.glPolygonOffset(-2f,-2f);
-    GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
+    shaderColor(colors.color(SELECTION));
     GLES30.glDrawArrays(GLES30.GL_TRIANGLES,local*3,6);
     GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL);
    }
@@ -530,7 +573,7 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
    if(selectedPatch.length>0){
     GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL);
     GLES30.glPolygonOffset(-2f,-2f);
-    GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
+    shaderColor(colors.color(SELECTION));
     for(int global:selectedPatch){
      int patchLocal=global-triangleOffset;
      if(patchLocal>=0&&patchLocal<mesh.triangles())
@@ -543,34 +586,34 @@ public final class MeshEngine extends GLSurfaceView implements GLSurfaceView.Ren
   // Draw the selected topological line/rim as an overlay in world XYZ.
   // Disable depth temporarily so its complete path is visible, then restore it.
   if(highlightedEdgeVertices!=null){
-   float[] outline=highlightedEdgeVertices;
+   float[] outline=frame.localPoints(highlightedEdgeVertices);
    FloatBuffer edgeBuf=ByteBuffer.allocateDirect(outline.length*4)
      .order(ByteOrder.nativeOrder()).asFloatBuffer();
    edgeBuf.put(outline).position(0);
    GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,edgeBuf);
    GLES30.glDisable(GLES30.GL_DEPTH_TEST);
-   GLES30.glUniform4f(colorUniform,1f,.65f,.16f,1);
+   shaderColor(colors.color(SELECTION));
    GLES30.glLineWidth(3f);
    GLES30.glDrawArrays(GLES30.GL_LINE_STRIP,0,outline.length/3);
    GLES30.glEnable(GLES30.GL_DEPTH_TEST);
   }
   if(faceHandleGpu!=null){
-   float[] handle=faceHandleGpu, h={
-    handle[0],handle[1],handle[2],
-    handle[0]+handle[3]*handleLength(),
-    handle[1]+handle[4]*handleLength(),
-    handle[2]+handle[5]*handleLength()};
+   float[] handle=faceHandleGpu, anchor=frame.localPoint(handle[0],handle[1],handle[2]), h={
+    anchor[0],anchor[1],anchor[2],
+    anchor[0]+handle[3]*handleLength(),
+    anchor[1]+handle[4]*handleLength(),
+    anchor[2]+handle[5]*handleLength()};
    FloatBuffer buffer=ByteBuffer.allocateDirect(h.length*4)
      .order(ByteOrder.nativeOrder()).asFloatBuffer();
    buffer.put(h).position(0);
    GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buffer);
    GLES30.glDisable(GLES30.GL_DEPTH_TEST);
-   GLES30.glUniform4f(colorUniform,1f,.45f,.08f,1);
+   shaderColor(colors.color(SELECTION));
    GLES30.glLineWidth(3f);
    GLES30.glDrawArrays(GLES30.GL_LINES,0,2);
    buffer.position(3);
    GLES30.glVertexAttribPointer(0,3,GLES30.GL_FLOAT,false,12,buffer);
-   GLES30.glUniform4f(colorUniform,1f,.96f,.35f,1);
+   shaderColor(colors.color(ACCENT));
    GLES30.glDrawArrays(GLES30.GL_POINTS,0,1);
    GLES30.glEnable(GLES30.GL_DEPTH_TEST);
   }

@@ -13,12 +13,19 @@ public final class PlanarBooleanView {
  public final int solidCount,holeCount,vertexCount,edgeCount,faceCount;
  public final TopologySnapshot topology;
  private final float[] triangles;
+ private final double[] coordinates;
  private final Face[] triangleFaces;
  private final Map<String,Face> faces;
  private PlanarBooleanView(String body,String geometry,int solids,int holes,int vertices,int edges,
-      float[] triangles,List<Face> named,List<String> triangleIds,TopologySnapshot topology){
+      float[] triangles,double[] world,List<Face> named,List<String> triangleIds,TopologySnapshot topology){
   bodyId=body;geometryId=geometry;solidCount=solids;holeCount=holes;vertexCount=vertices;edgeCount=edges;
   this.triangles=triangles.clone();this.topology=topology;faceCount=named.size();
+  if(world!=null&&world.length!=triangles.length)throw new IllegalArgumentException("Invalid precise planar mesh");
+  coordinates=new double[triangles.length];
+  for(int i=0;i<coordinates.length;i++){
+   coordinates[i]=world==null?triangles[i]:world[i];
+   if(!Double.isFinite(coordinates[i])||(float)coordinates[i]!=triangles[i])throw new IllegalArgumentException("Planar coordinate mismatch");
+  }
   Map<String,Face> bySnapshot=new HashMap<>(),byId=new LinkedHashMap<>();
   for(Face face:named){bySnapshot.put(face.snapshotId,face);byId.put(face.id,face);}
   if(byId.size()!=named.size()||triangles.length/9!=triangleIds.size())throw new IllegalArgumentException("Invalid planar face map");
@@ -30,6 +37,7 @@ public final class PlanarBooleanView {
   faces=Collections.unmodifiableMap(byId);
  }
  public float[] triangles(){return triangles.clone();}
+ public double[] worldCoordinates(){return coordinates.clone();}
  public Face findFace(String id){return faces.get(id);}
  public Face faceAtTriangle(int triangle){return triangle<0||triangle>=triangleFaces.length?null:triangleFaces[triangle];}
  public int[] trianglesForFace(String id,int first){
@@ -46,7 +54,7 @@ public final class PlanarBooleanView {
    faces.add(new Face(body.faceId(face.id),face.id,face.area));triangles.add(face.id);triangles.add(face.id);
   }
   return new PlanarBooleanView(body.bodyId,body.shell.id,body.shell.solidCount,body.shell.holeCount,
-   body.shell.vertices().size(),body.shell.edges().size(),body.shell.triangles(),faces,triangles,TopologySnapshot.from(body));
+   body.shell.vertices().size(),body.shell.edges().size(),body.shell.triangles(),body.shell.triangleCoordinates(),faces,triangles,TopologySnapshot.from(body));
  }
  public static PlanarBooleanView from(NamedConvexIntersection body){
   if(body==null)throw new IllegalArgumentException("Missing named intersection");
@@ -58,14 +66,16 @@ public final class PlanarBooleanView {
    if(face==null)throw new IllegalArgumentException("Missing intersection face");triangles.add(face.id);
   }
   return new PlanarBooleanView(body.bodyId,body.shell.id(),1,0,body.shell.vertices().size(),body.shell.edges().size(),
-   mesh,faces,triangles,TopologySnapshot.from(body));
+   mesh,body.shell.triangleCoordinates(),faces,triangles,TopologySnapshot.from(body));
  }
  public static PlanarBooleanView from(NamedPlanarBoolean body){
   if(body==null)throw new IllegalArgumentException("Missing named planar Boolean");
   List<Face> faces=new ArrayList<>();List<String> triangles=new ArrayList<>();
+  double[] world=new double[body.triangles().length];int at=0;
   int vertices=0,edges=0;StringBuilder geometry=new StringBuilder();
   for(PolygonPrismBRep shell:body.solids()){
    geometry.append(shell.id()).append('/');vertices+=shell.vertices().size();edges+=shell.edges().size();
+   double[] exact=shell.triangleCoordinates();System.arraycopy(exact,0,world,at,exact.length);at+=exact.length;
    for(PolygonPrismBRep.Face face:shell.faces())faces.add(new Face(body.faceId(face.id),face.id,face.area));
    float[] mesh=shell.triangles();
    for(int i=0;i<mesh.length/9;i++){
@@ -74,6 +84,6 @@ public final class PlanarBooleanView {
    }
   }
   return new PlanarBooleanView(body.bodyId,geometry.toString(),body.solids().size(),0,vertices,edges,
-   body.triangles(),faces,triangles,TopologySnapshot.from(body));
+   body.triangles(),world,faces,triangles,TopologySnapshot.from(body));
  }
 }

@@ -42,12 +42,21 @@ public final class ConvexPrismBRepIntersection {
   double dx=a[0]-b[0],dy=a[1]-b[1];return dx*dx+dy*dy;
  }
  private static double twiceArea(List<double[]> p){
-  double area=0;
+  if(p.isEmpty())return 0;
+  // Local coordinates avoid cancellation for small sections far from origin.
+  double ox=p.get(0)[0],oy=p.get(0)[1];
+  double sum=0,correction=0;
   for(int i=0;i<p.size();i++){
    double[] a=p.get(i),b=p.get((i+1)%p.size());
-   area+=a[0]*b[1]-b[0]*a[1];
+   double ax=a[0]-ox,ay=a[1]-oy,bx=b[0]-ox,by=b[1]-oy;
+   double term=ax*by-bx*ay;
+   double next=sum+term;
+   // Neumaier compensation retains small contributions in long contours.
+   if(Math.abs(sum)>=Math.abs(term))correction+=(sum-next)+term;
+   else correction+=(term-next)+sum;
+   sum=next;
   }
-  return area;
+  return sum+correction;
  }
  private static List<double[]> polygon(PolygonPrismBRep body){
   if(body==null)throw new IllegalArgumentException("Falta sólido B-Rep");
@@ -147,9 +156,21 @@ public final class ConvexPrismBRepIntersection {
   if(overlap.size()<3||Math.abs(twiceArea(overlap))<=EPS)
    throw new IllegalArgumentException("Los sólidos no comparten volumen");
   if(twiceArea(overlap)<0)Collections.reverse(overlap);
+  // Clipping can start at a different vertex when operands are swapped.
+  // Normalize the CCW loop before deriving topology IDs and tessellation.
+  int firstCorner=0;
+  for(int i=1;i<overlap.size();i++){
+   double[] p=overlap.get(i),q=overlap.get(firstCorner);
+   int cmp=Double.compare(p[0],q[0]);
+   if(cmp<0||(cmp==0&&Double.compare(p[1],q[1])<0))firstCorner=i;
+  }
+  Collections.rotate(overlap,-firstCorner);
   double distance=Math.copySign(Math.min(Math.abs(a.distance()),Math.abs(b.distance())),
                                a.distance());
-  StringBuilder seed=new StringBuilder(a.id()).append('|').append(b.id())
+  // A intersection B and B intersection A describe the same feature.
+  String idA=a.id(),idB=b.id();
+  if(idA.compareTo(idB)>0){String tmp=idA;idA=idB;idB=tmp;}
+  StringBuilder seed=new StringBuilder(idA).append('|').append(idB)
    .append('|').append(a.plane()).append('|').append(distance);
   for(double[] p:overlap)seed.append('|').append((float)p[0]).append(',')
                                 .append((float)p[1]);

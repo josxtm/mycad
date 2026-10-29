@@ -286,8 +286,8 @@ python3 - <<'PY'
 from pathlib import Path
 a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
 m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
-assert "PrimitiveEdgeCurve.points(solid,boundary.edgeId,64)" in a
-assert "meshView.highlightEdge(null)" in a
+assert "PrimitiveEdgeCurve.pointsDouble(solid,boundary.edgeId,64)" in a
+assert "meshView.highlightEdge(null)", "meshView.highlightEdgePrecise(" in a
 assert "public void highlightEdge(float[] xyz)" in m
 assert "GLES30.glDrawArrays(GLES30.GL_LINE_STRIP" in m
 assert "highlightedEdgeVertices=null" in m
@@ -302,7 +302,7 @@ m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="
 assert "EdgeScreenTolerance.computeAtHit(" in a
 assert "solid,ox,oy,oz,x,y,z,meshView.getHeight()" in a
 assert "ViewportMeshRayPicker.pick(" in m
-assert "post(()->dispatchSurfaceHit(revision,chosen,patch))" in m
+assert "post(()->dispatchSurfaceHit(revision,worldHit,patch))" in m
 assert "if(revision!=sceneRevision||visible==null)return;" in m
 assert "final double ox=visible.ox,oy=visible.oy,oz=visible.oz;" in m
 assert "final double dx=visible.dx,dy=visible.dy,dz=visible.dz;" in m
@@ -433,11 +433,13 @@ python3 - <<'PY'
 from pathlib import Path
 src=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
 render=src[src.index("onDrawFrame("):]
-assert "FloatBuffer buf=gpuTriangles.triangles(mesh,mesh.vertices);" in render
+assert "FloatBuffer buf=frame.buffer(meshIndex,gpuTriangles,mesh);" in render
 assert "ByteBuffer.allocateDirect(mesh.vertices.length*4)" not in render
-assert src.count("gpuTriangles.clear();")>=3
-assert "gpuTriangles.clear();\n   meshes.clear();meshes.addAll(copy);" in src
-assert "gpuTriangles.clear();\n   meshes.clear();meshes.add(snapshot)" in src
+assert src.count("gpuTriangles.clear();")>=2
+assert "gpuTriangles.clear();\n  meshes.clear();meshes.addAll(incoming);coordinates=frame;" in src
+assert "replaceSceneMeshes(Collections.singletonList(candidate.previewCopy()),false);" in src
+assert "cameraView(view,frame);" in render
+assert "chosen=frame.worldHit(chosen);" in src
 print("Render 3D: buffers directos reutilizados y liberados al reemplazar escena: OK")
 PY
 
@@ -519,7 +521,7 @@ assert "private es.josxtm.mycad.cad.MeshRayIndex pickIndex;" in m
 # must still refer to the original triangle positions in each mesh.
 v=Path("app/src/main/java/es/josxtm/mycad/cad/ViewportMeshRayPicker.java").read_text(encoding="utf-8")
 assert "ViewportMeshRayPicker.pick(" in m
-assert "mesh.rayIndex(),mesh.triangles()" in m
+assert "frame.rayIndex(i),meshes.get(i).triangles()" in m
 assert "candidate.index.pick(" in v
 assert "offset+hit.triangle" in v
 assert "offset+=candidate.triangleCount;" in v

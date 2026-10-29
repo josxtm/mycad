@@ -29,7 +29,30 @@ public final class ConvexPrismBRepIntersectionTest {
   }
   return new LoopExtrusionFeature(id,ids.get(0),plane,distance,ids).asBRep(lines);
  }
+ /** The winding predicate must preserve sub-mm areas far from zero. */
+ private static void translatedWindingPrecision(){
+  try{
+   java.lang.reflect.Method area=ConvexPrismBRepIntersection.class
+       .getDeclaredMethod("twiceArea",List.class);
+   area.setAccessible(true);
+   for(double origin:new double[]{9000,-9000}){
+    double side=(origin+0.2)-origin;
+    List<double[]> ring=new ArrayList<>(Arrays.asList(
+        new double[]{origin,origin},new double[]{origin+0.2,origin},
+        new double[]{origin+0.2,origin+0.2},new double[]{origin,origin+0.2}));
+    double expected=2*side*side;
+    double ccw=((Double)area.invoke(null,ring)).doubleValue();
+    if(Math.abs(ccw-expected)>1e-10)
+     throw new AssertionError("Translated CCW intersection area: "+ccw+" != "+expected);
+    Collections.reverse(ring);
+    double cw=((Double)area.invoke(null,ring)).doubleValue();
+    if(Math.abs(cw+expected)>1e-10)
+     throw new AssertionError("Translated CW intersection area: "+cw+" != "+(-expected));
+   }
+  }catch(ReflectiveOperationException ex){throw new AssertionError(ex);}
+ }
  public static void main(String[] args){
+  translatedWindingPrecision();
   double[][] square={{0,0},{4,0},{4,4},{0,4}};
   double[][] clip={{2,1},{5,1},{5,3},{2,3}};
   double[][] triangle={{1,1},{3,1},{1,3}};
@@ -55,6 +78,10 @@ public final class ConvexPrismBRepIntersectionTest {
       ConvexPrismBRepIntersection.intersect(b,a);
    near(swapped.area,result.area,"commutative area");
    near(swapped.volume,result.volume,"commutative volume");
+   ok(result.solid.id().equals(swapped.solid.id()),
+      "commutative B-Rep UUID across operand order");
+   ok(Arrays.equals(result.triangles(),swapped.triangles()),
+      "commutative B-Rep tessellation across operand order");
    PolygonPrismBRep contained=shape(BODY_C,fixedPlane,signed,triangle,false);
    ConvexPrismBRepIntersection.Result inner=
       ConvexPrismBRepIntersection.intersect(a,contained);
