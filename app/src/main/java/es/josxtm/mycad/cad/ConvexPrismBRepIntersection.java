@@ -42,12 +42,21 @@ public final class ConvexPrismBRepIntersection {
   double dx=a[0]-b[0],dy=a[1]-b[1];return dx*dx+dy*dy;
  }
  private static double twiceArea(List<double[]> p){
-  double area=0;
+  if(p.isEmpty())return 0;
+  // Local coordinates avoid cancellation for small sections far from origin.
+  double ox=p.get(0)[0],oy=p.get(0)[1];
+  double sum=0,correction=0;
   for(int i=0;i<p.size();i++){
    double[] a=p.get(i),b=p.get((i+1)%p.size());
-   area+=a[0]*b[1]-b[0]*a[1];
+   double ax=a[0]-ox,ay=a[1]-oy,bx=b[0]-ox,by=b[1]-oy;
+   double term=ax*by-bx*ay;
+   double next=sum+term;
+   // Neumaier compensation retains small contributions in long contours.
+   if(Math.abs(sum)>=Math.abs(term))correction+=(sum-next)+term;
+   else correction+=(term-next)+sum;
+   sum=next;
   }
-  return area;
+  return sum+correction;
  }
  private static List<double[]> polygon(PolygonPrismBRep body){
   if(body==null)throw new IllegalArgumentException("Falta sólido B-Rep");
