@@ -14,7 +14,42 @@ public final class ConvexPrismBRepNestedUnionTest {
  }
  static void near(double a,double b){if(Math.abs(a-b)>1e-4)throw new AssertionError(a+" != "+b);}
  static void reject(Runnable action){try{action.run();}catch(IllegalArgumentException expected){return;}throw new AssertionError("Unsupported union accepted");}
+ // Regression: the old world-coordinate shoelace lost precision at
+ // +/-9000 mm even though the B-Rep source segments are stored as doubles.
+ static void translatedContainmentPrecision(){
+  try{
+   java.lang.reflect.Method area=ConvexPrismBRepNestedUnion.class
+       .getDeclaredMethod("signedTwiceArea",PolygonPrismBRep.class);
+   area.setAccessible(true);
+   for(double origin:new double[]{9000,-9000}){
+    double width=(origin+0.6)-origin;
+    double[][] outer={{origin,origin},{origin+0.6,origin},
+        {origin+0.6,origin+0.6},{origin,origin+0.6}};
+    double[][] inner={{origin+0.2,origin+0.2},
+        {origin+0.4,origin+0.2},{origin+0.4,origin+0.4},
+        {origin+0.2,origin+0.4}};
+    double[][] protruding={{origin+0.2,origin+0.2},
+        {origin+0.61,origin+0.2},{origin+0.61,origin+0.4},
+        {origin+0.2,origin+0.4}};
+    for(int plane=0;plane<3;plane++)for(int sign:new int[]{-1,1}){
+     String suffix=origin+"/"+plane+"/"+sign;
+     PolygonPrismBRep a=prism("translatedOuter"+suffix,plane,sign*2,outer);
+     PolygonPrismBRep b=prism("translatedInner"+suffix,plane,sign*2,inner);
+     double signed=((Double)area.invoke(null,a)).doubleValue();
+     if(Math.abs(signed-2*width*width)>1e-10)
+      throw new AssertionError("Translated nested orientation lost precision: "+signed);
+     if(ConvexPrismBRepNestedUnion.union(a,b)!=a||
+        ConvexPrismBRepNestedUnion.union(b,a)!=a)
+      throw new AssertionError("Translated nested union did not preserve the source shell");
+     final int p=plane,s=sign;
+     reject(()->ConvexPrismBRepNestedUnion.union(a,
+         prism("translatedProtrusion"+suffix,p,s*2,protruding)));
+    }
+   }
+  }catch(ReflectiveOperationException ex){throw new AssertionError(ex);}
+ }
  public static void main(String[] args){
+  translatedContainmentPrecision();
   double[][] outer={{0,0},{6,0},{6,6},{0,6}};
   double[][] inner={{1,1},{3,1},{1,3}};
   double[][] overlap={{4,0},{8,0},{8,4},{4,4}};
