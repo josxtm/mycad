@@ -54,8 +54,41 @@ public final class ConvexPrismBRepHullUnionTest {
    }
   }catch(ReflectiveOperationException ex){throw new AssertionError(ex);}
  }
+ /** Reconstructed B-Rep edges must retain double coordinates. Casting
+  * to float at +/-9000 mm changes a 0.4 mm section by more than the
+  * analytic Boolean volume tolerance, even though the source is valid. */
+ private static void translatedUnionReconstructionPrecision(){
+  for(double origin:new double[]{9000,-9000})
+   for(int plane=0;plane<3;plane++)
+    for(int sign:new int[]{-1,1}){
+     String key="translated-"+origin+"-"+plane+"-"+sign;
+     PolygonPrismBRep left=prism(key+"-left",plane,sign*2,
+         rect(origin,origin,origin+0.4,origin+0.4));
+     PolygonPrismBRep right=prism(key+"-right",plane,sign*2,
+         rect(origin+0.4,origin,origin+0.8,origin+0.4));
+     ConvexPrismBRepHullUnion.Result forward=
+         ConvexPrismBRepHullUnion.union(left,right);
+     ConvexPrismBRepHullUnion.Result reverse=
+         ConvexPrismBRepHullUnion.union(right,left);
+     double expected=((origin+0.8)-origin)*((origin+0.4)-origin);
+     if(Math.abs(forward.area-expected)>1e-6||
+        Math.abs(forward.volume-2*expected)>2e-6)
+      throw new AssertionError("Translated union lost double precision: "+
+          forward.area+" / "+forward.volume+" expected "+expected);
+     ok(forward.solid.id().equals(reverse.solid.id()),
+         "translated union UUID independent of operand order");
+     ok(Arrays.equals(forward.triangles(),reverse.triangles()),
+         "translated union tessellation independent of operand order");
+     TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(forward.triangles());
+     ok(health.isWatertight()&&health.shells==1,
+         "translated union remains watertight");
+     ok(left.vertices().size()==8&&right.vertices().size()==8,
+         "translated union does not mutate source B-Rep shells");
+    }
+ }
  public static void main(String[] args){
   translatedAreaPrecision();
+  translatedUnionReconstructionPrecision();
   double[][] upper={{0,0},{4,0},{2,2}};
   double[][] lower={{0,0},{2,-2},{4,0}};
   double[][] triangle={{1,1},{2,1},{1,2}};

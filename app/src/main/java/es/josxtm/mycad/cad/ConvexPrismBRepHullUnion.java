@@ -183,7 +183,7 @@ public final class ConvexPrismBRepHullUnion {
        .getBytes(StandardCharsets.UTF_8)).toString();
    ids.add(line);
    lines.put(line,new ClosedSketchExtrusion.Segment(first.plane(),
-       (float)p[0],(float)p[1],(float)q[0],(float)q[1]));
+       p[0],p[1],q[0],q[1]));
   }
   PolygonPrismBRep solid=new LoopExtrusionFeature(bodyId,ids.get(0),
       first.plane(),h,ids).asBRep(lines);
