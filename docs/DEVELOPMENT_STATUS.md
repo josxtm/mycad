@@ -1,5 +1,32 @@
 # Estado de desarrollo de MyCAD
 
+## Estado actual — preparar validación física de 0.6.2
+
+Comprobado el 29 de octubre de 2026: main y la APK de pruebas corresponden a
+`1e2cafa5036e4cdc6a14b333324568f189310b27`.
+[android.yml #660](https://github.com/josxtm/mycad/actions/runs/40898190332)
+está verde, incluidas compilación, pruebas, Lint, generación y publicación de APK.
+[Artefacto 0.6.2](https://github.com/josxtm/mycad/actions/runs/40898190332/artifacts/12908082325).
+
+La rama `docs/android-0.6.2-functional-validation` solo añade documentación y
+datos de ensayo. No modifica funciones, fuentes, recursos Android ni workflows.
+No se fusiona esta preparación: main permanece igual a la APK que se validará.
+
+- [Guía de validación](ANDROID_0_6_2_VALIDATION.md): 18 casos por dispositivo,
+  Nothing Phone 2a y tablet de 12 pulgadas.
+- [Resultados](ANDROID_0_6_2_RESULTS.csv): 36 filas PENDIENTE, ninguna prueba física aprobada.
+- Proyectos exactos XY/XZ/YZ, cóncavo y resta con agujero; un archivo de versión
+  inválida para rechazo. Cinco roundtrips del codec real verificados por software
+  y rechazo negativo: cuatro pruebas Robolectric de preparación satisfactorias.
+- Los archivos preparados no sustituyen el cierre manual del contorno con el dedo.
+  La guía separa el fallo de dibujo de las pruebas independientes del motor/archivo.
+
+Se pausa el desarrollo de nuevas funciones durante esta validación. Tras recibir
+y revisar los resultados físicos y sus bloqueos: ViewCube 3D → ampliar operaciones
+B-Rep → migración compatible de Sketch/Part antiguos a double. Cualquier PR futura
+requiere CI verde, fusionabilidad y ausencia de bloqueos. La CI de esta rama
+documental no se presenta como evidencia de pruebas físicas.
+
 ## Hito actual — MyCAD 0.6.2, extrusión desde herramientas visibles
 
 Base `da1c3948ee045cda3f8b7edca5191c93e7bdd161`: PR #160 integrada con
@@ -257,7 +284,8 @@ sin publicar los ancestros sintéticos locales. El experimento antiguo de
 propietarios permanece en la rama local WIP `feature/cad-persisted-recipe-owners`
 (`b41ec27`), sin pruebas y ajeno a esta fase; no debe fusionarse sin revisión.
 
-Siguiente tarea: verificar CI y APK 0.6.2, después continuar precisión
-de sketches/Part y naming de grids/escalonados. La APK de temas del hito #632 es anterior
+Siguiente tarea: ejecutar y registrar la validación física de 0.6.2; después,
+ViewCube 3D, ampliar operaciones B-Rep y migrar Sketch/Part a double.
+La APK de temas del hito #632 es anterior
 a las mejoras B-Rep de esta continuación; sus fuentes corresponden a `5c815ff`.
 No se genera otra APK por cada ajuste interno del puente geométrico.

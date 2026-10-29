@@ -1,0 +1,62 @@
+{
+  "format": "mycad-qa-manifest",
+  "version": 1,
+  "app_version": "0.6.2",
+  "version_code": 62,
+  "source_commit": "1e2cafa5036e4cdc6a14b333324568f189310b27",
+  "workflow_url": "https://github.com/josxtm/mycad/actions/runs/40898190332",
+  "apk_artifact_id": 12908082325,
+  "apk_zip_sha256": "d28fb7d3cd674044de61ade24cd1065dba4da0961e7cf7c97a0fb1b059454da8",
+  "preparation": "MainActivity.encode/decode y reabrir; Robolectric SDK35; clases de aplicación sin modificaciones",
+  "physical_validation": "PENDIENTE",
+  "files": [
+    {
+      "path": "01-contorno-xy-40x30.mycad.json",
+      "sha256": "872650cf176e67cfd339befd3b7264e9d67ae3b2f9e41df5429fe403da1ec0ce",
+      "bytes": 1046,
+      "expected_open": "ACEPTAR",
+      "sketch_count": 4,
+      "mesh_count": 0
+    },
+    {
+      "path": "02-contorno-xz-40x30.mycad.json",
+      "sha256": "7fbc849e27dc975f236f1ddee43b3d48ed6f4be9a2a238cb1906242f5a4be9da",
+      "bytes": 1046,
+      "expected_open": "ACEPTAR",
+      "sketch_count": 4,
+      "mesh_count": 0
+    },
+    {
+      "path": "03-contorno-yz-40x30.mycad.json",
+      "sha256": "87e91708fa8087338a79c38a927e12e70a29060ce9cad860e07fe9cb5998ba5c",
+      "bytes": 1046,
+      "expected_open": "ACEPTAR",
+      "sketch_count": 4,
+      "mesh_count": 0
+    },
+    {
+      "path": "04-contorno-concavo-xy.mycad.json",
+      "sha256": "40b0b17ae661021fbe4b4850b0cd4f9fe8588ee794dd0bacfddecaa0c435e30f",
+      "bytes": 1366,
+      "expected_open": "ACEPTAR",
+      "sketch_count": 6,
+      "mesh_count": 0
+    },
+    {
+      "path": "05-resta-xy-40x30x10.mycad.json",
+      "sha256": "752dcc79b83fc240ed706e26992b3a326b6d915c1bfa1738c87ae67ab24434b2",
+      "bytes": 10487,
+      "expected_open": "ACEPTAR",
+      "sketch_count": 8,
+      "mesh_count": 3
+    },
+    {
+      "path": "06-version-invalida-rechazo-esperado.mycad.json",
+      "sha256": "02ac5c89929f1d626dfd0c13cf406762a9ce5b4cb92afa36a802703bfa88c7ba",
+      "bytes": 70,
+      "expected_open": "RECHAZO_VERSION",
+      "sketch_count": null,
+      "mesh_count": null
+    }
+  ]
+}
