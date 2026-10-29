@@ -1,6 +1,69 @@
 # Estado de desarrollo de MyCAD
 
-## Base verificada
+## Auditoría y continuación — 2026-10-29
+
+Base real: `ea07cc67dac304f4a626949cb2e4a026ffd77f10`, con
+[android.yml #656 verde](https://github.com/josxtm/mycad/actions/runs/40882955618).
+El commit #104 indicado en instrucciones anteriores ya no es la base actual.
+Se incorporan íntegros los avances ajenos #153–#159, #149 y #136. Solo permanecen
+abiertas #80 y #86, ambas en borrador; no se tocan ni se fusionan automáticamente.
+
+Auditoría de código y pruebas, distinguiendo implementación real y diagnóstico:
+
+- BoxBRep/PrimitiveBRepBody y PolygonPrismBRep proporcionan entidades analíticas.
+  Los contornos cerrados de líneas ya soportan perfiles cóncavos, XY/XZ/YZ,
+  alturas firmadas double, caras/aristas con UUID y teselación independiente.
+- LoopExtrusionFeature ya enlaza líneas con sólidos. La Activity permite editar
+  altura y líneas, guardar/abrir, Deshacer/Rehacer y regenerar booleanas dependientes.
+  No se reemplaza esa implementación por otro motor.
+- Las booleanas convexas/ortogonales, con varios sólidos, agujeros pasantes y
+  alturas escalonadas tienen implementaciones y pruebas delimitadas. No equivalen
+  a booleanas B-Rep universales con superficies curvas arbitrarias.
+- El visor conserva fuentes double y usa origen relativo compartido con cámara
+  y rayos. No todas las familias tienen aún una fuente analítica double completa.
+- CadIntegrationProbe/parametricPreview siguen siendo diagnóstico orientativo;
+  no son el documento de edición autoritativo. Los sketches y Part Android antiguos
+  todavía almacenan float; convertirlos al entrar al kernel no recupera detalle perdido.
+- El ViewCube y la navegación existentes se conservan; no se declara aquí un
+  ViewCube tridimensional completo ni validación táctil en dispositivo físico.
+
+### Incremento actual: extrusión de contorno transaccional
+
+Rama `feature/cad-closed-profile-transaction`. Una regresión Android falló sobre
+la base estable: cambiar una línea mientras estaba abierto el diálogo de altura
+publicaba un cuerpo basado en el contorno antiguo y modificaba el historial.
+
+ClosedProfileExtrusionPlan captura UUID, plano y coordenadas double inmutables.
+Antes de publicar, compara la selección actual sin depender del orden de la lista,
+valida el contorno con el teselador existente y construye su topología analítica.
+Rechaza cambios de geometría/plano, líneas añadidas/eliminadas, UUID inválidos o
+duplicados, alturas inválidas y desalineación del historial antes del checkpoint.
+La fuente double se entrega también al visor. No cambia el formato de proyecto.
+
+El diálogo y menú dejan de describir incorrectamente este flujo como una malla
+sin vínculo: ya genera un sólido B-Rep enlazado. No se añade un gesto de arrastre
+de contornos que todavía no exista. El Push/Pull de rectángulos/círculos se conserva.
+
+Verificación local satisfactoria: 87 pruebas Android/IO, compilación Java 8/SDK35,
+geometría completa de android.yml e integridad. Las pruebas nuevas cubren comparación
+double incluso bajo un ULP float, selección por UUID, perfiles rectangulares/cóncavos,
+alturas firmadas, tres planos, mapas reordenados, fallo sin mutación y conservación
+de identidades al editar altura. Android ejercita menús y diálogos reales,
+persistencia, Deshacer/Rehacer y rechazo sin cambiar JSON. El test que antes
+reproducía el fallo ahora pasa. CI del SHA publicado obligatorio antes de integrar;
+resultados finales adjuntos a la PR y ci-status, evitando commits documentales vacíos.
+
+Limitaciones: el sandbox local impide abrir sockets del daemon Gradle; Java 8/SDK35
+y Robolectric permiten pruebas locales y Gradle/Lint completos se exigen en Actions.
+No se inspeccionaron vídeos nuevos. Se reutiliza docs/SHAPR3D_ANALISIS.md y sus
+fuentes oficiales; actualizar la consulta web falló al conectar al proxy en esta sesión.
+EGL, ergonomía, memoria y rendimiento en Nothing Phone 2a/tablet 12 pulgadas pendientes.
+
+Siguiente incremento funcional: conectar el botón general Extruir con este flujo
+de contornos, que ahora solo está accesible desde su opción específica. Después,
+generar una APK de hito si ambas PR y sus verificaciones son satisfactorias.
+
+## Registro histórico de temas y precisión — 2026-10-28
 
 - Repositorio exclusivo: `josxtm/mycad`. Main protegido, sin escrituras directas.
 - Base de esta fase: `a60f5e1e2c972b271e1d36fb679bdb242f01bd5b` (PR #151 integrada).
@@ -107,7 +170,7 @@ previas transitorias, geometría degenerada, B-Rep curva general y ViewCube 3D.
 No se atribuye recuperación de detalle perdido por casts históricos. El 93 %
 antiguo correspondía a otra fase de identidades, no al CAD completo.
 
-## Fase actual: coordenadas analíticas de grids con agujeros hasta GPU
+## Incremento integrado #152: coordenadas de grids con agujeros hasta GPU
 
 Rama independiente `feature/brep-grid-double-coordinate-bridge`, basada en #151.
 OrthogonalGridHoleBRep ya conserva vértices double, pero su conexión anterior
@@ -135,14 +198,15 @@ visor y guardar/reabrir. Esperan explícitamente a los comandos de escena del hi
 del visor antes de comprobar su estado; no sustituyen renderizado EGL físico.
 CI Gradle/Lint obligatorio sobre el SHA publicado; resultado final en la PR de
 esta rama y ci-status. Puente delimitado: 100 % de los casos previstos comprobados
-localmente, pendiente CI. El motor global sigue parcial.
+localmente, con CI #636 y main #637 satisfactorios después de publicar.
+El motor global sigue parcial.
 
 ## Recuperación
 
 ```bash
 git clone https://github.com/josxtm/mycad.git
 cd mycad
-git switch feature/brep-grid-double-coordinate-bridge
+git switch feature/cad-closed-profile-transaction
 git status --short --branch
 cat docs/DEVELOPMENT_STATUS.md
 bash scripts/verify-project.sh
@@ -154,14 +218,14 @@ compartidas ni rebasar trabajo de terceros. Las pruebas nativas generan
 `app/build/theme-preview/six-themes.png` y `six-interfaces.png`; su revisión es
 software, no una instalación física de la APK.
 
-Checkout local: `/workspace/mycad-grid-double`. Su base materializada comparte el
-árbol de main `a60f5e1`; la publicación por conector usa el padre remoto real,
+Checkout local: `/workspace/mycad-profile-transaction`. Su base materializada comparte el
+árbol de main `ea07cc6`; la publicación por conector usa el padre remoto real,
 sin publicar los ancestros sintéticos locales. El experimento antiguo de
 propietarios permanece en la rama local WIP `feature/cad-persisted-recipe-owners`
 (`b41ec27`), sin pruebas y ajeno a esta fase; no debe fusionarse sin revisión.
 
-Siguiente tarea: coordinar la revisión de la PR #149 cuando su autor resuelva
-CI, y continuar precisión/degeneración de perfiles, naming de grids y sólidos
-escalonados sin tocar sus ramas activas. La APK de temas del hito #632 es anterior
+Siguiente tarea: conectar la extrusión de contornos al botón general y verificar
+un hito de perfil → sólido → editar → guardar/abrir. Después, continuar precisión
+de sketches/Part y naming de grids/escalonados. La APK de temas del hito #632 es anterior
 a las mejoras B-Rep de esta continuación; sus fuentes corresponden a `5c815ff`.
 No se genera otra APK por cada ajuste interno del puente geométrico.

@@ -233,6 +233,8 @@ jobs:
           java -cp build/geometry-tests StableParametricProbeTest
           javac -cp build/geometry-tests -d build/geometry-tests tests/GridDoubleCoordinatesTest.java
           java -cp build/geometry-tests GridDoubleCoordinatesTest
+          javac -cp build/geometry-tests -d build/geometry-tests app/src/main/java/es/josxtm/mycad/cad/ClosedProfileExtrusionPlan.java tests/ClosedProfileExtrusionPlanTest.java
+          java -cp build/geometry-tests ClosedProfileExtrusionPlanTest
           } 2>&1 | tee reports/geometria.log
       # CI habitual valida Java, tests Android y Lint, SIN generar un APK.
       - name: Compilar código y comprobar pruebas y Lint (sin APK)
