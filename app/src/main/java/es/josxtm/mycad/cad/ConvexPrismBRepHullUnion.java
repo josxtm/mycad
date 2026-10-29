@@ -148,6 +148,10 @@ public final class ConvexPrismBRepHullUnion {
   if(!Double.isFinite(h)||!Double.isFinite(other)||h*other<=0||
      Math.abs(h-other)>HEIGHT_EPS*Math.max(1,Math.max(Math.abs(h),Math.abs(other))))
    throw new IllegalArgumentException("Unión convexa: alturas firmadas diferentes");
+  // Heights within the accepted tolerance must produce the same solid,
+  // topology IDs and mesh regardless of operand order. Use the shorter
+  // common extrusion, as in convex intersection, rather than first.distance().
+  h=Math.copySign(Math.min(Math.abs(h),Math.abs(other)),h);
   List<double[]> a=profile(first),b=profile(second);
   List<double[]> boundary=hull(a,b);
   double common=0;

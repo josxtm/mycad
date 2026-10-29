@@ -82,6 +82,21 @@ public final class ConvexPrismBRepHullUnionTest {
    near(overlap.volume,30,"partially overlapping volume");
    ok(TriangleMeshHealth.inspect(overlap.triangles()).isWatertight(),
       "overlap mesh watertight");
+   // Tiny accepted height differences must not make union order-dependent.
+   PolygonPrismBRep almostSameHeight=prism("almostSameHeight"+p+s,p,
+       s*(3+1e-10),rect(2,0,5,2));
+   ConvexPrismBRepHullUnion.Result forward=
+       ConvexPrismBRepHullUnion.union(left,almostSameHeight);
+   ConvexPrismBRepHullUnion.Result reverse=
+       ConvexPrismBRepHullUnion.union(almostSameHeight,left);
+   near(forward.distance,s*3,"canonical signed near-equal height");
+   ok(Double.compare(forward.distance,reverse.distance)==0,
+       "near-equal union distance independent of operand order");
+   ok(forward.solid.id().equals(reverse.solid.id()),
+       "near-equal union UUID independent of operand order");
+   ok(Arrays.equals(forward.triangles(),reverse.triangles()),
+       "near-equal union tessellation independent of operand order");
+   near(forward.volume,reverse.volume,"near-equal union volume");
    PolygonPrismBRep outer=prism("outer"+p+s,p,s*3,rect(0,0,4,4));
    PolygonPrismBRep inner=prism("inner"+p+s,p,s*3,triangle);
    near(ConvexPrismBRepHullUnion.union(outer,inner).volume,48,
