@@ -94,12 +94,22 @@ public final class OrthogonalPolygonBRepBoolean {
    throw new IllegalArgumentException("La booleana tiene contacto en un vértice o una bifurcación");
  }
  private static double twiceArea(List<double[]> polygon){
-  double acc=0;
+  if(polygon.isEmpty())return 0;
+  // Anchor the shoelace terms locally: world-coordinate products near
+  // 10,000 mm lose precision for sub-millimetre Boolean boundaries.
+  double ox=polygon.get(0)[0],oy=polygon.get(0)[1];
+  double sum=0,correction=0;
   for(int i=0;i<polygon.size();i++){
    double[] a=polygon.get(i),b=polygon.get((i+1)%polygon.size());
-   acc+=a[0]*b[1]-b[0]*a[1];
+   double ax=a[0]-ox,ay=a[1]-oy,bx=b[0]-ox,by=b[1]-oy;
+   double term=ax*by-bx*ay;
+   // Neumaier compensation also preserves small contributions in concave rings.
+   double next=sum+term;
+   if(Math.abs(sum)>=Math.abs(term))correction+=(sum-next)+term;
+   else correction+=(term-next)+sum;
+   sum=next;
   }
-  return acc;
+  return sum+correction;
  }
  private static List<double[]> extract(double[] xs,double[] ys,boolean[][] cells){
   int nx=xs.length-1,ny=ys.length-1,width=xs.length;

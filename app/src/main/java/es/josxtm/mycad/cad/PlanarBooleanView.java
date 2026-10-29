@@ -54,7 +54,7 @@ public final class PlanarBooleanView {
    faces.add(new Face(body.faceId(face.id),face.id,face.area));triangles.add(face.id);triangles.add(face.id);
   }
   return new PlanarBooleanView(body.bodyId,body.shell.id,body.shell.solidCount,body.shell.holeCount,
-   body.shell.vertices().size(),body.shell.edges().size(),body.shell.triangles(),null,faces,triangles,TopologySnapshot.from(body));
+   body.shell.vertices().size(),body.shell.edges().size(),body.shell.triangles(),body.shell.triangleCoordinates(),faces,triangles,TopologySnapshot.from(body));
  }
  public static PlanarBooleanView from(NamedConvexIntersection body){
   if(body==null)throw new IllegalArgumentException("Missing named intersection");

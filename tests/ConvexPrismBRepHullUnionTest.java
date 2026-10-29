@@ -31,7 +31,31 @@ public final class ConvexPrismBRepHullUnionTest {
   }
   return new LoopExtrusionFeature(id,ids.get(0),plane,h,ids).asBRep(lines);
  }
+ /** A 0.2 mm convex contour translated far from zero must keep its
+  * signed area; world-coordinate shoelace loses several 1e-9 mm². */
+ private static void translatedAreaPrecision(){
+  try{
+   java.lang.reflect.Method area=ConvexPrismBRepHullUnion.class
+       .getDeclaredMethod("area",List.class);
+   area.setAccessible(true);
+   for(double origin:new double[]{9000,-9000}){
+    double side=(origin+0.2)-origin;
+    List<double[]> ring=new ArrayList<>(Arrays.asList(
+        new double[]{origin,origin},new double[]{origin+0.2,origin},
+        new double[]{origin+0.2,origin+0.2},new double[]{origin,origin+0.2}));
+    double expected=side*side;
+    double ccw=((Double)area.invoke(null,ring)).doubleValue();
+    if(Math.abs(ccw-expected)>1e-10)
+     throw new AssertionError("Translated convex CCW area: "+ccw+" != "+expected);
+    Collections.reverse(ring);
+    double cw=((Double)area.invoke(null,ring)).doubleValue();
+    if(Math.abs(cw+expected)>1e-10)
+     throw new AssertionError("Translated convex CW area: "+cw+" != "+(-expected));
+   }
+  }catch(ReflectiveOperationException ex){throw new AssertionError(ex);}
+ }
  public static void main(String[] args){
+  translatedAreaPrecision();
   double[][] upper={{0,0},{4,0},{2,2}};
   double[][] lower={{0,0},{2,-2},{4,0}};
   double[][] triangle={{1,1},{2,1},{1,2}};
@@ -58,6 +82,21 @@ public final class ConvexPrismBRepHullUnionTest {
    near(overlap.volume,30,"partially overlapping volume");
    ok(TriangleMeshHealth.inspect(overlap.triangles()).isWatertight(),
       "overlap mesh watertight");
+   // Tiny accepted height differences must not make union order-dependent.
+   PolygonPrismBRep almostSameHeight=prism("almostSameHeight"+p+s,p,
+       s*(3+1e-10),rect(2,0,5,2));
+   ConvexPrismBRepHullUnion.Result forward=
+       ConvexPrismBRepHullUnion.union(left,almostSameHeight);
+   ConvexPrismBRepHullUnion.Result reverse=
+       ConvexPrismBRepHullUnion.union(almostSameHeight,left);
+   near(forward.distance,s*3,"canonical signed near-equal height");
+   ok(Double.compare(forward.distance,reverse.distance)==0,
+       "near-equal union distance independent of operand order");
+   ok(forward.solid.id().equals(reverse.solid.id()),
+       "near-equal union UUID independent of operand order");
+   ok(Arrays.equals(forward.triangles(),reverse.triangles()),
+       "near-equal union tessellation independent of operand order");
+   near(forward.volume,reverse.volume,"near-equal union volume");
    PolygonPrismBRep outer=prism("outer"+p+s,p,s*3,rect(0,0,4,4));
    PolygonPrismBRep inner=prism("inner"+p+s,p,s*3,triangle);
    near(ConvexPrismBRepHullUnion.union(outer,inner).volume,48,

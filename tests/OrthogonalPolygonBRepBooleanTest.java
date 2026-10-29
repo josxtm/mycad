@@ -32,7 +32,29 @@ public final class OrthogonalPolygonBRepBooleanTest {
  }
  static final double[][] L={{0,0},{4,0},{4,1},{1,1},{1,4},{0,4}};
  static final double[][] U={{0,0},{5,0},{5,5},{4,5},{4,1},{1,1},{1,5},{0,5}};
+ /** Regression for the private winding predicate used by Boolean extraction.
+  * A tiny loop translated to 9000 mm must not lose area through cancellation. */
+ static void translatedWindingPrecision(){
+  try{
+   java.lang.reflect.Method method=OrthogonalPolygonBRepBoolean.class
+      .getDeclaredMethod("twiceArea",List.class);
+   method.setAccessible(true);
+   List<double[]> ring=new ArrayList<>(Arrays.asList(
+      new double[]{9000,9000},new double[]{9000.2,9000},
+      new double[]{9000.2,9000.2},new double[]{9000,9000.2}));
+   double side=9000.2-9000;
+   double expected=2*side*side;
+   double ccw=((Double)method.invoke(null,ring)).doubleValue();
+   if(Math.abs(ccw-expected)>1e-10)
+    throw new AssertionError("Translated CCW area: "+ccw+" != "+expected);
+   Collections.reverse(ring);
+   double cw=((Double)method.invoke(null,ring)).doubleValue();
+   if(Math.abs(cw+expected)>1e-10)
+    throw new AssertionError("Translated CW area: "+cw+" != "+(-expected));
+  }catch(ReflectiveOperationException ex){throw new AssertionError(ex);}
+ }
  public static void main(String[] args){
+  translatedWindingPrecision();
   for(int plane=0;plane<3;plane++)for(double signed:new double[]{3,-3}){
    final int p=plane;final double h=signed;
    PolygonPrismBRep a=prism(A,p,h,L);

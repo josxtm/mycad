@@ -286,8 +286,8 @@ python3 - <<'PY'
 from pathlib import Path
 a=Path("app/src/main/java/es/josxtm/mycad/MainActivity.java").read_text(encoding="utf-8")
 m=Path("app/src/main/java/es/josxtm/mycad/MeshEngine.java").read_text(encoding="utf-8")
-assert "PrimitiveEdgeCurve.points(solid,boundary.edgeId,64)" in a
-assert "meshView.highlightEdge(null)" in a
+assert "PrimitiveEdgeCurve.pointsDouble(solid,boundary.edgeId,64)" in a
+assert "meshView.highlightEdge(null)", "meshView.highlightEdgePrecise(" in a
 assert "public void highlightEdge(float[] xyz)" in m
 assert "GLES30.glDrawArrays(GLES30.GL_LINE_STRIP" in m
 assert "highlightedEdgeVertices=null" in m

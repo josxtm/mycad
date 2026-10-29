@@ -37,12 +37,22 @@ public final class ConvexPrismBRepHullUnion {
   return (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
  }
  private static double area(List<double[]> p){
-  double sum=0;
+  if(p.isEmpty())return 0;
+  // Use a local origin to avoid cancellation of large world-coordinate
+  // products when small convex profiles are far from the sketch origin.
+  double ox=p.get(0)[0],oy=p.get(0)[1];
+  double sum=0,correction=0;
   for(int i=0;i<p.size();i++){
    double[] a=p.get(i),b=p.get((i+1)%p.size());
-   sum+=a[0]*b[1]-a[1]*b[0];
+   double ax=a[0]-ox,ay=a[1]-oy,bx=b[0]-ox,by=b[1]-oy;
+   double term=ax*by-ay*bx;
+   // Neumaier summation preserves small terms in longer hull boundaries.
+   double next=sum+term;
+   if(Math.abs(sum)>=Math.abs(term))correction+=(sum-next)+term;
+   else correction+=(term-next)+sum;
+   sum=next;
   }
-  return sum/2;
+  return (sum+correction)/2;
  }
  private static List<double[]> profile(PolygonPrismBRep body){
   int n=body.vertices().size()/2;
@@ -138,6 +148,10 @@ public final class ConvexPrismBRepHullUnion {
   if(!Double.isFinite(h)||!Double.isFinite(other)||h*other<=0||
      Math.abs(h-other)>HEIGHT_EPS*Math.max(1,Math.max(Math.abs(h),Math.abs(other))))
    throw new IllegalArgumentException("Unión convexa: alturas firmadas diferentes");
+  // Heights within the accepted tolerance must produce the same solid,
+  // topology IDs and mesh regardless of operand order. Use the shorter
+  // common extrusion, as in convex intersection, rather than first.distance().
+  h=Math.copySign(Math.min(Math.abs(h),Math.abs(other)),h);
   List<double[]> a=profile(first),b=profile(second);
   List<double[]> boundary=hull(a,b);
   double common=0;
