@@ -1,0 +1,72 @@
+{
+  "format": "mycad",
+  "version": 1,
+  "units": "mm",
+  "parts": [],
+  "sketches": [
+    {
+      "t": 1,
+      "id": "2cc6cf68-ad0a-37a0-85a6-de5e174eb888",
+      "plane": 0,
+      "x1": 0,
+      "y1": 0,
+      "x2": 40,
+      "y2": 0
+    },
+    {
+      "t": 1,
+      "id": "2b23e057-9bc8-3de3-b2f1-f2fc871d851c",
+      "plane": 0,
+      "x1": 40,
+      "y1": 0,
+      "x2": 40,
+      "y2": 10
+    },
+    {
+      "t": 1,
+      "id": "4d30daca-7f46-30fe-a9ee-9ef36a0b8944",
+      "plane": 0,
+      "x1": 40,
+      "y1": 10,
+      "x2": 20,
+      "y2": 10
+    },
+    {
+      "t": 1,
+      "id": "9f338873-90c7-3db4-bb55-cfc4be8d8865",
+      "plane": 0,
+      "x1": 20,
+      "y1": 10,
+      "x2": 20,
+      "y2": 30
+    },
+    {
+      "t": 1,
+      "id": "f59369ec-0f04-35cc-8305-95b0fac7df3b",
+      "plane": 0,
+      "x1": 20,
+      "y1": 30,
+      "x2": 0,
+      "y2": 30
+    },
+    {
+      "t": 1,
+      "id": "2166eaa3-e92d-3c24-8006-9780a5ac86e2",
+      "plane": 0,
+      "x1": 0,
+      "y1": 30,
+      "x2": 0,
+      "y2": 0
+    }
+  ],
+  "booleanMeshes": [],
+  "faceUnionRecipes": [],
+  "throughHoleRecipes": [],
+  "loopExtrusionFeatures": [],
+  "linkedConvexIntersections": [],
+  "extrusionChains": [],
+  "chainBooleanFeatures": [],
+  "parametricBodyBindings": [],
+  "parametricPreview": "MYCAD-PARAMETRIC|1\n",
+  "parametricPreviewCoverageComplete": false
+}
