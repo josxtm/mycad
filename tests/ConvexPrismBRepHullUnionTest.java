@@ -31,6 +31,30 @@ public final class ConvexPrismBRepHullUnionTest {
   }
   return new LoopExtrusionFeature(id,ids.get(0),plane,h,ids).asBRep(lines);
  }
+ /** Two analytic unions with the same source IDs but a sub-float change
+  * in the section must not receive the same deterministic B-Rep UUID. */
+ private static void distinctDoubleGeometryHasDistinctUnionId(){
+  for(int plane=0;plane<3;plane++)for(int sign:new int[]{-1,1}){
+   String key="double-uuid-"+plane+"-"+sign;
+   PolygonPrismBRep left=prism(key+"-left",plane,sign*2,rect(0,0,1,1));
+   PolygonPrismBRep right=prism(key+"-right",plane,sign*2,rect(1,0,2,1));
+   // A 1e-7 mm change at x=2 is lost when converted to float.
+   PolygonPrismBRep wider=prism(key+"-right",plane,sign*2,
+       rect(1,0,2+1e-7,1));
+   ConvexPrismBRepHullUnion.Result original=
+       ConvexPrismBRepHullUnion.union(left,right);
+   ConvexPrismBRepHullUnion.Result changed=
+       ConvexPrismBRepHullUnion.union(left,wider);
+   ok(!original.solid.id().equals(changed.solid.id()),
+       "distinct double geometry must not reuse a union UUID");
+   ok(original.solid.id().equals(
+       ConvexPrismBRepHullUnion.union(right,left).solid.id()),
+       "original union UUID remains commutative");
+   ok(changed.solid.id().equals(
+       ConvexPrismBRepHullUnion.union(wider,left).solid.id()),
+       "perturbed union UUID remains commutative");
+  }
+ }
  /** A 0.2 mm convex contour translated far from zero must keep its
   * signed area; world-coordinate shoelace loses several 1e-9 mm². */
  private static void translatedAreaPrecision(){
@@ -56,6 +80,7 @@ public final class ConvexPrismBRepHullUnionTest {
  }
  public static void main(String[] args){
   translatedAreaPrecision();
+  distinctDoubleGeometryHasDistinctUnionId();
   double[][] upper={{0,0},{4,0},{2,2}};
   double[][] lower={{0,0},{2,-2},{4,0}};
   double[][] triangle={{1,1},{2,1},{1,2}};
