@@ -7,6 +7,10 @@ En perfiles de 0,8 mm situados en ±9000 mm, el redondeo también alteraba el á
 y podía hacer que una operación válida fallase la comprobación de volumen.
 
 La reconstrucción y la semilla conservan ahora las coordenadas `double`.
+Las alturas aceptadas dentro de la tolerancia se comparan simétricamente y
+usan la altura común de menor magnitud, como la unión convexa. Seis regresiones
+en los tres planos y ambos signos comprueban identidad, coordenadas y volumen
+exactamente iguales al invertir los operandos con alturas casi iguales.
 No cambian las restricciones de las operaciones: rectángulos del mismo plano,
 alturas firmadas compatibles y un único contorno simple; una resta que produce
 agujeros, varios cuerpos o volumen nulo sigue siendo rechazada por esta ruta.

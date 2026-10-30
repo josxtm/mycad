@@ -116,7 +116,20 @@ public final class GridDoubleCoordinatesTest {
    }
   }
  }
+ private static void orthogonalNearEqualHeights(){
+  for(int plane=0;plane<3;plane++)for(int sign:new int[]{-1,1}){
+   PolygonPrismBRep a=rectangle("height-target",plane,sign*2,9000,9000,.8,.8);
+   PolygonPrismBRep b=rectangle("height-cutter",plane,sign*(2+1e-10),9000.4,9000.4,.8,.8);
+   PolygonPrismBRep forward=OrthogonalPrismBRepUnion.union(a,b).solid;
+   PolygonPrismBRep reverse=OrthogonalPrismBRepUnion.union(b,a).solid;
+   sameTopology(forward,reverse);
+   near(forward.distance(),sign*2,0,"Canonical common signed height");
+   near(forward.volume(),forward.sectionArea()*2,1e-12,"Canonical volume");
+   topology(forward);
+  }
+ }
  public static void main(String[] args)throws Exception{
+  orthogonalNearEqualHeights();
   orthogonalPrecision();
   orthogonalSubFloatIdentity();
   MessageDigest digest=MessageDigest.getInstance("SHA-256");

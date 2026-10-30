@@ -159,8 +159,11 @@ public final class OrthogonalPrismBRepUnion {
    throw new IllegalArgumentException("La unión requiere sólidos del mismo plano");
   double h=first.distance(),other=second.distance();
   if(!Double.isFinite(h)||!Double.isFinite(other)||
-      Math.abs(h-other)>EPS*Math.max(1,Math.abs(h)))
+      Math.abs(h-other)>EPS*Math.max(1,Math.max(Math.abs(h),Math.abs(other))))
    throw new IllegalArgumentException("La unión requiere alturas firmadas iguales");
+  // Match convex union: a tolerated height difference uses the common span,
+  // independent of operand order, including negative extrusions.
+  h=Math.copySign(Math.min(Math.abs(h),Math.abs(other)),h);
   Rect a=requireRectangle(first),b=requireRectangle(second);
   double ix=Math.min(a.right,b.right)-Math.max(a.left,b.left);
   double iy=Math.min(a.top,b.top)-Math.max(a.bottom,b.bottom);
