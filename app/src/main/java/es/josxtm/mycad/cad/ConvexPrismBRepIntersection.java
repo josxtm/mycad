@@ -71,7 +71,11 @@ public final class ConvexPrismBRepIntersection {
    double[] a=p.get(i),b=p.get((i+1)%n),c=p.get((i+2)%n);
    if(sqdist(a,b)<=.15*.15)
     throw new IllegalArgumentException("Arista B-Rep demasiado corta");
-   if(cross(a,b,c)<-epsArea)
+   // Convexity is a local turn invariant. Scaling its tolerance by the
+   // entire section area can hide a small reflex corner in a large sketch.
+   double ab=Math.hypot(b[0]-a[0],b[1]-a[1]);
+   double bc=Math.hypot(c[0]-b[0],c[1]-b[1]);
+   if(cross(a,b,c)<-EPS*Math.max(1,ab*bc))
     throw new IllegalArgumentException("Booleanas B-Rep: solo perfiles convexos");
   }
   if(twiceArea(p)<=epsArea)
@@ -141,6 +145,22 @@ public final class ConvexPrismBRepIntersection {
   return simplify(input);
  }
 
+ // Canonicalize the arithmetic itself before clipping. Rotating the result
+ // loop alone cannot remove order-dependent rounding at oblique crossings.
+ private static int compareClipOperands(String idA,List<double[]> a,
+                                        String idB,List<double[]> b){
+  int order=idA.compareTo(idB);
+  if(order!=0)return order;
+  // The kernel also accepts two snapshots of one feature ID. Their precise
+  // sections provide a deterministic tie-break without float quantization.
+  order=Integer.compare(a.size(),b.size());
+  if(order!=0)return order;
+  for(int i=0;i<a.size();i++)for(int k=0;k<2;k++){
+   order=Double.compare(a.get(i)[k],b.get(i)[k]);
+   if(order!=0)return order;
+  }
+  return 0;
+ }
  /**
   * The result is a SNAPSHOT Boolean body; no new source sketches are appended
   * to the Android project. A new deterministic UUID is derived from both
@@ -152,6 +172,9 @@ public final class ConvexPrismBRepIntersection {
   if(a.distance()*b.distance()<=0)
    throw new IllegalArgumentException("Extrusiones hacia lados opuestos no solapan volumen");
   List<double[]> subject=polygon(a),cutter=polygon(b);
+  if(compareClipOperands(a.id(),subject,b.id(),cutter)>0){
+   List<double[]> swap=subject;subject=cutter;cutter=swap;
+  }
   List<double[]> overlap=clip(subject,cutter);
   if(overlap.size()<3||Math.abs(twiceArea(overlap))<=EPS)
    throw new IllegalArgumentException("Los sólidos no comparten volumen");

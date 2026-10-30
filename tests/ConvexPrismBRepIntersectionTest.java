@@ -98,7 +98,57 @@ public final class ConvexPrismBRepIntersectionTest {
          "edited intersection UUID remains commutative");
     }
  }
+ private static double[][] rotatedSquare(double x,double y,double angle){
+  double[][] points=new double[4][2];
+  for(int i=0;i<4;i++){
+   double a=angle+i*Math.PI/2;
+   points[i]=new double[]{x+4*Math.cos(a),y+4*Math.sin(a)};
+  }
+  return points;
+ }
+ private static Set<String> topologyIds(PolygonPrismBRep solid){
+  Set<String> ids=new HashSet<>();
+  for(PolygonPrismBRep.Vertex v:solid.vertices())ids.add(v.id);
+  for(PolygonPrismBRep.Edge e:solid.edges())ids.add(e.id);
+  for(PolygonPrismBRep.Face f:solid.faces())ids.add(f.id);
+  for(PolygonPrismBRep.HalfEdge e:solid.halfEdges())ids.add(e.id);
+  return ids;
+ }
+ /** Normalizing the clipped loop's start cannot undo roundoff caused by
+  * running half-space clipping in the opposite operand order. */
+ private static void obliqueIntersectionsHaveStableTopology(){
+  for(double origin:new double[]{0,9000,-9000})
+   for(int plane=0;plane<3;plane++)for(int sign:new int[]{-1,1})
+    for(boolean sameId:new boolean[]{false,true}){
+     PolygonPrismBRep a=shape(BODY_A,plane,sign*3,
+         rotatedSquare(origin,origin,.2),false);
+     PolygonPrismBRep b=shape(sameId?BODY_A:BODY_B,plane,sign*2,
+         rotatedSquare(origin+.8369068279844853,origin+.42855917995194404,
+             .6744080246764718),true);
+     double[] beforeA=a.triangleCoordinates(),beforeB=b.triangleCoordinates();
+     ConvexPrismBRepIntersection.Result forward=ConvexPrismBRepIntersection.intersect(a,b);
+     ConvexPrismBRepIntersection.Result reverse=ConvexPrismBRepIntersection.intersect(b,a);
+     ok(forward.solid.id().equals(reverse.solid.id()),
+         "oblique intersection UUID must not depend on clipping order");
+     ok(Arrays.equals(forward.solid.triangleCoordinates(),reverse.solid.triangleCoordinates()),
+         "oblique analytic coordinates must be exactly commutative");
+     ok(Arrays.equals(forward.triangles(),reverse.triangles()),
+         "oblique preview must be exactly commutative");
+     ok(Math.abs(forward.area-25.100533498697)<1e-8&&
+         Math.abs(forward.volume-50.201066997394)<2e-8,
+         "oblique intersection retains area and common-height volume");
+     ok(topologyIds(forward.solid).equals(topologyIds(reverse.solid)),
+         "all intersection topology IDs remain stable");
+     ok(forward.solid.vertices().size()-forward.solid.edges().size()+
+         forward.solid.faces().size()==2,"closed oblique analytic shell");
+     TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(forward.triangles());
+     ok(health.isWatertight()&&health.shells==1,"oblique intersection preview remains watertight");
+     ok(Arrays.equals(beforeA,a.triangleCoordinates())&&Arrays.equals(beforeB,b.triangleCoordinates()),
+         "canonical clipping does not mutate either operand");
+    }
+ }
  public static void main(String[] args){
+  obliqueIntersectionsHaveStableTopology();
   translatedWindingPrecision();
   translatedIntersectionReconstructionPrecision();
   double[][] square={{0,0},{4,0},{4,4},{0,4}};
@@ -107,6 +157,10 @@ public final class ConvexPrismBRepIntersectionTest {
   double[][] far={{7,7},{9,7},{9,9},{7,9}};
   double[][] touch={{4,0},{6,0},{6,4},{4,4}};
   double[][] concave={{0,0},{3,0},{3,1},{1,1},{1,3},{0,3}};
+  // A large section with a shallow reflex corner was previously accepted:
+  // the global area-scaled turn tolerance hid its 0.9 mm2 notch.
+  double[][] shallowConcave={{-9000,-9000},{9000,-9000},
+      {9000,9000},{0,8999.9999},{-9000,9000}};
   for(int plane=0;plane<3;plane++)for(double signed:new double[]{1,-1}){
    final int fixedPlane=plane;
    PolygonPrismBRep a=shape(BODY_A,plane,signed*3,square,false);
@@ -147,6 +201,12 @@ public final class ConvexPrismBRepIntersectionTest {
    invalid(()->ConvexPrismBRepIntersection.intersect(
        a,shape(BODY_C,fixedPlane,signed*2,concave,false)),
        "concave operand outside supported topology");
+   PolygonPrismBRep shallow=shape(BODY_C,fixedPlane,signed*2,
+       shallowConcave,false);
+   invalid(()->ConvexPrismBRepIntersection.intersect(a,shallow),
+       "large near-convex section must not silently fill a shallow notch");
+   invalid(()->ConvexPrismBRepIntersection.intersect(shallow,a),
+       "shallow concavity rejected in both operand orders");
    ok(a.faces().size()==6&&b.faces().size()==6,
       "operands unchanged after Boolean");
   }
