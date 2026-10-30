@@ -51,8 +51,56 @@ public final class ConvexPrismBRepIntersectionTest {
    }
   }catch(ReflectiveOperationException ex){throw new AssertionError(ex);}
  }
+ /** Clipped B-Rep edges must not lose sub-mm overlap precision when
+  * the sketch is translated far from the work-plane origin. */
+ private static void translatedIntersectionReconstructionPrecision(){
+  for(double origin:new double[]{9000,-9000})
+   for(int plane=0;plane<3;plane++)
+    for(int sign:new int[]{-1,1}){
+     double[][] left={{origin,origin},{origin+0.4,origin},
+         {origin+0.4,origin+0.4},{origin,origin+0.4}};
+     double[][] right={{origin+0.2,origin},{origin+0.6,origin},
+         {origin+0.6,origin+0.4},{origin+0.2,origin+0.4}};
+     PolygonPrismBRep a=shape(BODY_A,plane,sign*2,left,false);
+     PolygonPrismBRep b=shape(BODY_B,plane,sign*2,right,false);
+     ConvexPrismBRepIntersection.Result forward=
+         ConvexPrismBRepIntersection.intersect(a,b);
+     ConvexPrismBRepIntersection.Result reverse=
+         ConvexPrismBRepIntersection.intersect(b,a);
+     double expected=((origin+0.4)-(origin+0.2))*
+                     ((origin+0.4)-origin);
+     if(Math.abs(forward.area-expected)>1e-6||
+        Math.abs(forward.volume-2*expected)>2e-6)
+      throw new AssertionError("Translated intersection lost precision: "+
+          forward.area+" / "+forward.volume+" expected "+expected);
+     ok(forward.solid.id().equals(reverse.solid.id()),
+         "translated intersection UUID independent of operand order");
+     ok(Arrays.equals(forward.triangles(),reverse.triangles()),
+         "translated intersection tessellation independent of operand order");
+     TriangleMeshHealth.Report mesh=TriangleMeshHealth.inspect(forward.triangles());
+     ok(mesh.isWatertight()&&mesh.shells==1,
+         "translated intersection remains watertight");
+     ok(a.vertices().size()==8&&b.vertices().size()==8,
+         "translated intersection does not mutate operands");
+     // A sub-float-ULP edit must produce a distinct analytic topology ID,
+     // even if the same source feature IDs are reused after sketch editing.
+     double[][] shifted={{origin+0.2001,origin},{origin+0.6001,origin},
+         {origin+0.6001,origin+0.4},{origin+0.2001,origin+0.4}};
+     PolygonPrismBRep edited=shape(BODY_B,plane,sign*2,shifted,false);
+     ConvexPrismBRepIntersection.Result changed=
+         ConvexPrismBRepIntersection.intersect(a,edited);
+     ok(!forward.solid.id().equals(changed.solid.id()),
+         "sub-mm edit must change intersection topology UUID");
+     ok(Math.abs(forward.area-changed.area)>1e-5,
+         "edited intersection must have distinct analytic area");
+     ok(changed.solid.id().equals(
+         ConvexPrismBRepIntersection.intersect(edited,a).solid.id()),
+         "edited intersection UUID remains commutative");
+    }
+ }
  public static void main(String[] args){
   translatedWindingPrecision();
+  translatedIntersectionReconstructionPrecision();
   double[][] square={{0,0},{4,0},{4,4},{0,4}};
   double[][] clip={{2,1},{5,1},{5,3},{2,3}};
   double[][] triangle={{1,1},{3,1},{1,3}};
