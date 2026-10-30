@@ -89,4 +89,50 @@ public class RelativeGpuCoordinatesAndroidTest {
   MeshEngine.Mesh imported=new MeshEngine.Mesh(new float[]{-100000,0,0,100000,0,0,0,100000,0});
   install(Collections.singletonList(imported),true);assertEquals(500000,viewer.cameraDistance(),0);
  }
+ private PolygonPrismBRep preciseRectangle(String key,int plane,double height,double x,double y){
+  double[][] points={{x,y},{x+.8,y},{x+.8,y+.8},{x,y+.8}};
+  List<String> ids=new ArrayList<>();Map<String,ClosedSketchExtrusion.Segment> lines=new LinkedHashMap<>();
+  for(int i=0;i<4;i++){
+   String id=UUID.nameUUIDFromBytes((key+i).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+   ids.add(id);double[] a=points[i],b=points[(i+1)%4];
+   lines.put(id,new ClosedSketchExtrusion.Segment(plane,a[0],a[1],b[0],b[1]));
+  }
+  String id=UUID.nameUUIDFromBytes(key.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+  return new LoopExtrusionFeature(id,ids.get(0),plane,height,ids).asBRep(lines);
+ }
+ @Test @Config(shadows=Release062ValidationAndroidTest.ImmediateGlQueue.class)
+ public void preciseBooleansReplaceGpuGeometryAndRetireSelectionWithoutMovingCamera()throws Exception{
+  for(int plane=0;plane<3;plane++)for(int sign:new int[]{-1,1})
+   for(LinkedConvexIntersection.Operation op:Arrays.asList(LinkedConvexIntersection.Operation.UNION_ORTHOGONAL,
+       LinkedConvexIntersection.Operation.DIFFERENCE_ORTHOGONAL,LinkedConvexIntersection.Operation.INTERSECTION_ANALYTIC)){
+    String owner="6c5aa048-f749-4c4b-bb2e-51ddfd1f2001";
+    PolygonPrismBRep a=preciseRectangle("target",plane,sign*2,9000,8000);
+    PolygonPrismBRep b=preciseRectangle("cutter",plane,sign*2,9000.4,8000.4);
+    NamedPlanarBoolean before=NamedPlanarBoolean.apply(owner,a,b,op);
+    PlanarBooleanView view=PlanarBooleanView.from(before);
+    viewer.setMeshes(Collections.singletonList(MeshEngine.Mesh.withWorldCoordinates(before.triangles(),view.worldCoordinates())));
+    viewer.setViewOrientation(70,40);viewer.zoom(2);
+    double x=(Double)field("centerX"),y=(Double)field("centerY"),z=(Double)field("centerZ");
+    float distance=viewer.cameraDistance();long revision=viewer.sceneRevision();
+    String face=view.faceAtTriangle(0).id;viewer.highlightPatch(view.trianglesForFace(face,0));
+    PolygonPrismBRep shell=before.solids().get(0);PolygonPrismBRep.Edge edge=shell.edges().get(0);
+    Map<String,PolygonPrismBRep.Vertex> vertices=new HashMap<>();for(PolygonPrismBRep.Vertex v:shell.vertices())vertices.put(v.id,v);
+    PolygonPrismBRep.Vertex from=vertices.get(edge.firstVertexId),to=vertices.get(edge.secondVertexId);
+    viewer.highlightEdgePrecise(new double[]{from.x,from.y,from.z,to.x,to.y,to.z});
+    assertTrue(((int[])field("highlightedPatchTriangles")).length>0);assertNotNull(field("highlightedEdgeVertices"));
+    NamedPlanarBoolean after=NamedPlanarBoolean.apply(owner,a,preciseRectangle("cutter",plane,sign*2,9000.5,8000.4),op);
+    PlanarBooleanView edited=PlanarBooleanView.from(after);
+    assertFalse(Arrays.equals(view.worldCoordinates(),edited.worldCoordinates()));
+    viewer.updateMeshesPreservingCamera(Collections.singletonList(MeshEngine.Mesh.withWorldCoordinates(after.triangles(),edited.worldCoordinates())));
+    assertTrue(viewer.sceneRevision()>revision);
+    RelativeSceneCoordinates frame=(RelativeSceneCoordinates)field("coordinates");
+    assertArrayEquals(RelativeMeshCoordinates.relative(edited.worldCoordinates(),frame.originX,frame.originY,frame.originZ),frame.triangles(0),0);
+    assertTrue(TriangleMeshHealth.inspect(frame.triangles(0)).isWatertight());
+    assertEquals(0,((int[])field("highlightedPatchTriangles")).length);assertNull(field("highlightedEdgeVertices"));
+    assertEquals(-1,((Integer)field("highlightedFirstTriangle")).intValue());
+    assertEquals(x,(Double)field("centerX"),0);assertEquals(y,(Double)field("centerY"),0);assertEquals(z,(Double)field("centerZ"),0);
+    assertEquals(distance,viewer.cameraDistance(),0);assertEquals(70,(Float)field("yaw"),0);assertEquals(40,(Float)field("pitch"),0);
+    for(int triangle=0;triangle<edited.worldCoordinates().length/9;triangle++)assertNotNull(edited.faceAtTriangle(triangle));
+   }
+ }
 }

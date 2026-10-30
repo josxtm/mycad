@@ -268,7 +268,12 @@ public final class ClosedSketchExtrusion {
     double exact=coordinates[i+3+k];coordinates[i+3+k]=coordinates[i+6+k];coordinates[i+6+k]=exact;
    }
   }
-  TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(mesh);
+  // Validate the same local float geometry used by the renderer. Rounding
+  // world coordinates first can collapse a valid cap triangle after a tiny
+  // profile edit, even though its double B-Rep and relative preview are valid.
+  double[] center=world(plane,new Vertex(minU/2+maxU/2,minV/2+maxV/2),height/2);
+  TriangleMeshHealth.Report health=TriangleMeshHealth.inspect(
+      RelativeMeshCoordinates.relative(coordinates,center[0],center[1],center[2]));
   if(!health.isWatertight()||health.signedVolume<=0)
    throw new IllegalArgumentException("La extrusión no produce una malla cerrada válida");
   ArrayList<Integer> sources=new ArrayList<>();

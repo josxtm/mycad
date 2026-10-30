@@ -173,8 +173,8 @@ public final class OrthogonalPrismBRepUnion {
   if(aId.compareTo(bId)>0){String temp=aId;aId=bId;bId=temp;}
   StringBuilder seed=new StringBuilder(aId).append('|').append(bId)
    .append("|UNION|").append(first.plane()).append('|').append(h);
-  for(double[] p:corners)seed.append('|').append((float)p[0]).append(',')
-                              .append((float)p[1]);
+  for(double[] p:corners)seed.append('|').append(p[0]).append(',')
+                              .append(p[1]);
   String resultId=UUID.nameUUIDFromBytes(seed.toString()
       .getBytes(StandardCharsets.UTF_8)).toString();
   ArrayList<String> ids=new ArrayList<>();
@@ -185,7 +185,7 @@ public final class OrthogonalPrismBRepUnion {
    double[] p=corners.get(i),q=corners.get((i+1)%corners.size());
    ids.add(name);
    lines.put(name,new ClosedSketchExtrusion.Segment(first.plane(),
-     (float)p[0],(float)p[1],(float)q[0],(float)q[1]));
+     p[0],p[1],q[0],q[1]));
   }
   PolygonPrismBRep solid=new LoopExtrusionFeature(resultId,ids.get(0),
       first.plane(),h,ids).asBRep(lines);
@@ -216,8 +216,8 @@ public final class OrthogonalPrismBRepUnion {
   List<double[]> boundary=outline(a,b,true);
   StringBuilder seed=new StringBuilder(target.id()).append("|DIFFERENCE|")
    .append(cutter.id()).append('|').append(target.plane()).append('|').append(height);
-  for(double[] pt:boundary)seed.append('|').append((float)pt[0])
-                                .append(',').append((float)pt[1]);
+  for(double[] pt:boundary)seed.append('|').append(pt[0])
+                                .append(',').append(pt[1]);
   String id=UUID.nameUUIDFromBytes(seed.toString().getBytes(StandardCharsets.UTF_8))
    .toString();
   ArrayList<String> edgeIds=new ArrayList<>();
@@ -228,7 +228,7 @@ public final class OrthogonalPrismBRepUnion {
    double[] start=boundary.get(i),end=boundary.get((i+1)%boundary.size());
    edgeIds.add(edgeId);
    segments.put(edgeId,new ClosedSketchExtrusion.Segment(target.plane(),
-    (float)start[0],(float)start[1],(float)end[0],(float)end[1]));
+    start[0],start[1],end[0],end[1]));
   }
   PolygonPrismBRep solid=new LoopExtrusionFeature(id,edgeIds.get(0),
     target.plane(),height,edgeIds).asBRep(segments);
