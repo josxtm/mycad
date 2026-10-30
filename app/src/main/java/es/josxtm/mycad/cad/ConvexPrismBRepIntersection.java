@@ -175,8 +175,10 @@ public final class ConvexPrismBRepIntersection {
   if(idA.compareTo(idB)>0){String tmp=idA;idA=idB;idB=tmp;}
   StringBuilder seed=new StringBuilder(idA).append('|').append(idB)
    .append('|').append(a.plane()).append('|').append(distance);
-  for(double[] p:overlap)seed.append('|').append((float)p[0]).append(',')
-                                .append((float)p[1]);
+  // The topology seed must distinguish sub-mm edits at large coordinates.
+  // Float rounding can map different analytic intersections to the same UUID.
+  for(double[] p:overlap)seed.append('|').append(p[0]).append(',')
+                                .append(p[1]);
   byte[] bytes=seed.toString().getBytes(StandardCharsets.UTF_8);
   String resultId=UUID.nameUUIDFromBytes(bytes).toString();
   ArrayList<String> sources=new ArrayList<>();
@@ -186,8 +188,10 @@ public final class ConvexPrismBRepIntersection {
    String line=UUID.nameUUIDFromBytes((resultId+"/line/"+i)
        .getBytes(StandardCharsets.UTF_8)).toString();
    sources.add(line);
+   // Preserve analytic double coordinates when rebuilding the B-Rep.
+   // Float conversion can change sub-mm overlap areas far from the origin.
    lines.put(line,new ClosedSketchExtrusion.Segment(a.plane(),
-       (float)p[0],(float)p[1],(float)q[0],(float)q[1]));
+       p[0],p[1],q[0],q[1]));
   }
   LoopExtrusionFeature linked=new LoopExtrusionFeature(resultId,sources.get(0),
        a.plane(),distance,sources);
