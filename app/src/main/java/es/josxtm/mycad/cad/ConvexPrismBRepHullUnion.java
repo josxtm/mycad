@@ -172,7 +172,9 @@ public final class ConvexPrismBRepHullUnion {
   if(idA.compareTo(idB)>0){String t=idA;idA=idB;idB=t;}
   StringBuilder seed=new StringBuilder(idA).append('|').append(idB)
       .append("|CONVEX_UNION|").append(first.plane()).append('|').append(h);
-  for(double[] p:boundary)seed.append('|').append((float)p[0]).append(',').append((float)p[1]);
+  // The B-Rep is computed in double precision: float-rounded coordinates
+  // can give different unions the same deterministic topology UUID.
+  for(double[] p:boundary)seed.append('|').append(p[0]).append(',').append(p[1]);
   String bodyId=UUID.nameUUIDFromBytes(seed.toString().getBytes(StandardCharsets.UTF_8))
       .toString();
   ArrayList<String> ids=new ArrayList<>();
