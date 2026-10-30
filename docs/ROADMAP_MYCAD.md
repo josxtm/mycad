@@ -523,10 +523,13 @@ resultados cóncavos generales ni todas las familias curvas.
 - Versión de hito 0.6.2 (62). Se genera una APK solo tras integración con checks satisfactorios; resultado/artefacto en la PR y ci-status.
 - Hito de contornos rectos ~90%, pendiente dispositivo físico/EGL y rendimiento. Motor global parcial; Sketch/Part antiguos aún float, tolerancia de cierre 0,15 mm y booleanas curvas generales pendientes.
 
-## Validación física preparada — 0.6.2
+## Validación física y automatización — 0.6.2
 
-- Confirmados main `1e2cafa` y APK del mismo SHA, android.yml #660 verde.
-- Rama documental `docs/android-0.6.2-functional-validation`, sin modificar funciones ni fusionar cambios en main.
-- Guía de 18 casos por dispositivo y registro con 36 estados PENDIENTE. Dibujo manual separado de fixtures precisos para extrusión, navegación, edición y persistencia.
-- Cinco proyectos válidos y un rechazo esperado preparados/verificados con el codec real; cuatro pruebas Robolectric satisfactorias. No equivalen a pruebas físicas.
-- Desarrollo de nuevas funciones en pausa hasta evaluar las pruebas físicas. Prioridad posterior: ViewCube 3D → B-Rep ampliado → migración Sketch/Part a double.
+- APK de referencia `1e2cafa`, android.yml #660 verde; main actualizado con #166 y #167.
+- Guía de 18 casos por dispositivo y 36 estados físicos PENDIENTE.
+- [Matriz automatizada](ANDROID_0_6_2_AUTOMATION.md): cobertura Java/Robolectric y tareas físicas restantes.
+- Seis regresiones permanentes para los fixtures, planos/signos/concavidad, archivos,
+  rechazo sin mutación, borrador y sincronización del visor. Se corrige el refresco GPU
+  al abrir archivos y confirmar Nuevo diseño; los datos de ensayo permanecen intactos.
+- El desarrollo continúa; se mantiene la retención de fusión de #163–#165 hasta
+  confirmación física. Prioridad: robustez B-Rep → motor/interfaz → ViewCube.

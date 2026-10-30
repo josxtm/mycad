@@ -1,31 +1,27 @@
 # Estado de desarrollo de MyCAD
 
-## Estado actual — preparar validación física de 0.6.2
+## Estado actual — automatización y validación física de 0.6.2
 
-Comprobado el 29 de octubre de 2026: main y la APK de pruebas corresponden a
-`1e2cafa5036e4cdc6a14b333324568f189310b27`.
-[android.yml #660](https://github.com/josxtm/mycad/actions/runs/40898190332)
-está verde, incluidas compilación, pruebas, Lint, generación y publicación de APK.
-[Artefacto 0.6.2](https://github.com/josxtm/mycad/actions/runs/40898190332/artifacts/12908082325).
+La APK de referencia sigue en `1e2cafa5036e4cdc6a14b333324568f189310b27`,
+[android.yml #660](https://github.com/josxtm/mycad/actions/runs/40898190332),
+[artefacto 0.6.2](https://github.com/josxtm/mycad/actions/runs/40898190332/artifacts/12908082325).
+`main` ha avanzado hasta `8b3e580` con #166 y #167; no equivale al binario de esa APK.
 
-La rama `docs/android-0.6.2-functional-validation` solo añade documentación y
-datos de ensayo. No modifica funciones, fuentes, recursos Android ni workflows.
-No se fusiona esta preparación: main permanece igual a la APK que se validará.
+- [Guía física](ANDROID_0_6_2_VALIDATION.md): Nothing Phone 2a y tablet de 12 pulgadas.
+- [Resultados físicos](ANDROID_0_6_2_RESULTS.csv): 36 filas PENDIENTE.
+- [Cobertura automatizada](ANDROID_0_6_2_AUTOMATION.md): mapa de los 18 casos repetidos
+  en ambos dispositivos a pruebas Java/Robolectric y sus límites físicos.
+- Se conservan los seis fixtures y sus hashes. Se añaden seis regresiones Android
+  permanentes que ejercitan el codec, los archivos y los diálogos de producción.
+- PER-01 reveló dos fallos reproducibles: abrir un archivo y confirmar Nuevo diseño
+  no publicaban la nueva geometría en el visor GPU activo. Se corrigen ambos puntos
+  mediante la actualización existente de escena, conservando la cámara y limpiando
+  la selección obsoleta. No cambia el formato de proyecto.
 
-- [Guía de validación](ANDROID_0_6_2_VALIDATION.md): 18 casos por dispositivo,
-  Nothing Phone 2a y tablet de 12 pulgadas.
-- [Resultados](ANDROID_0_6_2_RESULTS.csv): 36 filas PENDIENTE, ninguna prueba física aprobada.
-- Proyectos exactos XY/XZ/YZ, cóncavo y resta con agujero; un archivo de versión
-  inválida para rechazo. Cinco roundtrips del codec real verificados por software
-  y rechazo negativo: cuatro pruebas Robolectric de preparación satisfactorias.
-- Los archivos preparados no sustituyen el cierre manual del contorno con el dedo.
-  La guía separa el fallo de dibujo de las pruebas independientes del motor/archivo.
-
-Se pausa el desarrollo de nuevas funciones durante esta validación. Tras recibir
-y revisar los resultados físicos y sus bloqueos: ViewCube 3D → ampliar operaciones
-B-Rep → migración compatible de Sketch/Part antiguos a double. Cualquier PR futura
-requiere CI verde, fusionabilidad y ausencia de bloqueos. La CI de esta rama
-documental no se presenta como evidencia de pruebas físicas.
+El desarrollo automatizado continúa, priorizando precisión B-Rep y conexión
+motor/interfaz. Las PR #163–#165 permanecen sin fusionar hasta la confirmación física
+acordada. Ninguna ejecución JVM acredita instalación, EGL, rendimiento ni ergonomía
+reales. No se genera una nueva APK por esta corrección.
 
 ## Hito actual — MyCAD 0.6.2, extrusión desde herramientas visibles
 
@@ -284,8 +280,8 @@ sin publicar los ancestros sintéticos locales. El experimento antiguo de
 propietarios permanece en la rama local WIP `feature/cad-persisted-recipe-owners`
 (`b41ec27`), sin pruebas y ajeno a esta fase; no debe fusionarse sin revisión.
 
-Siguiente tarea: ejecutar y registrar la validación física de 0.6.2; después,
-ViewCube 3D, ampliar operaciones B-Rep y migrar Sketch/Part a double.
+Siguiente tarea: continuar comprobaciones y correcciones B-Rep e interfaz; registrar
+por separado la validación física de 0.6.2. Después, ampliar ViewCube 3D y migrar Sketch/Part a double.
 La APK de temas del hito #632 es anterior
 a las mejoras B-Rep de esta continuación; sus fuentes corresponden a `5c815ff`.
 No se genera otra APK por cada ajuste interno del puente geométrico.

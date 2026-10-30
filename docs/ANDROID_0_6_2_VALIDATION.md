@@ -1,8 +1,10 @@
 # Validación funcional Android — MyCAD 0.6.2
 
 Estado: **preparada; ninguna prueba física registrada**. Ejecutar en Nothing
-Phone 2a y en la tablet Android de 12 pulgadas. No comenzar otra fase de desarrollo
-durante esta validación. Esta preparación solo añade documentación y datos de ensayo.
+Phone 2a y en la tablet Android de 12 pulgadas. El desarrollo y las comprobaciones
+automatizadas continúan mientras se completa la aceptación física. Las PR #163–#165
+permanecen sin fusionar hasta su confirmación. La [matriz automatizada](ANDROID_0_6_2_AUTOMATION.md)
+distingue la cobertura en JVM de los 36 resultados físicos todavía pendientes.
 
 ## APK y código de referencia
 
@@ -11,10 +13,10 @@ Comprobado el 29 de octubre de 2026 mediante GitHub:
 | Evidencia | Valor |
 | --- | --- |
 | Repositorio | `josxtm/mycad` |
-| Último commit integrado en main | `1e2cafa5036e4cdc6a14b333324568f189310b27` |
+| Commit de la APK de referencia | `1e2cafa5036e4cdc6a14b333324568f189310b27` |
 | APK de esa integración | [myCad0.6.2, artefacto 12908082325](https://github.com/josxtm/mycad/actions/runs/40898190332/artifacts/12908082325) |
 | Flujo de la APK | [android.yml #660 — success](https://github.com/josxtm/mycad/actions/runs/40898190332) |
-| Identidad del artefacto | `workflow_run.head_sha` igual al commit de main anterior; no caducado al comprobarlo |
+| Identidad del artefacto | `workflow_run.head_sha` igual al commit de la APK anterior; no caducado al comprobarlo |
 | Versión esperada | `0.6.2`, código `62`, paquete `es.josxtm.mycad.preview` |
 | Compatibilidad declarada | Android 8/API 26 o posterior; target/compile SDK 35 |
 
@@ -26,8 +28,9 @@ d28fb7d3cd674044de61ade24cd1065dba4da0961e7cf7c97a0fb1b059454da8
 
 CI #660 superó integridad, geometría, Gradle/tests/Lint, generación, comprobación
 y publicación de la APK. Eso no certifica instalación, renderizado EGL ni gestos
-en un dispositivo real. La documentación de esta validación se mantiene en una
-rama independiente, sin fusionar, para conservar main igual a la APK de referencia.
+en un dispositivo real. La APK sigue referenciada a `1e2cafa`; `main` ha avanzado
+con las correcciones #166 y #167. Las pruebas automatizadas de esta rama validan
+su código fuente actual y no cambian la procedencia ni certifican el binario de la APK.
 
 ## Preparación y registro
 
@@ -233,6 +236,7 @@ evidencia de los fallos. Indicar caso, pasos, esperado, observado y frecuencia
 de reproducción. No modificar la aplicación para convertir una fila en aprobada.
 No fusionar la PR documental como si certificara pruebas físicas ya hechas.
 
-Tras revisar las pruebas físicas y sus bloqueos, priorizar **ViewCube 3D → ampliar
-operaciones B-Rep → migración compatible de Sketch/Part a double**. Cualquier PR
-futura requiere CI verde, fusionabilidad y ausencia de bloqueos.
+El desarrollo continúa priorizando precisión y estabilidad B-Rep, seguido del
+puente motor/interfaz y ViewCube. Las PR #163–#165 mantienen su retención de fusión
+por aceptación física; el resto del trabajo automatizable puede avanzar en ramas.
+Cualquier fusión requiere CI verde del commit exacto, rama actualizada y ausencia de bloqueos.
