@@ -522,3 +522,14 @@ resultados cóncavos generales ni todas las familias curvas.
 - Caso 40×30×10 menos 10×10×10: 11000 mm³; cara lateral +5 mm: 12500 mm³. Altura incompatible del agujero se rechaza atómicamente.
 - Versión de hito 0.6.2 (62). Se genera una APK solo tras integración con checks satisfactorios; resultado/artefacto en la PR y ci-status.
 - Hito de contornos rectos ~90%, pendiente dispositivo físico/EGL y rendimiento. Motor global parcial; Sketch/Part antiguos aún float, tolerancia de cierre 0,15 mm y booleanas curvas generales pendientes.
+
+## Validación física y automatización — 0.6.2
+
+- APK de referencia `1e2cafa`, android.yml #660 verde; main actualizado con #166 y #167.
+- Guía de 18 casos por dispositivo y 36 estados físicos PENDIENTE.
+- [Matriz automatizada](ANDROID_0_6_2_AUTOMATION.md): cobertura Java/Robolectric y tareas físicas restantes.
+- Seis regresiones permanentes para los fixtures, planos/signos/concavidad, archivos,
+  rechazo sin mutación, borrador y sincronización del visor. Se corrige el refresco GPU
+  al abrir archivos y confirmar Nuevo diseño; los datos de ensayo permanecen intactos.
+- El desarrollo continúa; se mantiene la retención de fusión de #163–#165 hasta
+  confirmación física. Prioridad: robustez B-Rep → motor/interfaz → ViewCube.
