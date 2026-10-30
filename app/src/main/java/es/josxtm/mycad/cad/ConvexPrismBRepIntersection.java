@@ -78,6 +78,9 @@ public final class ConvexPrismBRepIntersection {
    throw new IllegalArgumentException("Contorno sin superficie");
   return p;
  }
+ // Reuse identical convexity and minimum-edge checks for nested unions.
+ // They can preserve the original shell without re-clipping its section.
+ static void validateConvexSection(PolygonPrismBRep body){polygon(body);}
  private static boolean inside(double[] p,double[] a,double[] b){
   return cross(a,b,p)>=-EPS;
  }
